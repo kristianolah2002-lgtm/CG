@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your booking – CapturaGo</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="page-simple">
+<nav class="simple-nav">
+  <a href="/" class="logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</a>
+  <a href="/" class="back">← Home</a>
+</nav>
+<main class="center-page">
+  <div class="narrow-card booking-result" id="result">
+    <h1>One moment…</h1>
+    <p class="muted">Checking your booking.</p>
+  </div>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="/vendor/supabase.umd.js"></script>
+<script src="/supabase.js"></script>
+<script src="/site.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const box = document.getElementById('result');
+  const params = new URLSearchParams(location.search);
+  const id = params.get('b') || '';
+  const outcome = params.get('s');
+  const money = (c) => `€${(c / 100).toFixed(2)}`;
+  const show = (title, html) => { box.innerHTML = `<h1>${title}</h1>${html}`; };
+  const actions = `<div class="result-actions"><a class="primary-btn" href="/dashboard.html#bookings" style="text-decoration:none">View my bookings</a><a class="secondary-btn" href="/" style="text-decoration:none">Back to CapturaGo</a></div>`;
+
+  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+    show('Booking not found', `<p class="muted">This link looks incomplete.</p>${actions}`);
+    return;
+  }
+  if (outcome === 'cancel') {
+    show('Payment cancelled', `<p class="muted">No money was taken. You can book again whenever you're ready.</p>${actions}`);
+    return;
+  }
+
+  const user = await CG.auth.getUser();
+  if (!user) {
+    show('Please sign in', `<p class="muted">Sign in on the homepage to see your booking.</p>${actions}`);
+    return;
+  }
+
+  // The payment confirmation from Stripe can arrive a few seconds after you land here.
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const { data } = await CG.bookings.get(id);
+    if (data && data.status !== 'pending_payment') {
+      const who = data.photographers ? `${esc(data.photographers.name)} (${esc(data.photographers.city)})` : 'your creator';
+      if (['paid', 'confirmed'].includes(data.status)) {
+        show('Booking received 🎉', `
+          <p><strong>${esc(data.package_name)}</strong> with ${who}<br/>on <strong>${esc(data.shoot_date)}</strong></p>
+          <p class="muted">You paid ${money(data.total_cents)}. Your payment is held safely by CapturaGo and is only released to the creator after your shoot.</p>
+          <ol class="next-steps"><li>The creator confirms your booking (you'll get an email).</li><li>Meet on the day and enjoy your shoot.</li><li>Confirm the shoot happened — the creator gets paid.</li></ol>
+          ${actions}`);
+      } else {
+        show('Booking update', `<p class="muted">Status: <strong>${esc(data.status)}</strong>.</p>${actions}`);
+      }
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  show('Payment processing', `<p class="muted">Your payment is still being confirmed. This can take a minute — you'll receive an email, and the booking will appear in your dashboard.</p>${actions}`);
+});
+</script>
+</body>
+</html>

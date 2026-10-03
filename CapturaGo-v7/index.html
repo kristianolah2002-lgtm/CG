@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CapturaGo – Find Local Photographers, Videographers & Editors Anywhere</title>
+  <meta name="description" content="Going somewhere? Find a local photographer, videographer or editor who knows the best spots in the city. Professionals and talented amateurs. Free to list, protected payments." />
+  <link rel="canonical" href="https://capturago.com/" />
+  <meta name="theme-color" content="#211911" />
+
+  <!-- Social sharing -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="CapturaGo" />
+  <meta property="og:url" content="https://capturago.com/" />
+  <meta property="og:title" content="CapturaGo – Find a creator wherever you're going" />
+  <meta property="og:description" content="Local photographers, videographers and editors who know the best spots. Free to list, protected payments." />
+  <meta property="og:image" content="https://capturago.com/images/og-cover.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Icons -->
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- Self-hosted fonts & libraries (no third-party font requests) -->
+  <link rel="preload" href="fonts/cormorant-garamond-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/cormorant-garamond-latin-300-italic.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="images/CG.webp" as="image" fetchpriority="high" />
+  <link rel="stylesheet" href="fonts/fonts.css" />
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebSite","name":"CapturaGo","url":"https://capturago.com/"}
+  </script>
+</head>
+<body>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- STICKY SEARCH BAR -->
+<div id="stickyBar" class="sticky-bar">
+  <div class="sticky-bar-inner">
+    <a href="/" class="sticky-logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</a>
+    <div class="sticky-search">
+      <input id="stickyCity" type="text" placeholder="Search city or country…" aria-label="Search city or country" />
+      <select id="stickyType" aria-label="Creator type">
+        <option value="">All creators</option>
+        <option value="photo">📷 Photographers</option>
+        <option value="video">🎬 Videographers</option>
+        <option value="edit">✏️ Editors</option>
+      </select>
+      <button id="stickySearchBtn" class="sticky-search-btn">Search</button>
+    </div>
+    <div id="stickyAuth" class="sticky-auth"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="authModal" class="modal" role="dialog" aria-modal="true" aria-label="Sign in or create account">
+  <div class="modal-backdrop" data-close="authModal"></div>
+  <div class="modal-box auth-modal-box">
+    <button class="modal-close" data-close="authModal" aria-label="Close">&times;</button>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="signin">Sign in</button>
+      <button class="auth-tab" data-tab="signup">Create account</button>
+    </div>
+
+    <form id="signInForm" class="auth-form">
+      <h2>Welcome back</h2>
+      <p class="auth-sub">Sign in to your CapturaGo account.</p>
+      <div class="form-row"><label for="siEmail">Email</label><input id="siEmail" type="email" autocomplete="email" placeholder="you@example.com" required /></div>
+      <div class="form-row"><label for="siPassword">Password</label><input id="siPassword" type="password" autocomplete="current-password" placeholder="••••••••" required /></div>
+      <button type="submit" class="primary-btn" style="width:100%;margin-top:4px">Sign in</button>
+      <button type="button" id="forgotBtn" class="link-btn auth-forgot">Forgot password?</button>
+      <p id="signInError" class="auth-error"></p>
+    </form>
+
+    <form id="signUpForm" class="auth-form" style="display:none">
+      <h2>Join CapturaGo</h2>
+      <p class="auth-sub">Free account — save favourites, send inquiries, or list your work.</p>
+      <div class="form-row"><label for="suName">Full name</label><input id="suName" type="text" autocomplete="name" placeholder="Your name" required maxlength="80" /></div>
+      <div class="form-row"><label for="suEmail">Email</label><input id="suEmail" type="email" autocomplete="email" placeholder="you@example.com" required /></div>
+      <div class="form-row"><label for="suPassword">Password</label><input id="suPassword" type="password" autocomplete="new-password" placeholder="min. 8 characters" required minlength="8" /></div>
+      <label class="consent-row">
+        <input type="checkbox" id="suConsent" required />
+        <span>I'm 18 or older and I agree to the <a href="/terms.html" target="_blank">Terms of Service</a> and <a href="/privacy.html" target="_blank">Privacy Policy</a>.</span>
+      </label>
+      <button type="submit" class="primary-btn" style="width:100%;margin-top:4px">Create account</button>
+      <p id="signUpError" class="auth-error"></p>
+      <p id="signUpSuccess" class="auth-success"></p>
+    </form>
+
+    <form id="forgotForm" class="auth-form" style="display:none">
+      <h2>Reset password</h2>
+      <p class="auth-sub">Enter your email and we'll send you a link to set a new password.</p>
+      <div class="form-row"><label for="fpEmail">Email</label><input id="fpEmail" type="email" autocomplete="email" placeholder="you@example.com" required /></div>
+      <button type="submit" class="primary-btn" style="width:100%;margin-top:4px">Send reset link</button>
+      <button type="button" class="link-btn auth-forgot" data-tab-link="signin">← Back to sign in</button>
+      <p id="forgotError" class="auth-error"></p>
+      <p id="forgotSuccess" class="auth-success"></p>
+    </form>
+  </div>
+</div>
+
+<!-- CREATOR DETAIL MODAL -->
+<div id="detailModal" class="modal" role="dialog" aria-modal="true" aria-label="Creator profile">
+  <div class="modal-backdrop" data-close="detailModal"></div>
+  <div class="modal-box modal-box-wide">
+    <button class="modal-close" data-close="detailModal" aria-label="Close">&times;</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- INQUIRY MODAL -->
+<div id="inquiryModal" class="modal" role="dialog" aria-modal="true" aria-label="Send an inquiry">
+  <div class="modal-backdrop" data-close="inquiryModal"></div>
+  <div class="modal-box" style="max-width:540px">
+    <button class="modal-close" data-close="inquiryModal" aria-label="Close">&times;</button>
+    <div class="modal-body" id="inquiryContent"></div>
+  </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div id="bookModal" class="modal" role="dialog" aria-modal="true" aria-label="Book a shoot">
+  <div class="modal-backdrop" data-close="bookModal"></div>
+  <div class="modal-box" style="max-width:540px">
+    <button class="modal-close" data-close="bookModal" aria-label="Close">&times;</button>
+    <div class="modal-body" id="bookContent"></div>
+  </div>
+</div>
+
+<!-- ═════════════ HERO ═════════════ -->
+<header id="top" class="hero page-section">
+  <div class="hero-grain"></div>
+
+  <nav class="nav" aria-label="Main">
+    <a href="/" class="logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</a>
+    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    <div class="nav-links">
+      <a href="#discover-section">Destinations</a>
+      <a href="#how-section">How it works</a>
+      <a href="#portfolio-section">Creators</a>
+      <a href="#map-section">Map</a>
+      <a href="#join-section">List yourself</a>
+    </div>
+    <div id="navAuth" class="nav-auth"></div>
+  </nav>
+
+  <div class="hero-content animate-hero">
+    <p class="hero-kicker">Photographers · Videographers · Editors · Local Guides</p>
+    <h1>Find a creator<br/><em>wherever you're going.</em></h1>
+    <p class="hero-subtitle">
+      Going to Thailand? Japan? Paris? Find a local creator who knows the golden-hour spots,
+      speaks the language, and gets the shot — professional or not.
+    </p>
+
+    <div class="hero-search">
+      <div class="hero-search-inner">
+        <div class="hero-search-field">
+          <span class="hero-search-icon" aria-hidden="true">📍</span>
+          <input id="heroDestination" type="text" placeholder="Where are you going?" autocomplete="off" aria-label="Destination" />
+        </div>
+        <div class="hero-search-divider"></div>
+        <div class="hero-search-field hero-search-field-select">
+          <span class="hero-search-icon" aria-hidden="true">🎬</span>
+          <select id="heroService" aria-label="Service">
+            <option value="">Any service</option>
+            <option value="photo">Photography</option>
+            <option value="video">Videography</option>
+            <option value="edit">Editing</option>
+          </select>
+        </div>
+        <button id="heroSearchBtn" class="hero-search-btn">Search</button>
+      </div>
+    </div>
+
+    <div class="hero-meta">
+      <span>✓ Pro & amateur creators</span>
+      <span>✓ They know the best spots</span>
+      <span>✓ Protected payments</span>
+    </div>
+  </div>
+
+  <div class="location-strip-wrap" aria-hidden="true">
+    <div class="location-strip">
+      <span class="location-pill">🌅 Santorini sunset cliff</span>
+      <span class="location-pill">🎋 Kyoto bamboo grove at dawn</span>
+      <span class="location-pill">🏙️ Brooklyn rooftop</span>
+      <span class="location-pill">🌊 Uluwatu clifftop, Bali</span>
+      <span class="location-pill">🏔️ Aletsch Glacier</span>
+      <span class="location-pill">🕌 Chefchaouen blue alley</span>
+      <span class="location-pill">🌿 Ubud rice terrace at 5am</span>
+      <span class="location-pill">🎠 Palais Royal arches, Paris</span>
+      <span class="location-pill">🏜️ Sahara dunes at sunrise</span>
+      <span class="location-pill">🎈 Cappadocia balloon fields</span>
+      <span class="location-pill">🌅 Santorini sunset cliff</span>
+      <span class="location-pill">🎋 Kyoto bamboo grove at dawn</span>
+      <span class="location-pill">🏙️ Brooklyn rooftop</span>
+      <span class="location-pill">🌊 Uluwatu clifftop, Bali</span>
+      <span class="location-pill">🏔️ Aletsch Glacier</span>
+      <span class="location-pill">🕌 Chefchaouen blue alley</span>
+      <span class="location-pill">🌿 Ubud rice terrace at 5am</span>
+      <span class="location-pill">🎠 Palais Royal arches, Paris</span>
+      <span class="location-pill">🏜️ Sahara dunes at sunrise</span>
+      <span class="location-pill">🎈 Cappadocia balloon fields</span>
+    </div>
+  </div>
+
+  <div class="hero-scroll-hint"><span>Scroll to explore</span><div class="scroll-arrow"></div></div>
+</header>
+
+<!-- VALUE BAR (all statements are true — no invented numbers) -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-item"><span class="stat-num">100%</span><span class="stat-label">Of the price goes to creators</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><span class="stat-num">€0</span><span class="stat-label">To list yourself</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><span class="stat-num">3</span><span class="stat-label">Creator types</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><span class="stat-num">🗺️</span><span class="stat-label">Local spots included</span></div>
+  </div>
+</div>
+
+<!-- RECENTLY JOINED (real data only — hidden until there are 3+ real creators) -->
+<div class="ticker-section" id="tickerSection" hidden>
+  <div class="ticker-label">New</div>
+  <div class="ticker-track"><div class="ticker-inner" id="tickerInner"></div></div>
+</div>
+
+<!-- DESTINATIONS -->
+<section id="discover-section" class="section section-destinations">
+  <div class="section-inner">
+    <div class="section-eyebrow reveal">Where to next?</div>
+    <h2 class="reveal">Popular destinations</h2>
+    <p class="section-lead reveal">Pick a destination to see which creators are there.</p>
+    <div class="destinations-scroll reveal">
+      <div class="destinations-track" id="destTrack"></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-section" class="section section-how">
+  <div class="section-inner">
+    <div class="section-eyebrow reveal">The idea</div>
+    <h2 class="reveal">More than just a photographer.<br/><em>A local with a camera.</em></h2>
+    <p class="section-lead reveal">Every creator lives where they shoot. They know the golden-hour rooftops, the hidden alleyways, the streets tourists never find.</p>
+    <div class="how-grid">
+      <article class="how-card reveal"><div class="how-number">01</div><h3>Search your destination</h3><p>Type any city in the world. Browse the creators who live there, their work and their favourite local spots — before you land.</p></article>
+      <article class="how-card reveal"><div class="how-number">02</div><h3>Pick your style</h3><p>Filter by vibe — dark &amp; moody, bright &amp; airy, cinematic, film. Professionals and talented amateurs side by side.</p></article>
+      <article class="how-card reveal"><div class="how-number">03</div><h3>Shots + local knowledge</h3><p>Message them directly. Agree on price and plan together. They shoot, edit if needed, and show you the spots they love.</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- CREATORS -->
+<section id="portfolio-section" class="section section-portfolio page-section">
+  <div class="section-inner">
+    <div class="section-eyebrow reveal">Browse creators</div>
+    <h2 class="reveal">Creators around the world</h2>
+    <p class="section-lead reveal">Click any card for the full profile, local spots and reviews — then send a direct inquiry.</p>
+
+    <div class="ai-match reveal" id="aiMatch">
+      <div class="ai-match-head">
+        <span class="ai-badge">✦ AI match</span>
+        <h3>Describe your shoot — we'll find your creator</h3>
+      </div>
+      <form id="aiForm" class="ai-form">
+        <label for="aiQuery" class="sr-only">Describe your shoot</label>
+        <textarea id="aiQuery" rows="2" maxlength="500" placeholder="e.g. Surprise proposal in Kyoto next April, natural and cinematic, someone who speaks English and knows quiet spots"></textarea>
+        <button type="submit" class="primary-btn" id="aiBtn">Find my match</button>
+      </form>
+      <p class="form-note">Your description is processed by our AI provider to rank creators. Please don't include personal details.</p>
+      <div id="aiStatus" class="ai-status" hidden></div>
+    </div>
+
+    <div class="vibe-filter reveal">
+      <div class="vibe-label">Filter by vibe</div>
+      <div class="vibe-pills">
+        <button class="vibe-pill active" data-vibe="">✦ All vibes</button>
+        <button class="vibe-pill" data-vibe="moody">🌑 Dark &amp; moody</button>
+        <button class="vibe-pill" data-vibe="airy">☀️ Bright &amp; airy</button>
+        <button class="vibe-pill" data-vibe="film">🎞️ Film / vintage</button>
+        <button class="vibe-pill" data-vibe="cinematic">🎬 Cinematic</button>
+      </div>
+    </div>
+
+    <div class="filters-v2 reveal">
+      <div class="filter-pills">
+        <button class="pill active" data-type="">All creators</button>
+        <button class="pill" data-type="photo">📷 Photographers</button>
+        <button class="pill" data-type="video">🎬 Videographers</button>
+        <button class="pill" data-type="edit">✏️ Editors</button>
+      </div>
+      <div class="filter-inputs">
+        <div class="filter-group">
+          <div class="input-with-btn">
+            <input id="cityFilter" type="text" placeholder="Search city or country…" aria-label="City or country" />
+            <button id="geoBtn" class="geo-btn" title="Use my location" aria-label="Use my location">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="filter-group" style="min-width:150px">
+          <select id="priceFilter" aria-label="Price">
+            <option value="">Any price</option>
+            <option value="budget">Budget (under €80)</option>
+            <option value="mid">Mid (€80–€250)</option>
+            <option value="premium">Premium (€250+)</option>
+          </select>
+        </div>
+        <label class="available-toggle-wrap">
+          <input type="checkbox" id="availableFilter" />
+          <span class="avail-track"></span>
+          <span class="avail-label">Available now</span>
+        </label>
+        <button id="clearFilters" class="secondary-btn" style="padding:10px 16px;flex-shrink:0">Clear filters</button>
+      </div>
+    </div>
+
+    <div id="exampleNotice" class="example-notice" hidden>
+      <strong>We're just launching.</strong> Cards marked <span class="example-tag">Example</span> show how CapturaGo profiles look — they aren't real creators and can't be booked.
+      <a href="#join-section">Be one of the first real creators →</a>
+    </div>
+
+    <div id="portfolioGrid" class="portfolio-grid" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- MAP -->
+<section id="map-section" class="section section-map page-section">
+  <div class="section-inner">
+    <div class="section-eyebrow reveal">Map</div>
+    <h2 class="reveal">See creators near any destination</h2>
+    <p class="section-lead reveal">Pins show where creators are based. Click a pin to open their profile.</p>
+    <div class="map-layout reveal">
+      <div id="map" role="region" aria-label="Map of creators"></div>
+      <div class="map-list">
+        <h3>In this search <span id="resultCount" class="result-count"></span></h3>
+        <ul id="mapResults" class="map-results-list"></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY CAPTURAGO (replaces invented testimonials) -->
+<section class="section section-testimonials">
+  <div class="section-inner">
+    <div class="section-eyebrow reveal">Why CapturaGo</div>
+    <h2 class="reveal">Built for travellers <em>and</em> creators</h2>
+    <div class="testimonials-grid">
+      <div class="testimonial-card reveal why-card">
+        <div class="why-icon">✈️</div>
+        <h3>For travellers</h3>
+        <p>Skip the tourist-trap photo spots. Book someone who lives there, knows where the light is best and can show you places you'd never find alone.</p>
+      </div>
+      <div class="testimonial-card reveal why-card">
+        <div class="why-icon">📷</div>
+        <h3>For creators</h3>
+        <p>Turn your eye and your local knowledge into income. You don't need a studio — just talent, a camera and a love for your city.</p>
+      </div>
+      <div class="testimonial-card reveal why-card">
+        <div class="why-icon">🤝</div>
+        <h3>Our promise</h3>
+        <p>Creators keep 100% of their price. Travellers pay securely and the money is only released after the shoot happens. Reviews come only from signed-in users.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- JOIN -->
+<section id="join-section" class="section section-join">
+  <div class="section-inner">
+    <div class="join-hero reveal">
+      <div class="section-eyebrow">For creators</div>
+      <h2>Anyone with an eye can join.</h2>
+      <p class="section-lead">You don't need a professional camera. If you love your city, know the spots and can make people look great — CapturaGo is for you.</p>
+      <div class="join-who">
+        <div class="join-who-card"><span class="join-who-icon">🎓</span><strong>Photography students</strong><span>Build your portfolio and earn your first income.</span></div>
+        <div class="join-who-card"><span class="join-who-icon">✈️</span><strong>Expats & travellers</strong><span>You know the city. Now share it and earn.</span></div>
+        <div class="join-who-card"><span class="join-who-icon">👔</span><strong>Professionals</strong><span>Global reach, protected bookings, keep 100% of your price.</span></div>
+        <div class="join-who-card"><span class="join-who-icon">📱</span><strong>Social media creators</strong><span>You already shoot. Now monetise your aesthetic.</span></div>
+      </div>
+    </div>
+
+    <div class="add-layout">
+      <div class="add-text reveal">
+        <h3>List yourself for free</h3>
+        <ul class="add-benefits">
+          <li><span class="benefit-icon">📍</span> Appear on the map and in destination searches.</li>
+          <li><span class="benefit-icon">🗺️</span> Share your favourite local spots — your superpower.</li>
+          <li><span class="benefit-icon">🎬</span> Offer shooting, editing, location guiding — or all three.</li>
+          <li><span class="benefit-icon">🎨</span> Tag your aesthetic so the right clients find you.</li>
+          <li><span class="benefit-icon">💬</span> Inquiries come straight to your inbox and dashboard.</li>
+          <li><span class="benefit-icon">💳</span> Sell packages with protected online payment — you keep 100% of your price.</li>
+          <li><span class="benefit-icon">✏️</span> Edit or delete your listing anytime from your dashboard.</li>
+        </ul>
+      </div>
+
+      <form id="addForm" class="add-form reveal" novalidate>
+        <div id="addFormAuthGate" class="add-form-gate" hidden>
+          <p>Create a free account first — it takes 30 seconds.</p>
+          <button type="button" id="addFormSignIn" class="primary-btn">Sign in or create account</button>
+        </div>
+        <div id="addFormHasListing" class="add-form-gate" hidden>
+          <p>You already have a listing. Edit it anytime in your dashboard.</p>
+          <a href="/dashboard.html" class="primary-btn" style="text-decoration:none;display:inline-block">Open my dashboard</a>
+        </div>
+
+        <div id="addFormFields" hidden>
+          <div class="form-row"><label for="nameInput">Name / creator name *</label><input id="nameInput" type="text" required maxlength="80" placeholder="e.g. Marco Rossi or @marco.shoots" /></div>
+          <div class="form-row"><label for="cityInput">Your city *</label><input id="cityInput" type="text" required maxlength="80" placeholder="e.g. Bangkok, Thailand" /></div>
+          <div class="form-row"><label>What do you offer? *</label>
+            <div class="service-checks">
+              <label class="service-check-label"><input type="checkbox" name="services" value="photo" /> 📷 Photography</label>
+              <label class="service-check-label"><input type="checkbox" name="services" value="video" /> 🎬 Videography</label>
+              <label class="service-check-label"><input type="checkbox" name="services" value="edit" /> ✏️ Editing</label>
+              <label class="service-check-label"><input type="checkbox" name="services" value="guide" /> 🗺️ Location guide</label>
+            </div>
+          </div>
+          <div class="form-row"><label>Your aesthetic vibe</label>
+            <div class="service-checks">
+              <label class="service-check-label"><input type="checkbox" name="vibes" value="moody" /> 🌑 Dark &amp; moody</label>
+              <label class="service-check-label"><input type="checkbox" name="vibes" value="airy" /> ☀️ Bright &amp; airy</label>
+              <label class="service-check-label"><input type="checkbox" name="vibes" value="film" /> 🎞️ Film / vintage</label>
+              <label class="service-check-label"><input type="checkbox" name="vibes" value="cinematic" /> 🎬 Cinematic</label>
+            </div>
+          </div>
+          <div class="form-row-split">
+            <div class="form-row"><label for="priceInput">Starting price</label>
+              <select id="priceInput"><option value="budget">Under €80</option><option value="mid" selected>€80–€250</option><option value="premium">€250+</option></select>
+            </div>
+            <div class="form-row"><label for="levelInput">Experience</label>
+              <select id="levelInput"><option value="enthusiast">Enthusiast</option><option value="semipro" selected>Semi-pro</option><option value="pro">Professional</option></select>
+            </div>
+          </div>
+          <div class="form-row"><label for="emailInput">Email for inquiries *</label><input id="emailInput" type="email" required placeholder="you@example.com" /></div>
+          <div class="form-row"><label for="portfolioInput">Portfolio / Instagram link *</label><input id="portfolioInput" type="url" required placeholder="https://instagram.com/yourhandle" /></div>
+          <div class="form-row"><label for="langInput">Languages you speak</label><input id="langInput" type="text" maxlength="120" placeholder="e.g. English, Slovak, Spanish" /></div>
+          <div class="form-row">
+            <label class="service-check-label" style="font-size:.86rem;text-transform:none;letter-spacing:0">
+              <input type="checkbox" id="travelInput" /> 🌍 I'm available to travel outside my city
+            </label>
+          </div>
+          <div class="form-row"><label for="coverImageInput">Cover photo (your best shot — JPG, PNG or WebP, max 5 MB)</label>
+            <input id="coverImageInput" type="file" accept="image/jpeg,image/png,image/webp" class="file-input" />
+            <div id="coverPreview" class="cover-preview"></div>
+          </div>
+          <div class="form-row"><label for="bioInput">About you</label>
+            <textarea id="bioInput" rows="3" maxlength="300" placeholder="What do you shoot? What makes your style unique? What do you love about your city?"></textarea>
+            <div class="char-counter"><span id="charCount">0</span>/300</div>
+          </div>
+          <div class="form-row">
+            <label>Your favourite local spots (optional, max 8)</label>
+            <div id="spotsContainer"></div>
+            <button type="button" id="addSpotBtn" class="secondary-btn" style="margin-top:8px;padding:8px 16px;font-size:.84rem">+ Add a local spot</button>
+          </div>
+          <p class="form-note">Your listing (name, city, photo, description, links and spots) will be public. Your email is used only to deliver inquiries — see our <a href="/privacy.html" target="_blank">Privacy Policy</a>.</p>
+          <button type="submit" class="primary-btn form-submit-btn">List myself for free</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</div>
+    <p class="footer-tagline">Creators everywhere. Stories anywhere.</p>
+    <div class="footer-social" id="footerSocial"></div>
+    <div class="footer-links">
+      <a href="mailto:hello@capturago.com">hello@capturago.com</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms of Service</a>
+      <a href="/dashboard.html">Creator dashboard</a>
+    </div>
+    <p>© <span id="year">2026</span> CapturaGo. Creators keep 100%. No gatekeeping. Just talent.</p>
+  </div>
+</footer>
+
+<!-- STORAGE NOTICE -->
+<div id="cookieNotice" class="cookie-notice" role="region" aria-label="Storage notice" hidden>
+  <p>We use only essential browser storage to keep you signed in and remember this notice. No advertising or tracking cookies. <a href="/privacy.html#storage">Learn more</a></p>
+  <button id="cookieOk" class="primary-btn">OK</button>
+</div>
+
+<script src="vendor/supabase.umd.js"></script>
+<script src="supabase.js"></script>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="site.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

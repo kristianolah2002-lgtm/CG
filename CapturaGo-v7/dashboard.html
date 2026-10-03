@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Creator dashboard – CapturaGo</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="fonts/fonts.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body class="dash-body">
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<aside class="dash-sidebar" id="dashSidebar" hidden>
+  <a href="/" class="dash-logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</a>
+  <nav class="dash-nav">
+    <button class="dash-nav-item active" data-panel="overview">📊 Overview</button>
+    <button class="dash-nav-item" data-panel="listing">🖼 My listing</button>
+    <button class="dash-nav-item" data-panel="bookings">📅 Bookings <span id="bookingBadge" class="unread-badge" hidden></span></button>
+    <button class="dash-nav-item" data-panel="payments">💳 Payments</button>
+    <button class="dash-nav-item" data-panel="boost">🚀 Boost</button>
+    <button class="dash-nav-item" data-panel="inquiries">💬 Inquiries <span id="unreadBadge" class="unread-badge" hidden></span></button>
+    <button class="dash-nav-item" data-panel="reviews">⭐ Reviews</button>
+  </nav>
+  <div class="dash-sidebar-footer">
+    <a href="/" class="dash-back-link">← Back to site</a>
+    <button id="signOutBtn" class="dash-signout">Sign out</button>
+  </div>
+</aside>
+
+<main class="dash-main">
+
+  <!-- Sign-in gate -->
+  <div id="authGate" class="auth-gate" hidden>
+    <div class="auth-gate-box">
+      <div class="dash-logo" style="justify-content:center"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</div>
+      <h2>Creator dashboard</h2>
+      <p>Sign in to manage your listing, read inquiries and see your reviews.</p>
+      <form id="dashSignInForm">
+        <div class="form-row"><label for="dsEmail">Email</label><input id="dsEmail" type="email" autocomplete="email" required /></div>
+        <div class="form-row"><label for="dsPassword">Password</label><input id="dsPassword" type="password" autocomplete="current-password" required /></div>
+        <button type="submit" class="primary-btn" style="width:100%;margin-top:8px">Sign in</button>
+        <p id="dsError" class="auth-error"></p>
+      </form>
+      <p style="margin-top:16px;font-size:.84rem;color:var(--text-dim)">No account yet? <a href="/#join-section">Create one on the homepage →</a><br/>Forgot your password? Use "Forgot password?" in the sign-in window on the homepage.</p>
+    </div>
+  </div>
+
+  <div id="dashContent" hidden>
+
+    <!-- OVERVIEW -->
+    <section class="dash-panel" data-panel-id="overview">
+      <h1 class="dash-title">Hi <span id="helloName"></span> 👋</h1>
+      <div id="noListingMsg" class="no-listing-msg" hidden>
+        You don't have a listing yet. <button class="link-btn" data-goto="listing">Create your listing →</button>
+      </div>
+      <div id="bookableChecklist" class="checklist" hidden></div>
+      <div id="overviewWithListing" hidden>
+        <div class="dash-stats-grid">
+          <div class="dash-stat-card"><div class="dash-stat-value" id="statViews">0</div><div class="dash-stat-label">Profile views</div></div>
+          <div class="dash-stat-card"><div class="dash-stat-value" id="statInquiries">0</div><div class="dash-stat-label">Inquiries</div></div>
+          <div class="dash-stat-card"><div class="dash-stat-value" id="statRating">–</div><div class="dash-stat-label">Rating</div></div>
+          <div class="dash-stat-card"><div class="dash-stat-value" id="statReviews">0</div><div class="dash-stat-label">Reviews</div></div>
+        </div>
+        <div class="dash-availability-row">
+          <span>Show me as available:</span>
+          <label class="toggle-switch"><input type="checkbox" id="availabilityToggle" /><span class="toggle-track"></span></label>
+          <span id="availLabel"></span>
+        </div>
+        <div class="listing-preview-card">
+          <img id="previewImg" src="images/default.jpg" alt="" class="cover-preview-img" style="height:220px;margin:0 0 14px" onerror="this.onerror=null;this.src='images/default.jpg'" />
+          <h3 id="previewName"></h3>
+          <p id="previewCity" class="muted" style="font-size:.88rem"></p>
+          <p id="previewDesc" class="muted" style="font-size:.88rem;margin-top:8px;white-space:pre-line"></p>
+          <p id="noMapWarning" class="auth-error" hidden>⚠ We couldn't find your city on the map, so you won't appear as a pin. Edit your city (e.g. "Kyoto, Japan") in My listing.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- LISTING -->
+    <section class="dash-panel" data-panel-id="listing" hidden>
+      <h1 class="dash-title" id="listingTitle">My listing</h1>
+      <form id="listingForm" class="add-form" novalidate>
+        <div class="form-row"><label for="elName">Name / creator name *</label><input id="elName" type="text" maxlength="80" required /></div>
+        <div class="form-row"><label for="elCity">City *</label><input id="elCity" type="text" maxlength="80" required placeholder="e.g. Kyoto, Japan" /></div>
+        <div class="form-row"><label>What do you offer? *</label>
+          <div class="service-checks">
+            <label class="service-check-label"><input type="checkbox" name="elServices" value="photo" /> 📷 Photography</label>
+            <label class="service-check-label"><input type="checkbox" name="elServices" value="video" /> 🎬 Videography</label>
+            <label class="service-check-label"><input type="checkbox" name="elServices" value="edit" /> ✏️ Editing</label>
+            <label class="service-check-label"><input type="checkbox" name="elServices" value="guide" /> 🗺️ Location guide</label>
+          </div>
+        </div>
+        <div class="form-row"><label>Your aesthetic vibe</label>
+          <div class="service-checks">
+            <label class="service-check-label"><input type="checkbox" name="elVibes" value="moody" /> 🌑 Dark &amp; moody</label>
+            <label class="service-check-label"><input type="checkbox" name="elVibes" value="airy" /> ☀️ Bright &amp; airy</label>
+            <label class="service-check-label"><input type="checkbox" name="elVibes" value="film" /> 🎞️ Film / vintage</label>
+            <label class="service-check-label"><input type="checkbox" name="elVibes" value="cinematic" /> 🎬 Cinematic</label>
+          </div>
+        </div>
+        <div class="form-row-split">
+          <div class="form-row"><label for="elPrice">Starting price</label>
+            <select id="elPrice"><option value="budget">Under €80</option><option value="mid">€80–€250</option><option value="premium">€250+</option></select></div>
+          <div class="form-row"><label for="elLevel">Experience</label>
+            <select id="elLevel"><option value="enthusiast">Enthusiast</option><option value="semipro">Semi-pro</option><option value="pro">Professional</option></select></div>
+        </div>
+        <div class="form-row"><label for="elEmail">Email for inquiries *</label><input id="elEmail" type="email" required /></div>
+        <div class="form-row"><label for="elPortfolio">Portfolio / Instagram link *</label><input id="elPortfolio" type="url" required placeholder="https://" /></div>
+        <div class="form-row"><label for="elLang">Languages</label><input id="elLang" type="text" maxlength="120" /></div>
+        <div class="form-row"><label class="service-check-label" style="text-transform:none;letter-spacing:0"><input type="checkbox" id="elTravel" /> 🌍 Available to travel outside my city</label></div>
+        <div class="form-row"><label for="elCover">Cover photo (JPG, PNG or WebP, max 5 MB)</label>
+          <input id="elCover" type="file" accept="image/jpeg,image/png,image/webp" class="file-input" />
+          <div id="elCoverPreview" class="cover-preview"></div>
+        </div>
+        <div class="form-row"><label for="elBio">About you</label>
+          <textarea id="elBio" rows="4" maxlength="300"></textarea>
+          <div class="char-counter"><span id="elCharCount">0</span>/300</div>
+        </div>
+        <div class="form-row"><label>Local spots (max 8)</label>
+          <div id="elSpots"></div>
+          <button type="button" id="elAddSpot" class="secondary-btn" style="margin-top:8px;padding:8px 16px;font-size:.84rem">+ Add a local spot</button>
+        </div>
+        <div class="form-row"><label>Packages travellers can book (max 5)</label>
+          <p class="form-note">Set a clear price for each package. You keep 100% of it — travellers pay a small service fee on top.</p>
+          <div id="elPackages"></div>
+          <button type="button" id="elAddPackage" class="secondary-btn" style="margin-top:8px;padding:8px 16px;font-size:.84rem">+ Add a package</button>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+          <button type="submit" class="primary-btn" id="elSave">Save listing</button>
+          <button type="button" id="deleteListingBtn" class="danger-btn" hidden>Delete listing</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- BOOKINGS -->
+    <section class="dash-panel" data-panel-id="bookings" hidden>
+      <h1 class="dash-title">Bookings</h1>
+      <p class="muted" style="font-size:.9rem;margin-bottom:24px">Shoots you booked as a traveller, and bookings travellers made with you.</p>
+      <div id="bookingsList"></div>
+    </section>
+
+    <!-- PAYMENTS -->
+    <section class="dash-panel" data-panel-id="payments" hidden>
+      <h1 class="dash-title">Payments &amp; payouts</h1>
+      <div id="paymentsBox" class="dash-card"></div>
+    </section>
+
+    <!-- BOOST -->
+    <section class="dash-panel" data-panel-id="boost" hidden>
+      <h1 class="dash-title">Boost your listing</h1>
+      <div id="boostBox" class="dash-card"></div>
+    </section>
+
+    <!-- INQUIRIES -->
+    <section class="dash-panel" data-panel-id="inquiries" hidden>
+      <h1 class="dash-title">Inquiries</h1>
+      <p class="muted" style="font-size:.9rem;margin-bottom:24px">Messages from travellers. Reply by email — reply fast, clients often contact several creators.</p>
+      <div id="inquiriesList"></div>
+    </section>
+
+    <!-- REVIEWS -->
+    <section class="dash-panel" data-panel-id="reviews" hidden>
+      <h1 class="dash-title">Reviews</h1>
+      <div id="reviewsList"></div>
+    </section>
+  </div>
+</main>
+
+<script src="vendor/supabase.umd.js"></script>
+<script src="supabase.js"></script>
+<script src="site.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>
