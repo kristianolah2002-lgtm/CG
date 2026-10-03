@@ -5,10 +5,18 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = (id) => document.getElementById(id);
-  const SERVICE_LABELS = { photo: 'Photography', video: 'Videography', edit: 'Editing', guide: 'Location guide' };
+  const { SERVICES, VIBES, OCCASIONS, SERVICE_LABELS, VIBE_LABELS } = CG_CATS;
   const PRICE_LABELS = { budget: 'Under €80', mid: '€80–€250', premium: '€250+' };
-  const VIBE_LABELS = { moody: 'Dark & moody', airy: 'Bright & airy', film: 'Film / vintage', cinematic: 'Cinematic' };
   const MAX_SPOTS = 8;
+
+  CG_CATS.fill('elServicesChecks', CG_CATS.checkboxes(SERVICES, 'elServices'));
+  CG_CATS.fill('elVibesChecks', CG_CATS.checkboxes(VIBES, 'elVibes'));
+  CG_CATS.fill('elOccasionsChecks', CG_CATS.checkboxes(OCCASIONS, 'elOccasions'));
+  const syncDroneRow = () => {
+    const on = !!document.querySelector('input[name="elServices"][value="drone"]:checked');
+    $('elDroneCertRow').hidden = !on;
+  };
+  document.querySelectorAll('input[name="elServices"]').forEach(i => i.addEventListener('change', syncDroneRow));
 
   let user = null;
   let listing = null;
@@ -165,6 +173,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('elCharCount').textContent = $('elBio').value.length;
     setChecks('elServices', l.services || (l.type ? [l.type] : []));
     setChecks('elVibes', l.vibes || []);
+    setChecks('elOccasions', l.occasions || []);
+    $('elDroneCert').checked = !!l.drone_certified;
+    syncDroneRow();
     $('elSpots').innerHTML = '';
     spotsOf(l).forEach(s => addSpotRow(typeof s === 'string' ? { name: s } : s));
     $('elPackages').innerHTML = '';
@@ -189,14 +200,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const city = $('elCity').value.trim();
     const email = $('elEmail').value.trim();
     const portfolio = $('elPortfolio').value.trim();
-    const services = getChecks('elServices');
-    const vibes = getChecks('elVibes');
+    const services = CG_CATS.cleanServices(getChecks('elServices'));
+    const vibes = CG_CATS.cleanVibes(getChecks('elVibes'));
+    const occasions = CG_CATS.cleanOccasions(getChecks('elOccasions'));
+    const droneCertified = services.includes('drone') && $('elDroneCert').checked;
     const spots = [...document.querySelectorAll('#elSpots .spot-entry')]
       .map(el => ({ name: el.querySelector('.spot-name').value.trim(), desc: el.querySelector('.spot-desc').value.trim() }))
       .filter(s => s.name);
 
     if (!name || !city || !email || !portfolio) return showToast('Please fill in all fields marked *.', 'error');
     if (!services.length) return showToast('Select at least one service.', 'error');
+    if (services.includes('drone') && !droneCertified) return showToast('To offer drone shoots, confirm you hold the required drone certificate.', 'error', 6000);
     const packages = [];
     for (const row of document.querySelectorAll('#elPackages .package-entry')) {
       const name = row.querySelector('.pk-name').value.trim();
@@ -238,7 +252,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.textContent = 'Saving…';
       const payload = {
         name, city, coords, email,
-        type: services[0], services, vibes,
+        type: services[0], services, vibes, occasions,
+        drone_certified: droneCertified,
         specialties: services.map(s => SERVICE_LABELS[s]).join(', '),
         tags: vibes.map(v => VIBE_LABELS[v]),
         description: $('elBio').value.trim() || null,
@@ -256,11 +271,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? CG.photographers.update(listing.id, pl)
         : CG.photographers.insert({ ...pl, user_id: user.id });
       let res = await save(payload);
+      let packagesSkipped = false;
       if (res.error && /packages/i.test(res.error.message || '')) {
         // Database not updated yet (payments-patch.sql) — save everything except packages
         const { packages: _skip, ...rest } = payload;
         res = await save(rest);
-        if (!res.error) showToast('Saved — but packages need the latest database update (payments-patch.sql).', 'info', 7000);
+        packagesSkipped = !res.error;
       }
 
       if (res.error) { showToast('Could not save: ' + res.error.message, 'error', 6000); return; }
@@ -268,6 +284,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderOverview();
       fillForm();
       if (!coords) showToast("Saved — but we couldn't find that city on the map. Try 'City, Country'.", 'info', 7000);
+      else if (packagesSkipped) showToast('Saved — but packages need the latest database update (payments-patch.sql).', 'info', 7000);
+      else if (res.skipped?.length) showToast('Saved — but occasions and drone details need the latest database update (categories-patch.sql).', 'info', 7000);
       else showToast('Listing saved ✓', 'success');
     } finally {
       btn.disabled = false; btn.textContent = 'Save listing';

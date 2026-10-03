@@ -89,20 +89,19 @@
         <div class="form-row"><label for="elName">Name / creator name *</label><input id="elName" type="text" maxlength="80" required /></div>
         <div class="form-row"><label for="elCity">City *</label><input id="elCity" type="text" maxlength="80" required placeholder="e.g. Kyoto, Japan" /></div>
         <div class="form-row"><label>What do you offer? *</label>
-          <div class="service-checks">
-            <label class="service-check-label"><input type="checkbox" name="elServices" value="photo" /> 📷 Photography</label>
-            <label class="service-check-label"><input type="checkbox" name="elServices" value="video" /> 🎬 Videography</label>
-            <label class="service-check-label"><input type="checkbox" name="elServices" value="edit" /> ✏️ Editing</label>
-            <label class="service-check-label"><input type="checkbox" name="elServices" value="guide" /> 🗺️ Location guide</label>
+          <div class="service-checks" id="elServicesChecks"></div>
+          <div class="drone-cert" id="elDroneCertRow" hidden>
+            <label class="consent-row">
+              <input type="checkbox" id="elDroneCert" />
+              <span>I hold the drone pilot certificate and operator registration required where I fly (in the EU: at least the A1/A3 certificate under EU Regulation 2019/947), and I get any flight permissions needed for each shoot.</span>
+            </label>
           </div>
         </div>
         <div class="form-row"><label>Your aesthetic vibe</label>
-          <div class="service-checks">
-            <label class="service-check-label"><input type="checkbox" name="elVibes" value="moody" /> 🌑 Dark &amp; moody</label>
-            <label class="service-check-label"><input type="checkbox" name="elVibes" value="airy" /> ☀️ Bright &amp; airy</label>
-            <label class="service-check-label"><input type="checkbox" name="elVibes" value="film" /> 🎞️ Film / vintage</label>
-            <label class="service-check-label"><input type="checkbox" name="elVibes" value="cinematic" /> 🎬 Cinematic</label>
-          </div>
+          <div class="service-checks" id="elVibesChecks"></div>
+        </div>
+        <div class="form-row"><label>Who is it for? (occasions you love to shoot)</label>
+          <div class="service-checks" id="elOccasionsChecks"></div>
         </div>
         <div class="form-row-split">
           <div class="form-row"><label for="elPrice">Starting price</label>
@@ -175,6 +174,7 @@
 <script src="vendor/supabase.umd.js"></script>
 <script src="supabase.js"></script>
 <script src="site.js"></script>
+<script src="categories.js"></script>
 <script src="dashboard.js"></script>
 </body>
 </html>
