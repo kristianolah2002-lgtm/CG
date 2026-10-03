@@ -47,7 +47,10 @@ serve(async (req) => {
       photo: "Photography",
       video: "Videography",
       edit: "Photo/Video editing",
-      guide: "Location guide + shoot",
+      phone: "Phone content",
+      event: "Wedding & event content",
+      drone: "Drone",
+      guide: "Local guide",
     }[inquiry.shoot_type] || "Not specified";
 
     // Email to the CREATOR

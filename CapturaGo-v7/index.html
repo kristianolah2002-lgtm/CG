@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CapturaGo – Find Local Photographers, Videographers & Editors Anywhere</title>
-  <meta name="description" content="Going somewhere? Find a local photographer, videographer or editor who knows the best spots in the city. Professionals and talented amateurs. Free to list, protected payments." />
+  <meta name="description" content="Going somewhere? Find a local photographer, videographer, phone content creator, drone pilot or guide who knows the best spots. For trips, proposals, weddings, headshots and more. Free to list, protected payments." />
   <link rel="canonical" href="https://capturago.com/" />
   <meta name="theme-color" content="#211911" />
 
@@ -26,8 +26,8 @@
   <link rel="manifest" href="/site.webmanifest" />
 
   <!-- Self-hosted fonts & libraries (no third-party font requests) -->
-  <link rel="preload" href="fonts/cormorant-garamond-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="fonts/cormorant-garamond-latin-300-italic.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/fraunces-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/fraunces-latin-400-italic.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="images/CG.webp" as="image" fetchpriority="high" />
   <link rel="stylesheet" href="fonts/fonts.css" />
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
@@ -49,9 +49,6 @@
       <input id="stickyCity" type="text" placeholder="Search city or country…" aria-label="Search city or country" />
       <select id="stickyType" aria-label="Creator type">
         <option value="">All creators</option>
-        <option value="photo">📷 Photographers</option>
-        <option value="video">🎬 Videographers</option>
-        <option value="edit">✏️ Editors</option>
       </select>
       <button id="stickySearchBtn" class="sticky-search-btn">Search</button>
     </div>
@@ -151,7 +148,7 @@
   </nav>
 
   <div class="hero-content animate-hero">
-    <p class="hero-kicker">Photographers · Videographers · Editors · Local Guides</p>
+    <p class="hero-kicker">Photographers · Videographers · Phone creators · Drone pilots · Local guides</p>
     <h1>Find a creator<br/><em>wherever you're going.</em></h1>
     <p class="hero-subtitle">
       Going to Thailand? Japan? Paris? Find a local creator who knows the golden-hour spots,
@@ -169,9 +166,6 @@
           <span class="hero-search-icon" aria-hidden="true">🎬</span>
           <select id="heroService" aria-label="Service">
             <option value="">Any service</option>
-            <option value="photo">Photography</option>
-            <option value="video">Videography</option>
-            <option value="edit">Editing</option>
           </select>
         </div>
         <button id="heroSearchBtn" class="hero-search-btn">Search</button>
@@ -220,7 +214,7 @@
     <div class="stat-divider"></div>
     <div class="stat-item"><span class="stat-num">€0</span><span class="stat-label">To list yourself</span></div>
     <div class="stat-divider"></div>
-    <div class="stat-item"><span class="stat-num">3</span><span class="stat-label">Creator types</span></div>
+    <div class="stat-item"><span class="stat-num" id="statCreatorTypes">7</span><span class="stat-label">Creator types</span></div>
     <div class="stat-divider"></div>
     <div class="stat-item"><span class="stat-num">🗺️</span><span class="stat-label">Local spots included</span></div>
   </div>
@@ -252,7 +246,7 @@
     <p class="section-lead reveal">Every creator lives where they shoot. They know the golden-hour rooftops, the hidden alleyways, the streets tourists never find.</p>
     <div class="how-grid">
       <article class="how-card reveal"><div class="how-number">01</div><h3>Search your destination</h3><p>Type any city in the world. Browse the creators who live there, their work and their favourite local spots — before you land.</p></article>
-      <article class="how-card reveal"><div class="how-number">02</div><h3>Pick your style</h3><p>Filter by vibe — dark &amp; moody, bright &amp; airy, cinematic, film. Professionals and talented amateurs side by side.</p></article>
+      <article class="how-card reveal"><div class="how-number">02</div><h3>Pick your style</h3><p>Filter by vibe — golden hour, flash, film, candid, cinematic and more — and by occasion, from proposals to headshots. Professionals and talented amateurs side by side.</p></article>
       <article class="how-card reveal"><div class="how-number">03</div><h3>Shots + local knowledge</h3><p>Message them directly. Agree on price and plan together. They shoot, edit if needed, and show you the spots they love.</p></article>
     </div>
   </div>
@@ -281,21 +275,14 @@
 
     <div class="vibe-filter reveal">
       <div class="vibe-label">Filter by vibe</div>
-      <div class="vibe-pills">
+      <div class="vibe-pills" id="vibePills">
         <button class="vibe-pill active" data-vibe="">✦ All vibes</button>
-        <button class="vibe-pill" data-vibe="moody">🌑 Dark &amp; moody</button>
-        <button class="vibe-pill" data-vibe="airy">☀️ Bright &amp; airy</button>
-        <button class="vibe-pill" data-vibe="film">🎞️ Film / vintage</button>
-        <button class="vibe-pill" data-vibe="cinematic">🎬 Cinematic</button>
       </div>
     </div>
 
     <div class="filters-v2 reveal">
-      <div class="filter-pills">
+      <div class="filter-pills" id="typePills">
         <button class="pill active" data-type="">All creators</button>
-        <button class="pill" data-type="photo">📷 Photographers</button>
-        <button class="pill" data-type="video">🎬 Videographers</button>
-        <button class="pill" data-type="edit">✏️ Editors</button>
       </div>
       <div class="filter-inputs">
         <div class="filter-group">
@@ -305,6 +292,11 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
             </button>
           </div>
+        </div>
+        <div class="filter-group" style="min-width:170px">
+          <select id="occasionFilter" aria-label="Occasion">
+            <option value="">Any occasion</option>
+          </select>
         </div>
         <div class="filter-group" style="min-width:150px">
           <select id="priceFilter" aria-label="Price">
@@ -384,7 +376,7 @@
         <div class="join-who-card"><span class="join-who-icon">🎓</span><strong>Photography students</strong><span>Build your portfolio and earn your first income.</span></div>
         <div class="join-who-card"><span class="join-who-icon">✈️</span><strong>Expats & travellers</strong><span>You know the city. Now share it and earn.</span></div>
         <div class="join-who-card"><span class="join-who-icon">👔</span><strong>Professionals</strong><span>Global reach, protected bookings, keep 100% of your price.</span></div>
-        <div class="join-who-card"><span class="join-who-icon">📱</span><strong>Social media creators</strong><span>You already shoot. Now monetise your aesthetic.</span></div>
+        <div class="join-who-card"><span class="join-who-icon">📱</span><strong>Phone content creators</strong><span>Great Reels on a phone? Travellers and couples will pay for that.</span></div>
       </div>
     </div>
 
@@ -394,8 +386,8 @@
         <ul class="add-benefits">
           <li><span class="benefit-icon">📍</span> Appear on the map and in destination searches.</li>
           <li><span class="benefit-icon">🗺️</span> Share your favourite local spots — your superpower.</li>
-          <li><span class="benefit-icon">🎬</span> Offer shooting, editing, location guiding — or all three.</li>
-          <li><span class="benefit-icon">🎨</span> Tag your aesthetic so the right clients find you.</li>
+          <li><span class="benefit-icon">🎬</span> Offer photo, video, phone content, wedding &amp; event content, drone, editing or guiding — mix and match.</li>
+          <li><span class="benefit-icon">🎨</span> Tag your aesthetic and the occasions you shoot so the right clients find you.</li>
           <li><span class="benefit-icon">💬</span> Inquiries come straight to your inbox and dashboard.</li>
           <li><span class="benefit-icon">💳</span> Sell packages with protected online payment — you keep 100% of your price.</li>
           <li><span class="benefit-icon">✏️</span> Edit or delete your listing anytime from your dashboard.</li>
@@ -416,20 +408,19 @@
           <div class="form-row"><label for="nameInput">Name / creator name *</label><input id="nameInput" type="text" required maxlength="80" placeholder="e.g. Marco Rossi or @marco.shoots" /></div>
           <div class="form-row"><label for="cityInput">Your city *</label><input id="cityInput" type="text" required maxlength="80" placeholder="e.g. Bangkok, Thailand" /></div>
           <div class="form-row"><label>What do you offer? *</label>
-            <div class="service-checks">
-              <label class="service-check-label"><input type="checkbox" name="services" value="photo" /> 📷 Photography</label>
-              <label class="service-check-label"><input type="checkbox" name="services" value="video" /> 🎬 Videography</label>
-              <label class="service-check-label"><input type="checkbox" name="services" value="edit" /> ✏️ Editing</label>
-              <label class="service-check-label"><input type="checkbox" name="services" value="guide" /> 🗺️ Location guide</label>
+            <div class="service-checks" id="servicesChecks"></div>
+            <div class="drone-cert" id="droneCertRow" hidden>
+              <label class="consent-row">
+                <input type="checkbox" id="droneCertInput" />
+                <span>I hold the drone pilot certificate and operator registration required where I fly (in the EU: at least the A1/A3 certificate under EU Regulation 2019/947), and I get any flight permissions needed for each shoot.</span>
+              </label>
             </div>
           </div>
           <div class="form-row"><label>Your aesthetic vibe</label>
-            <div class="service-checks">
-              <label class="service-check-label"><input type="checkbox" name="vibes" value="moody" /> 🌑 Dark &amp; moody</label>
-              <label class="service-check-label"><input type="checkbox" name="vibes" value="airy" /> ☀️ Bright &amp; airy</label>
-              <label class="service-check-label"><input type="checkbox" name="vibes" value="film" /> 🎞️ Film / vintage</label>
-              <label class="service-check-label"><input type="checkbox" name="vibes" value="cinematic" /> 🎬 Cinematic</label>
-            </div>
+            <div class="service-checks" id="vibesChecks"></div>
+          </div>
+          <div class="form-row"><label>Who is it for? (occasions you love to shoot)</label>
+            <div class="service-checks" id="occasionsChecks"></div>
           </div>
           <div class="form-row-split">
             <div class="form-row"><label for="priceInput">Starting price</label>
@@ -493,6 +484,7 @@
 <script src="supabase.js"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="site.js"></script>
+<script src="categories.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

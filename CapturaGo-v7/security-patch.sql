@@ -32,6 +32,8 @@ ALTER TABLE photographers ADD COLUMN IF NOT EXISTS packages         JSONB   DEFA
 ALTER TABLE photographers ADD COLUMN IF NOT EXISTS payouts_enabled  BOOLEAN DEFAULT FALSE;
 ALTER TABLE photographers ADD COLUMN IF NOT EXISTS boosted_until    TIMESTAMPTZ;
 ALTER TABLE photographers ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
+ALTER TABLE photographers ADD COLUMN IF NOT EXISTS occasions        TEXT[]  DEFAULT '{}';
+ALTER TABLE photographers ADD COLUMN IF NOT EXISTS drone_certified  BOOLEAN DEFAULT FALSE;
 
 -- "verified" must be a number 0–3 (older schema used true/false)
 DO $$
@@ -86,12 +88,14 @@ REVOKE INSERT, UPDATE ON photographers FROM anon, authenticated;
 
 GRANT INSERT (user_id, name, city, coords, email, languages, type, services,
               vibes, specialties, level, description, tags, local_spots,
-              portfolio_url, cover_image_url, price, available, travel_available, packages)
+              portfolio_url, cover_image_url, price, available, travel_available, packages,
+              occasions, drone_certified)
   ON photographers TO authenticated;
 
 GRANT UPDATE (name, city, coords, email, languages, type, services,
               vibes, specialties, level, description, tags, local_spots,
-              portfolio_url, cover_image_url, price, available, travel_available, packages)
+              portfolio_url, cover_image_url, price, available, travel_available, packages,
+              occasions, drone_certified)
   ON photographers TO authenticated;
 
 -- ── 3. One listing per account ─────────────────────────────────
@@ -163,7 +167,8 @@ GRANT SELECT (id, user_id, name, city, coords, languages, type, services,
               portfolio_url, cover_image_url, price, available,
               travel_available, rating, reviews_count, views_count,
               verified, featured, created_at, updated_at,
-              packages, payouts_enabled, boosted_until)
+              packages, payouts_enabled, boosted_until,
+              occasions, drone_certified)
   ON photographers TO anon, authenticated;
 
 -- A creator can still read THEIR OWN email (dashboard), nobody else's.

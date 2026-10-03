@@ -22,8 +22,10 @@ CREATE TABLE IF NOT EXISTS photographers (
 
   -- Creator type
   type             TEXT,                           -- primary type
-  services         TEXT[]      DEFAULT '{}',       -- ['photo','video','edit','guide']
-  vibes            TEXT[]      DEFAULT '{}',       -- ['moody','airy','film','cinematic']
+  services         TEXT[]      DEFAULT '{}',       -- ['photo','video','phone','event','drone','edit','guide']
+  vibes            TEXT[]      DEFAULT '{}',       -- see categories.js for all values
+  occasions        TEXT[]      DEFAULT '{}',       -- ['proposal','headshots',…]
+  drone_certified  BOOLEAN     DEFAULT FALSE,      -- required to offer 'drone'
   specialties      TEXT,
   level            TEXT        DEFAULT 'semipro',  -- enthusiast | semipro | pro
 
@@ -96,6 +98,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
 CREATE INDEX IF NOT EXISTS idx_photo_city     ON photographers USING gin(to_tsvector('simple', city));
 CREATE INDEX IF NOT EXISTS idx_photo_services ON photographers USING gin(services);
 CREATE INDEX IF NOT EXISTS idx_photo_vibes    ON photographers USING gin(vibes);
+CREATE INDEX IF NOT EXISTS idx_photo_occasions ON photographers USING gin(occasions);
 CREATE INDEX IF NOT EXISTS idx_photo_price    ON photographers (price);
 CREATE INDEX IF NOT EXISTS idx_photo_featured ON photographers (featured);
 CREATE INDEX IF NOT EXISTS idx_photo_avail    ON photographers (available);

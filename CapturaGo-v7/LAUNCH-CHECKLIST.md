@@ -3,6 +3,18 @@
 > **New in v7 (payments, boosts, AI match):** after steps 1–2 below, run `payments-patch.sql`
 > and follow **SETUP-PAYMENTS-AND-AI.md** (test mode first). Strategy: **CEO-STRATEGY.md**.
 
+> **New: more creator types, vibes and occasions.** Phone content creators, wedding & event
+> content creators, drone pilots and standalone local guides; 12 vibes; "Who is it for?"
+> occasion tags (proposal, headshots, dating profile, business…). To switch it on:
+> 1. Supabase → SQL Editor → New query → paste all of **`categories-patch.sql`** → Run
+>    (after `payments-patch.sql`). You should see "Success. No rows returned." Safe to run again.
+> 2. Redeploy the **`ai-match`** function (paste the new `supabase/functions/ai-match/index.ts`)
+>    so the AI knows the new categories. Optional: redeploy `notify-inquiry` too (new email labels).
+> 3. Deploy the site (step 6).
+> Until step 1 is done the site keeps working: new services and vibes save fine, only
+> occasions and the drone-certificate tick are skipped (creators see a note about it).
+> All categories are defined in **`categories.js`**. Add new ones there.
+
 Do these in order. Don't skip step 1 or 2.
 
 ---
@@ -86,6 +98,7 @@ footer automatically. Leave them empty until the accounts exist.
 | File | Purpose |
 |---|---|
 | index.html, script.js | Homepage |
+| categories.js | Creator types, vibes and occasions (one list used by the whole site) |
 | style.css | Styles for all pages |
 | site.js | Shared helpers, storage notice, social links config |
 | supabase.js | Database connection (your keys are already inside) |
@@ -98,4 +111,5 @@ footer automatically. Leave them empty until the accounts exist.
 | _headers | Security headers (Netlify reads this automatically) |
 | fonts/, vendor/ | Self-hosted fonts, map and database libraries |
 | schema.sql, security-patch.sql | Database setup (schema already run; run the patch) |
+| payments-patch.sql, categories-patch.sql | Database updates for payments and for the new categories |
 | supabase/functions/notify-inquiry | Inquiry email function (deploy later, needs Resend) |

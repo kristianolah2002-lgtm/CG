@@ -8,11 +8,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const $ = (id) => document.getElementById(id);
 
   /* ── LABELS ─────────────────────────────────────────── */
-  const SERVICE_LABELS = { photo: 'Photography', video: 'Videography', edit: 'Editing', guide: 'Location guide' };
-  const SERVICE_ICONS  = { photo: '📷', video: '🎬', edit: '✏️', guide: '🗺️' };
+  const { SERVICES, VIBES, OCCASIONS, SERVICE_LABELS, SERVICE_ICONS, VIBE_LABELS, OCCASION_LABELS, OCCASION_ICONS } = CG_CATS;
   const PRICE_LABELS   = { budget: 'Under €80', mid: '€80–€250', premium: '€250+' };
   const LEVEL_LABELS   = { enthusiast: 'Enthusiast', semipro: 'Semi-pro', pro: 'Professional' };
-  const VIBE_LABELS    = { moody: 'Dark & moody', airy: 'Bright & airy', film: 'Film / vintage', cinematic: 'Cinematic' };
   const EUROPE_VIEW    = { center: [49, 12], zoom: 4 };
   const SHOW_EXAMPLES_BELOW = 6;   // examples are shown until there are this many real creators
 
@@ -30,30 +28,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── EXAMPLE PROFILES (clearly labelled, never bookable) ── */
   const EXAMPLES = [
     { id: 'ex-1', isExample: true, name: 'Yuki T.', city: 'Kyoto, Japan', coords: { lat: 35.0116, lon: 135.7681 },
-      services: ['photo', 'guide'], price: 'mid', level: 'semipro', rating: 4.9, reviews_count: 0, vibes: ['moody', 'cinematic'], available: true, travel_available: false,
+      services: ['photo', 'guide'], price: 'mid', level: 'semipro', rating: 4.9, reviews_count: 0, vibes: ['moody', 'cinematic'], occasions: ['travel', 'proposal', 'couples'], available: true, travel_available: false,
       description: 'Born and raised in Kyoto. Temple spots most tourists never find — bamboo groves at dawn, mossy stone paths. Soft, cinematic, deeply Japanese.',
       tags: ['Travel', 'Portraits', 'Golden hour'], languages: 'English, Japanese',
       local_spots: [{ name: 'Fushimi Inari back gate', desc: 'Almost empty at 6am' }, { name: "Philosopher's Path at dawn", desc: 'Cherry blossom reflections in spring' }],
       packages: [{ id: 'e1', name: 'Sunrise temple walk', minutes: 90, price_eur: 140, desc: '2 locations, 40 edited photos' }, { id: 'e2', name: 'Mini portrait session', minutes: 45, price_eur: 85, desc: '20 edited photos' }],
       cover_image_url: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=1200&q=70' },
     { id: 'ex-2', isExample: true, name: 'Marco D.', city: 'Bali, Indonesia', coords: { lat: -8.4095, lon: 115.1889 },
-      services: ['photo', 'video', 'guide'], price: 'budget', level: 'enthusiast', rating: 4.8, reviews_count: 0, vibes: ['airy', 'film'], available: true, travel_available: true,
+      services: ['photo', 'video', 'guide'], price: 'budget', level: 'enthusiast', rating: 4.8, reviews_count: 0, vibes: ['golden', 'film'], occasions: ['travel', 'solo', 'couples'], available: true, travel_available: true,
       description: 'Not a pro — but I know every sunset spot, rice terrace and waterfall on the island. Warm, honest, alive photos.',
       tags: ['Travel', 'Lifestyle', 'Sunset'], languages: 'English, Italian',
       local_spots: [{ name: 'Tegallalang at sunrise', desc: 'Go at 5am for empty terraces' }, { name: 'Uluwatu cliffs at dusk', desc: 'Temple silhouette at blue hour' }],
       cover_image_url: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=70' },
     { id: 'ex-3', isExample: true, name: 'Elena M.', city: 'Vienna, Austria', coords: { lat: 48.2082, lon: 16.3738 },
-      services: ['photo', 'edit'], price: 'premium', level: 'pro', rating: 5.0, reviews_count: 0, vibes: ['airy', 'cinematic'], available: true, travel_available: true,
+      services: ['photo', 'edit'], price: 'premium', level: 'pro', rating: 5.0, reviews_count: 0, vibes: ['editorial', 'airy'], occasions: ['wedding', 'couples', 'headshots'], available: true, travel_available: true,
       description: 'Portrait and editorial photographer. Clean, cinematic and timeless. Couples, weddings and brand shoots across Central Europe.',
       tags: ['Weddings', 'Portraits', 'Editorial'], languages: 'English, German',
       local_spots: [{ name: 'Belvedere gardens', desc: 'Best at 7am before crowds' }, { name: 'Prater chestnut alley', desc: 'Blossom tunnel in spring' }],
       cover_image_url: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1200&q=70' },
     { id: 'ex-4', isExample: true, name: 'Lena B.', city: 'Berlin, Germany', coords: { lat: 52.52, lon: 13.405 },
-      services: ['video', 'edit'], price: 'premium', level: 'pro', rating: 4.8, reviews_count: 0, vibes: ['moody', 'cinematic'], available: true, travel_available: true,
+      services: ['video', 'edit'], price: 'premium', level: 'pro', rating: 4.8, reviews_count: 0, vibes: ['moody', 'cinematic'], occasions: ['content', 'business', 'travel'], available: true, travel_available: true,
       description: 'Cinematic videographer and editor — travel films, reels and brand content that feel like a series.',
       tags: ['Cinematic', 'Reels', 'Brand'], languages: 'English, German',
       local_spots: [{ name: 'Tempelhof airfield', desc: 'Huge sky, brutalist backdrop' }, { name: 'Neukölln canal at night', desc: 'Neon reflections for reels' }],
-      cover_image_url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=70' }
+      cover_image_url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=70' },
+    { id: 'ex-5', isExample: true, name: 'Nina P.', city: 'Mexico City, Mexico', coords: { lat: 19.4326, lon: -99.1332 },
+      services: ['phone', 'guide'], price: 'budget', level: 'enthusiast', rating: 4.9, reviews_count: 0, vibes: ['flash', 'digicam', 'candid'], occasions: ['solo', 'birthday', 'content'], available: true, travel_available: false,
+      description: 'I shoot on YOUR phone, so the photos and Reels are ready to post before dinner. Flash at night, candid by day — taco spots included.',
+      tags: ['Phone content', 'Photo dumps', 'Reels'], languages: 'English, Spanish',
+      local_spots: [{ name: 'Roma Norte at night', desc: 'Neon and murals for flash shots' }, { name: 'Casa Azul street', desc: 'Cobalt walls, best mid-morning' }],
+      packages: [{ id: 'e3', name: 'Photo dump walk', minutes: 60, price_eur: 45, desc: 'Shot on your phone, 3 spots, 1 Reel' }],
+      cover_image_url: 'https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?auto=format&fit=crop&w=1200&q=70' },
+    { id: 'ex-6', isExample: true, name: 'Nikos A.', city: 'Santorini, Greece', coords: { lat: 36.3932, lon: 25.4615 },
+      services: ['drone', 'photo'], price: 'premium', level: 'pro', rating: 5.0, reviews_count: 0, vibes: ['golden', 'vibrant'], occasions: ['proposal', 'wedding', 'business'], drone_certified: true, available: true, travel_available: true,
+      description: 'Certified drone pilot. Caldera views from above at sunset — proposals, weddings and villa shoots, on the ground and in the air.',
+      tags: ['Drone', 'Aerial', 'Sunset'], languages: 'English, Greek',
+      local_spots: [{ name: 'Imerovigli cliffs', desc: 'Skaros Rock from above at golden hour' }, { name: 'Amoudi Bay', desc: 'Turquoise water, early morning' }],
+      cover_image_url: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1200&q=70' }
   ];
 
   /* ── STATE ──────────────────────────────────────────── */
@@ -64,6 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let shown = [];            // what's currently on screen
   let activeType = '';
   let activeVibe = '';
+  let activeOccasion = '';
   let allRealReady = Promise.resolve();   // resolves once allReal is loaded
 
   /* ── SMALL HELPERS ──────────────────────────────────── */
@@ -90,8 +102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (days < 30) return `${days} days ago`;
     return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
-  const servicesBadges = (services = []) => services.map(s =>
-    `<span class="ctb ctb-${esc(s)}">${SERVICE_ICONS[s] || ''} ${esc(SERVICE_LABELS[s] || s)}</span>`).join('');
+  const servicesBadges = (services = []) => services.slice(0, 3).map(s =>
+    `<span class="ctb ctb-svc">${SERVICE_ICONS[s] || ''} ${esc(SERVICE_LABELS[s] || s)}</span>`).join('')
+    + (services.length > 3 ? `<span class="ctb ctb-svc">+${services.length - 3}</span>` : '');
   const verifiedBadge = (v) => {
     const lvl = Number(v) || 0;
     if (!lvl) return '';
@@ -105,6 +118,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isBoosted = (p) => !!(p && p.boosted_until && Date.parse(p.boosted_until) > Date.now());
   const canBook = (p) => !!p && !p.isExample && !!p.payouts_enabled && packagesOf(p).length > 0;
   const money = (eur) => { const n = Number(eur); return `€${Number.isInteger(n) ? n : n.toFixed(2)}`; };
+
+  /* ── CATEGORY CONTROLS (built from categories.js) ───── */
+  $('heroService').insertAdjacentHTML('beforeend', CG_CATS.serviceOptions(false));
+  $('stickyType').insertAdjacentHTML('beforeend', CG_CATS.serviceOptions(true));
+  $('occasionFilter').insertAdjacentHTML('beforeend', CG_CATS.occasionOptions());
+  $('typePills').insertAdjacentHTML('beforeend', SERVICES.map(s => `<button class="pill" data-type="${esc(s.id)}">${s.icon} ${esc(s.plural)}</button>`).join(''));
+  $('vibePills').insertAdjacentHTML('beforeend', VIBES.map(v => `<button class="vibe-pill" data-vibe="${esc(v.id)}">${v.icon} ${esc(v.label)}</button>`).join(''));
+  CG_CATS.fill('servicesChecks', CG_CATS.checkboxes(SERVICES, 'services'));
+  CG_CATS.fill('vibesChecks', CG_CATS.checkboxes(VIBES, 'vibes'));
+  CG_CATS.fill('occasionsChecks', CG_CATS.checkboxes(OCCASIONS, 'occasions'));
+  if ($('statCreatorTypes')) $('statCreatorTypes').textContent = SERVICES.length;
+  const syncDroneRow = () => {
+    const on = !!document.querySelector('input[name="services"][value="drone"]:checked');
+    $('droneCertRow').hidden = !on;
+    if (!on) $('droneCertInput').checked = false;
+  };
+  document.querySelectorAll('input[name="services"]').forEach(i => i.addEventListener('change', syncDroneRow));
 
   /* ── MODALS ─────────────────────────────────────────── */
   function openModal(id) { $(id)?.classList.add('modal-open'); document.body.style.overflow = 'hidden'; }
@@ -446,7 +476,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.vibe-pill').forEach(p => p.classList.toggle('active', p.dataset.vibe === activeVibe));
   }
   function clearFilters() {
-    $('cityFilter').value = ''; $('priceFilter').value = ''; $('availableFilter').checked = false;
+    $('cityFilter').value = ''; $('priceFilter').value = ''; $('occasionFilter').value = ''; $('availableFilter').checked = false;
+    activeOccasion = '';
     setType(''); setVibe('');
     loadCreators();
   }
@@ -454,6 +485,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.vibe-pill').forEach(p => p.addEventListener('click', () => { setVibe(p.dataset.vibe); loadCreators(); }));
   $('cityFilter').addEventListener('input', debounce(loadCreators, 400));
   $('priceFilter').addEventListener('change', loadCreators);
+  $('occasionFilter').addEventListener('change', () => { activeOccasion = $('occasionFilter').value; loadCreators(); });
   $('availableFilter').addEventListener('change', loadCreators);
   $('clearFilters').addEventListener('click', clearFilters);
 
@@ -462,6 +494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return list.filter(c =>
       (!activeType || (c.services || []).includes(activeType)) &&
       (!activeVibe || (c.vibes || []).includes(activeVibe)) &&
+      (!activeOccasion || (c.occasions || []).includes(activeOccasion)) &&
       (!price || c.price === price) &&
       (!onlyAvailable || c.available !== false));
   }
@@ -545,6 +578,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span>📍 ${esc(p.city)}</span>
           ${(p.services || []).map(s => `<span class="badge">${esc(SERVICE_LABELS[s] || s)}</span>`).join('')}
           ${(p.vibes || []).map(v => `<span class="badge badge-soft">${esc(VIBE_LABELS[v] || v)}</span>`).join('')}
+          ${(p.services || []).includes('drone') && p.drone_certified ? '<span class="badge badge-soft" title="Confirmed by the creator">🚁 Certified drone pilot</span>' : ''}
           ${PRICE_LABELS[p.price] ? `<span class="badge">${PRICE_LABELS[p.price]}</span>` : ''}
           ${LEVEL_LABELS[p.level] ? `<span class="badge badge-soft">${LEVEL_LABELS[p.level]}</span>` : ''}
           ${p.available !== false ? '<span class="ok">● Available</span>' : '<span class="muted">Not available right now</span>'}
@@ -553,6 +587,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${p.reviews_count > 0 ? `<span class="stars-inline">${starRating(p.rating)} ${Number(p.rating).toFixed(1)} (${p.reviews_count})</span>` : ''}
         </div>
         <p class="modal-desc">${esc(p.description || '')}</p>
+        ${(p.occasions || []).length ? `<div class="occasion-row"><span class="occasion-label">Great for</span>${p.occasions.map(o => `<span class="badge badge-soft">${OCCASION_ICONS[o] || ''} ${esc(OCCASION_LABELS[o] || o)}</span>`).join('')}</div>` : ''}
         ${renderPackages(p, isOwn)}
         <div class="modal-actions">
           ${p.isExample || isOwn ? '' : '<button class="primary-btn" id="mInquiry">Send inquiry</button>'}
@@ -739,14 +774,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const city = $('cityInput').value.trim();
     const email = $('emailInput').value.trim();
     const portfolio = $('portfolioInput').value.trim();
-    const services = [...document.querySelectorAll('input[name="services"]:checked')].map(i => i.value);
-    const vibes = [...document.querySelectorAll('input[name="vibes"]:checked')].map(i => i.value);
+    const services = CG_CATS.cleanServices([...document.querySelectorAll('input[name="services"]:checked')].map(i => i.value));
+    const vibes = CG_CATS.cleanVibes([...document.querySelectorAll('input[name="vibes"]:checked')].map(i => i.value));
+    const occasions = CG_CATS.cleanOccasions([...document.querySelectorAll('input[name="occasions"]:checked')].map(i => i.value));
+    const droneCertified = services.includes('drone') && $('droneCertInput').checked;
     const spots = [...document.querySelectorAll('#spotsContainer .spot-entry')]
       .map(el => ({ name: el.querySelector('.spot-name').value.trim(), desc: el.querySelector('.spot-desc').value.trim() }))
       .filter(s => s.name);
 
     if (!name || !city || !email || !portfolio) return showToast('Please fill in all fields marked *.', 'error');
     if (!services.length) return showToast('Select at least one service you offer.', 'error');
+    if (services.includes('drone') && !droneCertified) return showToast('To offer drone shoots, confirm you hold the required drone certificate.', 'error', 6000);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast('Please enter a valid email.', 'error');
     if (!safeUrl(portfolio) || !/^https?:\/\//i.test(portfolio)) return showToast('Portfolio link must start with https://', 'error');
 
@@ -766,12 +804,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       btn.textContent = 'Saving your listing…';
-      const { data, error } = await CG.photographers.insert({
+      const { data, error, skipped } = await CG.photographers.insert({
         user_id: currentUser.id,
         name, city,
         coords: coords ? { lat: coords[0], lon: coords[1] } : null,
         type: services[0],
-        services, vibes,
+        services, vibes, occasions,
+        drone_certified: droneCertified,
         specialties: services.map(s => SERVICE_LABELS[s]).join(', '),
         description: $('bioInput').value.trim() || null,
         tags: vibes.map(v => VIBE_LABELS[v]),
@@ -794,11 +833,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       userListing = data;
       e.target.reset();
+      syncDroneRow();
       $('charCount').textContent = '0';
       $('coverPreview').innerHTML = '';
       $('spotsContainer').innerHTML = '';
       renderAddFormState();
       if (!coords) showToast("Listing saved! We couldn't place your city on the map — edit it in your dashboard (e.g. 'Kyoto, Japan').", 'info', 7000);
+      else if (skipped?.length) showToast('Listing saved — but occasions and drone details need the latest database update (categories-patch.sql).', 'info', 7000);
       else showToast(`You're live on CapturaGo, ${firstName(name)}! 🎉`, 'success', 5000);
       await loadAllReal();
       await loadCreators();
@@ -882,8 +923,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── AI MATCH ───────────────────────────────────────── */
   let aiActive = false;
-  const SVC_WORDS = { photo: ['photo', 'portrait', 'pictures', 'photographer'], video: ['video', 'film', 'reel', 'videographer'], edit: ['edit', 'retouch', 'colour', 'color grad'], guide: ['guide', 'spots', 'locations', 'show us around'] };
-  const VIBE_WORDS = { moody: ['moody', 'dark', 'dramatic'], airy: ['bright', 'airy', 'soft light'], film: ['film', 'vintage', 'analog', 'grain'], cinematic: ['cinematic', 'movie'] };
+  const wordsOf = (list) => Object.fromEntries(list.map(x => [x.id, x.words || []]));
+  const SVC_WORDS = wordsOf(SERVICES), VIBE_WORDS = wordsOf(VIBES), OCCASION_WORDS = wordsOf(OCCASIONS);
   const PRICE_WORDS = { budget: ['cheap', 'budget', 'affordable'], premium: ['luxury', 'premium', 'high-end'] };
 
   // Keyword fallback when the AI service is unavailable
@@ -896,6 +937,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       let score = cityHit ? 10 : 0;
       for (const [k, ws] of Object.entries(SVC_WORDS)) if (ws.some(w => t.includes(w)) && (c.services || []).includes(k)) score += 3;
       for (const [k, ws] of Object.entries(VIBE_WORDS)) if (ws.some(w => t.includes(w)) && (c.vibes || []).includes(k)) score += 2;
+      for (const [k, ws] of Object.entries(OCCASION_WORDS)) if (ws.some(w => t.includes(w)) && (c.occasions || []).includes(k)) score += 2;
       for (const [k, ws] of Object.entries(PRICE_WORDS)) if (ws.some(w => t.includes(w)) && c.price === k) score += 1;
       const hay = `${c.description || ''} ${c.languages || ''} ${spotsOf(c).map(x => x.name).join(' ')}`.toLowerCase();
       score += words.filter(w => hay.includes(w)).length * 0.5;
