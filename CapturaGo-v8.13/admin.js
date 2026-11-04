@@ -19,13 +19,73 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('adminSidebar').hidden = false;
 
   /* ── navigation ── */
-  const loaders = { overview: loadOverview, bookings: loadBookings, creators: loadCreators, reviews: loadReviews, reports: loadReports, insights: loadInsights, profiles: loadProfileReports, founding: loadFounding, partners: loadPartners, gifts: loadGifts };
+  const loaders = { tax: loadTax, overview: loadOverview, bookings: loadBookings, creators: loadCreators, reviews: loadReviews, reports: loadReports, insights: loadInsights, profiles: loadProfileReports, founding: loadFounding, partners: loadPartners, gifts: loadGifts };
   function showPanel(name) {
     document.querySelectorAll('.dash-panel').forEach((p) => { p.hidden = p.dataset.panelId !== name; });
     document.querySelectorAll('.dash-nav-item').forEach((b) => b.classList.toggle('active', b.dataset.panel === name));
     loaders[name]();
   }
   document.querySelectorAll('.dash-nav-item').forEach((b) => b.addEventListener('click', () => showPanel(b.dataset.panel)));
+
+  /* ── 🧾 tax reporting (EU DAC7) ── */
+  let taxData = null;
+  const thisYear = new Date().getUTCFullYear();
+  $('taxYear').innerHTML = [thisYear, thisYear - 1, thisYear - 2].filter((y) => y >= 2023).map((y) => `<option value="${y}"${y === (new Date().getUTCMonth() === 0 ? thisYear - 1 : thisYear) ? ' selected' : ''}>${y}</option>`).join('');
+  const taxName = (r) => (r.tax ? (r.tax.kind === 'business' ? r.tax.business_name : `${r.tax.first_name} ${r.tax.last_name}`) : (r.listing_name || 'Account deleted'));
+  async function loadTax() {
+    const year = Number($('taxYear').value);
+    $('taxList').innerHTML = '<p class="muted">Loading…</p>'; $('taxSummary').innerHTML = '';
+    $('taxCsv').disabled = true; $('taxSend').disabled = true;
+    const { data, error } = await call('dac7', { year });
+    if (error) { $('taxList').innerHTML = `<p class="muted">${esc(/dac7_report/.test(error.message) ? 'Run the latest database.sql first.' : error.message)}</p>`; return; }
+    taxData = data;
+    const rows = data.rows || [];
+    const sum = (k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+    const missing = rows.filter((r) => r.missing).length, reportable = rows.filter((r) => r.reportable).length, sent = rows.filter((r) => r.statement_sent_at).length;
+    $('taxSummary').innerHTML = `<div class="dash-stats-grid" style="margin-bottom:14px">
+      <div class="dash-stat-card"><div class="dash-stat-value">${rows.length}</div><div class="dash-stat-label">Creators paid in ${data.year}</div></div>
+      <div class="dash-stat-card"><div class="dash-stat-value">${reportable}</div><div class="dash-stat-label">Reportable (live in the EU)</div></div>
+      <div class="dash-stat-card"><div class="dash-stat-value" style="${missing ? 'color:var(--err)' : ''}">${missing}</div><div class="dash-stat-label">Missing tax details</div></div>
+      <div class="dash-stat-card"><div class="dash-stat-value">${euro(sum('amount_cents'))}</div><div class="dash-stat-label">Paid to creators · ${sum('jobs')} jobs</div></div></div>
+      <p class="small">${sent} of ${rows.length - missing} statements sent. Automatic payout hold for missing details: <strong>${data.hold_on ? 'on' : 'off'}</strong> (secret <code>TAX_INFO_HOLD</code>).</p>`;
+    $('taxList').innerHTML = rows.length ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Creator</th><th>Lives in</th><th>Tax number</th>${[1, 2, 3, 4].map((q) => `<th>Q${q}</th>`).join('')}<th>Total</th><th>Status</th></tr></thead><tbody>
+      ${rows.map((r) => `<tr${r.missing ? ' class="tax-missing"' : ''}><td><strong>${esc(taxName(r))}</strong><br/><span class="muted small">${esc(r.email || r.stripe_account_id || '')}</span></td>
+        <td>${r.tax ? esc(r.tax.country) : '—'}${r.reportable ? ' <span class="status-pill status-confirmed">EU</span>' : ''}</td>
+        <td>${r.tax ? (r.tax.no_tin ? `none · born in ${esc(r.tax.birth_place || '?')}` : `${esc(r.tax.tin_country)} ${esc(r.tax.tin)}`) : '—'}</td>
+        ${(r.quarters || []).map((q) => `<td>${q.count ? `${euro(q.amount_cents)}<br/><span class="muted small">${q.count} · fees ${euro(q.fees_cents)}</span>` : '<span class="muted">—</span>'}</td>`).join('')}
+        <td><strong>${euro(r.amount_cents)}</strong><br/><span class="muted small">${r.jobs} jobs</span></td>
+        <td>${r.missing ? '<span class="status-pill status-cancelled">details missing</span>' : r.statement_sent_at ? `<span class="small">✓ sent ${esc(fmtDate(r.statement_sent_at))}</span>` : '<span class="muted small">not sent</span>'}</td></tr>`).join('')}
+      </tbody></table></div>` : `<p class="muted">No creator was paid out in ${data.year}.</p>`;
+    $('taxCsv').disabled = !rows.length;
+    $('taxSend').disabled = !rows.some((r) => !r.missing && !r.statement_sent_at && r.email);
+  }
+  $('taxYearForm').addEventListener('submit', (e) => { e.preventDefault(); loadTax(); });
+  // CSV for the accountant (cells that could start a spreadsheet formula are made safe)
+  const cell = (v) => { let s = v === null || v === undefined ? '' : String(v); if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const eur = (c) => ((Number(c) || 0) / 100).toFixed(2);
+  $('taxCsv').addEventListener('click', () => {
+    if (!taxData) return;
+    const head = ['reportable_eu', 'details_missing', 'seller_type', 'first_name', 'last_name', 'business_name', 'business_registration_number', 'date_of_birth', 'place_of_birth',
+      'address', 'postal_code', 'city', 'country_of_residence', 'tin', 'tin_issued_by', 'no_tin', 'vat_number', 'payout_account', 'listing_name', 'email',
+      ...[1, 2, 3, 4].flatMap((q) => [`q${q}_amount_eur`, `q${q}_jobs`, `q${q}_fees_eur`]), 'total_amount_eur', 'total_jobs', 'total_fees_eur', 'statement_sent_at'];
+    const lines = taxData.rows.map((r) => { const t = r.tax || {}; return [r.reportable ? 'yes' : 'no', r.missing ? 'yes' : 'no', t.kind || '', t.first_name, t.last_name, t.business_name, t.business_number, t.birth_date, t.birth_place,
+      t.address, t.postal_code, t.city, t.country, t.tin, t.tin_country, t.no_tin ? 'yes' : (r.tax ? 'no' : ''), t.vat_number, r.stripe_account_id, r.listing_name, r.email,
+      ...[0, 1, 2, 3].flatMap((i) => { const q = (r.quarters || [])[i] || {}; return [eur(q.amount_cents), q.count || 0, eur(q.fees_cents)]; }), eur(r.amount_cents), r.jobs, eur(r.fees_cents), r.statement_sent_at || ''].map(cell).join(','); });
+    const blob = new Blob(['\ufeff' + [head.join(','), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `capturago-dac7-${taxData.year}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
+  $('taxSend').addEventListener('click', async () => {
+    if (!taxData) return;
+    const n = taxData.rows.filter((r) => !r.missing && !r.statement_sent_at && r.email).length;
+    if (!confirm(`Email the ${taxData.year} statement to ${n} creator${n === 1 ? '' : 's'}? Check the details first — this is what you report.`)) return;
+    const btn = $('taxSend'); btn.disabled = true; btn.textContent = 'Sending…';
+    const { data, error } = await call('dac7_statements', { year: taxData.year });
+    btn.textContent = '✉ Email statements to creators';
+    if (error) { btn.disabled = false; showToast(error.message, 'error', 6000); return; }
+    showToast(`Sent ${data.sent} statement${data.sent === 1 ? '' : 's'}${data.failed ? `, ${data.failed} failed (try again)` : ''}.`, data.failed ? 'error' : 'success', 6000);
+    loadTax();
+  });
 
   /* ── 🏨 partners ── */
   const KIND = { hotel: 'Hotel', hostel: 'Hostel', guesthouse: 'Guesthouse', apartments: 'Apartments', tours: 'Tours / desk', other: 'Other' };

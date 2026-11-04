@@ -1,5 +1,13 @@
 # CapturaGo — Launch checklist
 
+> **v8.15 — EU DAC7 tax reporting (legally required; first report for 2026 due by 31 January 2027):** creators add
+> their tax details in Dashboard → Payments → 🧾 Tax details (private; the database checks them); the hourly job asks
+> creators who can be paid online and sends 2 reminders (day 14 and 45); admin panel → **🧾 Tax reporting** shows every
+> creator paid in a year, per quarter (amount, jobs, fees), who lives in the EU (reportable) and who is missing details,
+> with a **CSV for your accountant** and **"Email statements to creators"** (each creator must get theirs by 31 January).
+> Optional secret `TAX_INFO_HOLD=on` holds payouts of creators still without details 60 days after the first request.
+> Run `database.sql`, re-deploy `scheduled-jobs` and `admin`: SETUP-PAYMENTS-AND-AI.md **Part 21**. Terms (Taxes) and
+> Privacy Policy (tax details, tax authority, 10-year retention) updated.
 > **v8.14:** **gift cards on last-minute deals** (`/gift.html#deals`: find deals, see what your card covers, 🎲
 > **Surprise me** picks one; buyers can make it a "Surprise me" gift); **weather-aware reminders** (heavy rain on the
 > shoot day → the reminder email and text offer "📅 Propose a new date" in one tap); **fast responders ranked higher**

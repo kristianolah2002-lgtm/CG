@@ -24,6 +24,7 @@
       <button class="dash-nav-item" data-panel="founding">🏅 Founding creators</button>
       <button class="dash-nav-item" data-panel="partners">🏨 Partners</button>
       <button class="dash-nav-item" data-panel="gifts">🎁 Gift cards</button>
+      <button class="dash-nav-item" data-panel="tax">🧾 Tax reporting</button>
       <button class="dash-nav-item" data-panel="reports">🚩 Reported chats</button>
       <button class="dash-nav-item" data-panel="profiles">⚑ Reported profiles</button>
     </nav>
@@ -85,6 +86,14 @@
       <h1 class="dash-title">Gift cards</h1>
       <form class="admin-row" id="gcSearch" style="gap:10px;margin-bottom:14px"><input id="gcQ" type="text" maxlength="24" placeholder="Find by code" style="max-width:260px" /><button class="secondary-btn" type="submit">Search</button></form>
       <div id="gcList"><p class="muted">Loading…</p></div>
+    </section>
+    <section class="dash-panel" data-panel-id="tax" hidden>
+      <h1 class="dash-title">Tax reporting (EU DAC7)</h1>
+      <p class="muted small" style="max-width:760px">Every creator who was paid out in the year, per quarter: the amount paid (package price before our fee), the number of jobs and our fees. Creators who live in the EU (<strong>reportable</strong>) must be reported to Finančná správa by <strong>31 January</strong>; every creator must get their statement by the same date. Give the CSV to your accountant for the DAC7 filing.</p>
+      <form class="admin-row" id="taxYearForm" style="gap:10px;margin:14px 0;flex-wrap:wrap"><label for="taxYear" class="small">Year</label><select id="taxYear"></select><button class="secondary-btn" type="submit">Show</button>
+        <button class="secondary-btn" type="button" id="taxCsv" disabled>⬇ Download CSV</button><button class="primary-btn" type="button" id="taxSend" disabled>✉ Email statements to creators</button></form>
+      <div id="taxSummary"></div>
+      <div id="taxList"><p class="muted">Choose a year.</p></div>
     </section>
     <section class="dash-panel" data-panel-id="founding" hidden>
       <h1 class="dash-title">Founding creators</h1>

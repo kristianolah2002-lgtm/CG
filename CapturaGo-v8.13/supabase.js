@@ -363,6 +363,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       mine: () => run(d => d.rpc('my_gift_cards'))
     },
 
+    /* 🧾 EU DAC7: my tax details (private — only I and the server can read them) */
+    tax: {
+      mine: () => run(d => d.rpc('my_tax_info')),
+      save: (p) => run(d => d.rpc('save_tax_info', { p }))
+    },
+
     /* 🔔 "Notify me" on a fully booked creator: one email (or text) when a day opens up or a deal appears */
     watches: {
       add: (pid, byText) => run(d => d.rpc('watch_creator', { p_photographer: pid, p_text: !!byText })),

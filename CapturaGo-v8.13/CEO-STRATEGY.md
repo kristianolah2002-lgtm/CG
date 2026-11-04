@@ -81,7 +81,8 @@ search → booking conversion · cancellation and dispute rate · creator respon
   register and how EU consumer sales (OSS) apply. Your accounting background helps here, but get it confirmed.
 - **DAC7:** EU rules make platforms report creators' earnings to the tax authority every year
   (in Slovakia, to the Finančná správa, by 31 January). You'll need each creator's tax details. Plan this before
-  creators earn real money. It's the next back-office feature.
+  creators earn real money. ✅ Built in v8.15: tax details form, requests and reminders, yearly report (CSV) and
+  creator statements in the admin panel — your accountant still files it with Finančná správa by 31 January.
 - **Disputes:** decide your rules (who decides, what refund in which case) and answer within 48h.
   Disputed payments wait in Stripe until you refund or release them manually.
 - Complete your postal address in the Terms & Privacy pages, and have a lawyer review them once revenue starts.

@@ -44,6 +44,23 @@ async function overview(ctx) {
   };
 }
 
+/** The statement a creator gets for one year: the details and amounts we report (DAC7). */
+function dac7StatementHtml(r, year, l, siteUrl) {
+  const t = r.tax || {};
+  const name = t.kind === 'business' ? t.business_name : `${t.first_name || ''} ${t.last_name || ''}`.trim();
+  const tin = t.tin ? `•••• ${escHtml(String(t.tin).replace(/\s/g, '').slice(-4))}` : escHtml(L(l, 'none (place of birth: {place})', { place: t.birth_place || '—' }));
+  const row = (label, value) => `<tr><td style="padding:4px 12px 4px 0;color:#7D6A53">${escHtml(label)}</td><td style="padding:4px 0">${value}</td></tr>`;
+  const q = (r.quarters || []).map((x, i) => `<tr><td style="padding:4px 12px 4px 0">Q${i + 1}</td><td style="padding:4px 12px 4px 0;text-align:right">${euro(Number(x.amount_cents) || 0)}</td><td style="padding:4px 12px 4px 0;text-align:right">${Number(x.count) || 0}</td><td style="padding:4px 0;text-align:right">${euro(Number(x.fees_cents) || 0)}</td></tr>`).join('');
+  return `<p>${L(l, 'Hi,')}</p>`
+    + `<p>${r.reportable ? L(l, 'As required by EU law (the DAC7 directive), CapturaGo reports the earnings of creators who live in the EU to the Slovak tax authority (Finančná správa), which shares them with the tax authority of your country. This is what we report for {year}:', { year })
+      : L(l, 'Here is the summary of your earnings on CapturaGo in {year}. You live outside the EU, so it isn\'t reported to an EU tax authority — keep it for your own tax return:', { year })}</p>`
+    + `<table style="border-collapse:collapse;font-size:14px">${row(L(l, 'Name'), escHtml(name))}${row(L(l, 'Address'), escHtml([t.address, [t.postal_code, t.city].filter(Boolean).join(' '), t.country].filter(Boolean).join(', ')))}${row(L(l, 'Tax number'), tin)}${t.vat_number ? row(L(l, 'VAT number'), escHtml(t.vat_number)) : ''}${t.business_number ? row(L(l, 'Registration number'), escHtml(t.business_number)) : ''}</table>`
+    + `<table style="border-collapse:collapse;font-size:14px;margin-top:12px"><tr><th style="text-align:left;padding:4px 12px 4px 0">${L(l, 'Quarter')}</th><th style="text-align:right;padding:4px 12px 4px 0">${L(l, 'Paid to you')}</th><th style="text-align:right;padding:4px 12px 4px 0">${L(l, 'Jobs')}</th><th style="text-align:right;padding:4px 0">${L(l, 'Our fees')}</th></tr>${q}`
+    + `<tr><td style="padding:6px 12px 4px 0"><strong>${L(l, 'Total')}</strong></td><td style="padding:6px 12px 4px 0;text-align:right"><strong>${euro(Number(r.amount_cents) || 0)}</strong></td><td style="padding:6px 12px 4px 0;text-align:right"><strong>${Number(r.jobs) || 0}</strong></td><td style="padding:6px 0;text-align:right"><strong>${euro(Number(r.fees_cents) || 0)}</strong></td></tr></table>`
+    + `<p>${L(l, '“Paid to you” is the price of the shoots that were paid out to you in that quarter, before our fees; tips and payments outside CapturaGo aren\'t included.')}</p>`
+    + `<p>${L(l, 'If anything is wrong, correct it in {link} and reply to this email so we can update the report.', { link: `<a href="${siteUrl}/dashboard.html#payments">${L(l, 'your tax details')}</a>` })}</p>`;
+}
+
 function createHandler(deps) {
   const ctx = makeCtx(deps);
   return wrap(async (req) => {
@@ -173,6 +190,25 @@ function createHandler(deps) {
       const nb = await moveBooking(ctx, id, b.status, 'completed', { stripe_transfer_id: transferId });
       if (!nb) throw new HttpError(409, 'The booking changed meanwhile. Refresh and check.');
       return json({ booking: nb });
+    }
+
+    // ── EU DAC7: the yearly report (per creator and quarter) and the statement every creator must get ──
+    if (action === 'dac7' || action === 'dac7_statements') {
+      const year = Math.round(Number(body.year));
+      if (!Number.isInteger(year) || year < 2023 || year > 2100) throw new HttpError(400, 'Choose a year.');
+      const rows = (await ctx.db('rpc/dac7_report', { method: 'POST', body: { p_year: year } })) || [];
+      if (action === 'dac7') return json({ year, rows, hold_on: String(ctx.env('TAX_INFO_HOLD', '')).toLowerCase() === 'on' });
+      const resend = body.resend === true;
+      let sent = 0, skipped = 0, failed = 0;
+      for (const r of rows) {
+        if (!r.tax || !r.email || (r.statement_sent_at && !resend)) { skipped++; continue; }
+        if (sent >= 200) break;   // a batch at a time; press again for the rest
+        const l = await mailLang(ctx, r.user_id, r.email);
+        if (!(await sendEmail(ctx, deps, r.email, L(l, 'Your CapturaGo earnings statement for {year} (DAC7)', { year }), dac7StatementHtml(r, year, l, ctx.siteUrl)))) { failed++; continue; }
+        await ctx.db('dac7_statements', { method: 'POST', body: { tax_info_id: r.tax.id, year }, prefer: 'resolution=merge-duplicates,return=minimal' });
+        sent++;
+      }
+      return json({ year, sent, skipped, failed });
     }
 
     if (action === 'gifts') {

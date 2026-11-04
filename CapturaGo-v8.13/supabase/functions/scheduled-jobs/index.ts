@@ -310,6 +310,32 @@ const MAIL_TEXT = {
   'open the last-minute deals': { de: 'öffne die Last-Minute-Angebote', es: 'abre las ofertas de última hora', fr: 'ouvre les offres de dernière minute' },
   'It also works for last-minute deals: {link}.': { de: 'Er gilt auch für Last-Minute-Angebote: {link}.', es: 'También sirve para ofertas de última hora: {link}.', fr: 'Elle fonctionne aussi pour les offres de dernière minute : {link}.' },
   'see who has a lower price tomorrow': { de: 'sieh nach, wer morgen günstiger ist', es: 'mira quién tiene un precio más bajo mañana', fr: 'vois qui est moins cher demain' },
+
+  // EU DAC7 tax details and the yearly statement (v8.15)
+  'Add my tax details': { de: 'Meine Steuerdaten hinzufügen', es: 'Añadir mis datos fiscales', fr: 'Ajouter mes informations fiscales' },
+  'Please add your tax details for CapturaGo': { de: 'Bitte ergänze deine Steuerdaten für CapturaGo', es: 'Añade tus datos fiscales para CapturaGo', fr: 'Merci d\'ajouter tes informations fiscales pour CapturaGo' },
+  'Reminder: your tax details for CapturaGo are still missing': { de: 'Erinnerung: Deine Steuerdaten für CapturaGo fehlen noch', es: 'Recordatorio: aún faltan tus datos fiscales para CapturaGo', fr: 'Rappel : il manque encore tes informations fiscales pour CapturaGo' },
+  'EU law (the DAC7 directive) requires platforms like CapturaGo to collect the tax details of everyone who earns money through them, and to report those earnings to the tax authority once a year. You also get a copy of what we report.': { de: 'Das EU-Recht (die DAC7-Richtlinie) verpflichtet Plattformen wie CapturaGo, die Steuerdaten aller zu erfassen, die über sie Geld verdienen, und diese Einnahmen einmal im Jahr an die Steuerbehörde zu melden. Du bekommst eine Kopie dessen, was wir melden.', es: 'La ley de la UE (la directiva DAC7) obliga a plataformas como CapturaGo a recoger los datos fiscales de quienes ganan dinero a través de ellas y a comunicar esos ingresos a la autoridad tributaria una vez al año. Recibirás una copia de lo que comunicamos.', fr: 'Le droit européen (la directive DAC7) oblige les plateformes comme CapturaGo à collecter les informations fiscales de toutes les personnes qui gagnent de l\'argent grâce à elles, et à déclarer ces revenus à l\'administration fiscale une fois par an. Tu reçois une copie de ce que nous déclarons.' },
+  'It takes about two minutes: {link} (Dashboard → Payments). We need your name, address, date of birth and tax number — or, for a business, its registration details.': { de: 'Das dauert etwa zwei Minuten: {link} (Dashboard → Zahlungen). Wir brauchen deinen Namen, deine Adresse, dein Geburtsdatum und deine Steuernummer — oder, für ein Unternehmen, dessen Registerdaten.', es: 'Son unos dos minutos: {link} (Panel → Pagos). Necesitamos tu nombre, dirección, fecha de nacimiento y número fiscal o, si eres empresa, sus datos de registro.', fr: 'Ça prend environ deux minutes : {link} (Tableau de bord → Paiements). Il nous faut ton nom, ton adresse, ta date de naissance et ton numéro fiscal — ou, pour une entreprise, ses données d\'immatriculation.' },
+  'This is our last reminder. If we still don\'t have your details 60 days after our first request, the law may require us to hold your payouts until you add them.': { de: 'Das ist unsere letzte Erinnerung. Wenn wir deine Daten 60 Tage nach unserer ersten Anfrage noch nicht haben, kann das Gesetz uns verpflichten, deine Auszahlungen zurückzuhalten, bis du sie ergänzt.', es: 'Es nuestro último recordatorio. Si 60 días después de nuestra primera solicitud aún no tenemos tus datos, la ley puede obligarnos a retener tus pagos hasta que los añadas.', fr: 'C\'est notre dernier rappel. Si nous n\'avons toujours pas tes informations 60 jours après notre première demande, la loi peut nous obliger à bloquer tes versements jusqu\'à ce que tu les ajoutes.' },
+  'Your details are private: only you and the CapturaGo team can see them, and they are used only for tax reporting.': { de: 'Deine Daten sind privat: Nur du und das CapturaGo-Team könnt sie sehen, und sie werden nur für die Steuermeldung verwendet.', es: 'Tus datos son privados: solo tú y el equipo de CapturaGo podéis verlos, y solo se usan para la declaración fiscal.', fr: 'Tes informations sont privées : seuls toi et l\'équipe CapturaGo pouvez les voir, et elles servent uniquement à la déclaration fiscale.' },
+  'Your CapturaGo earnings statement for {year} (DAC7)': { de: 'Deine CapturaGo-Einnahmenübersicht für {year} (DAC7)', es: 'Tu resumen de ingresos de CapturaGo de {year} (DAC7)', fr: 'Ton relevé de revenus CapturaGo pour {year} (DAC7)' },
+  'none (place of birth: {place})': { de: 'keine (Geburtsort: {place})', es: 'ninguno (lugar de nacimiento: {place})', fr: 'aucun (lieu de naissance : {place})' },
+  'As required by EU law (the DAC7 directive), CapturaGo reports the earnings of creators who live in the EU to the Slovak tax authority (Finančná správa), which shares them with the tax authority of your country. This is what we report for {year}:': { de: 'Wie vom EU-Recht (DAC7-Richtlinie) vorgeschrieben, meldet CapturaGo die Einnahmen von Creatorn mit Wohnsitz in der EU an die slowakische Steuerbehörde (Finančná správa), die sie an die Steuerbehörde deines Landes weitergibt. Das melden wir für {year}:', es: 'Como exige la ley de la UE (directiva DAC7), CapturaGo comunica los ingresos de los creadores que viven en la UE a la autoridad tributaria eslovaca (Finančná správa), que los comparte con la autoridad tributaria de tu país. Esto es lo que comunicamos de {year}:', fr: 'Comme l\'exige le droit européen (directive DAC7), CapturaGo déclare les revenus des créateurs qui vivent dans l\'UE à l\'administration fiscale slovaque (Finančná správa), qui les transmet à celle de ton pays. Voici ce que nous déclarons pour {year} :' },
+  'Here is the summary of your earnings on CapturaGo in {year}. You live outside the EU, so it isn\'t reported to an EU tax authority — keep it for your own tax return:': { de: 'Hier ist die Übersicht deiner Einnahmen auf CapturaGo im Jahr {year}. Du wohnst außerhalb der EU, daher wird sie keiner EU-Steuerbehörde gemeldet — bewahre sie für deine eigene Steuererklärung auf:', es: 'Este es el resumen de tus ingresos en CapturaGo en {year}. Vives fuera de la UE, así que no se comunica a ninguna autoridad tributaria de la UE; guárdalo para tu propia declaración:', fr: 'Voici le récapitulatif de tes revenus sur CapturaGo en {year}. Tu vis hors de l\'UE, il n\'est donc pas déclaré à une administration fiscale européenne — garde-le pour ta propre déclaration :' },
+  'Name': { de: 'Name', es: 'Nombre', fr: 'Nom' },
+  'Address': { de: 'Adresse', es: 'Dirección', fr: 'Adresse' },
+  'Tax number': { de: 'Steuernummer', es: 'Número fiscal', fr: 'Numéro fiscal' },
+  'VAT number': { de: 'USt-IdNr.', es: 'Número de IVA', fr: 'Numéro de TVA' },
+  'Registration number': { de: 'Registernummer', es: 'Número de registro', fr: 'Numéro d\'immatriculation' },
+  'Quarter': { de: 'Quartal', es: 'Trimestre', fr: 'Trimestre' },
+  'Paid to you': { de: 'An dich ausgezahlt', es: 'Pagado a ti', fr: 'Versé à toi' },
+  'Jobs': { de: 'Aufträge', es: 'Trabajos', fr: 'Missions' },
+  'Our fees': { de: 'Unsere Gebühren', es: 'Nuestras comisiones', fr: 'Nos frais' },
+  'Total': { de: 'Gesamt', es: 'Total', fr: 'Total' },
+  '“Paid to you” is the price of the shoots that were paid out to you in that quarter, before our fees; tips and payments outside CapturaGo aren\'t included.': { de: '„An dich ausgezahlt“ ist der Preis der Shootings, die dir in diesem Quartal ausgezahlt wurden, vor unseren Gebühren; Trinkgelder und Zahlungen außerhalb von CapturaGo sind nicht enthalten.', es: '«Pagado a ti» es el precio de las sesiones que se te pagaron en ese trimestre, antes de nuestras comisiones; no incluye propinas ni pagos fuera de CapturaGo.', fr: '« Versé à toi » est le prix des shootings qui t\'ont été versés ce trimestre-là, avant nos frais ; les pourboires et paiements hors CapturaGo ne sont pas inclus.' },
+  'If anything is wrong, correct it in {link} and reply to this email so we can update the report.': { de: 'Wenn etwas nicht stimmt, korrigiere es in {link} und antworte auf diese E-Mail, damit wir die Meldung aktualisieren können.', es: 'Si algo está mal, corrígelo en {link} y responde a este correo para que podamos actualizar la declaración.', fr: 'Si quelque chose est faux, corrige-le dans {link} et réponds à cet e-mail pour que nous mettions à jour la déclaration.' },
+  'your tax details': { de: 'deinen Steuerdaten', es: 'tus datos fiscales', fr: 'tes informations fiscales' },
 };
 
 // ── CapturaGo server helpers (inlined into every function by build.py) ──
@@ -1157,6 +1183,8 @@ function buildIcsFeed(bookings, userId, siteUrl, nowMs) {
 // 19. Last-minute deals → one email to travellers in that city   20. Text reminders on the shoot day (SMS / WhatsApp)
 //  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
 // 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
+// 22. (v8.15) EU DAC7: creators who can be paid online are asked for their tax details (then 2 reminders: day 14 and 45).
+//     With the secret TAX_INFO_HOLD=on, payouts wait for creators still without details 60 days after the first request.
 const BATCH = 50;
 const HOUR = 3600000;
 
@@ -1172,7 +1200,7 @@ async function runJobs(ctx, deps) {
   const now = ctx.nowMs();
   const nowIso = new Date(now).toISOString();
   const summary = { expired: 0, nudged: 0, auto_refunded: 0, released: 0, reminders: 0, late_notices: 0, message_emails: 0, photo_reminders: 0, photos_deleted: 0, city_alerts: 0,
-    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, errors: 0 };
+    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, errors: 0 };
   const errors = [];
   const fail = (what, id, e) => { summary.errors++; errors.push(`${what} ${id}: ${e && e.message ? e.message : e}`); console.error('[jobs]', what, id, e); };
   const mark = (b, key) => ctx.db(`bookings?id=eq.${b.id}`, { method: 'PATCH', body: { notices: { ...(b.notices || {}), [key]: nowIso } }, prefer: 'return=minimal' });
@@ -1270,6 +1298,14 @@ async function runJobs(ctx, deps) {
   }
 
   // 3. automatic payouts
+  // DAC7 (only when switched on): no payout for creators who still haven't given their tax details after the request and 2 reminders
+  let taxHeld = new Set();
+  if (String(ctx.env('TAX_INFO_HOLD', '')).toLowerCase() === 'on') {
+    try {
+      const ids = await ctx.db('rpc/tax_payout_holds', { method: 'POST', body: {} });
+      taxHeld = new Set((ids || []).map((x) => (typeof x === 'string' ? x : x && x.tax_payout_holds)).filter(Boolean));
+    } catch (e) { if (!/tax_payout_holds/.test(String(e && e.message))) fail('tax-holds', '-', e); }
+  }
   const cutoffDate = ctx.isoInDays(-3);
   // Photos promised in the package: not before 3 days after they were sent (the database marks these bookings)
   const sentBefore = encodeURIComponent(new Date(now - RELEASE_DAYS * 86400000).toISOString());
@@ -1279,6 +1315,7 @@ async function runJobs(ctx, deps) {
   sessionsDone = (sessionsDone || []).filter((b) => { const h = payoutHold(b); return h.releaseAt !== null && h.releaseAt <= now; });   // double check
   const deliveriesDone = await ctx.db(`bookings?status=eq.delivered&delivered_at=lt.${encodeURIComponent(new Date(now - 72 * HOUR).toISOString())}&select=*&limit=${BATCH}`);
   for (const b of [...(sessionsDone || []), ...(deliveriesDone || [])]) {
+    if (taxHeld.has(b.creator_user_id)) { summary.tax_held++; continue; }   // released as soon as the details are in
     try {
       const transferId = await releaseBooking(ctx, b);
       if (await moveBooking(ctx, b.id, b.status, 'completed', { stripe_transfer_id: transferId })) {
@@ -1736,6 +1773,27 @@ async function runJobs(ctx, deps) {
       } catch (e) { fail('watch', w.watch_id, e); }
     }
   } catch (e) { if (!/due_creator_watches|creator_watches/.test(String(e && e.message))) fail('watches', '-', e); }
+
+  // 22. DAC7 tax details: ask once, then 2 reminders (the law requires them before payouts may be held)
+  try {
+    const due22 = await ctx.db('rpc/due_tax_requests', { method: 'POST', body: { p_limit: 100 } });
+    for (const r of due22 || []) {
+      try {
+        const l = await mailLang(ctx, r.user_id, r.email);
+        const link = `<a href="${ctx.siteUrl}/dashboard.html#payments"><strong>${L(l, 'Add my tax details')}</strong></a>`;
+        const sent = await sendEmail(ctx, deps, r.email,
+          r.step === 'ask' ? L(l, 'Please add your tax details for CapturaGo') : L(l, 'Reminder: your tax details for CapturaGo are still missing'),
+          hiP(l, escHtml(String(r.name || '').split(' ')[0]))
+          + `<p>${L(l, 'EU law (the DAC7 directive) requires platforms like CapturaGo to collect the tax details of everyone who earns money through them, and to report those earnings to the tax authority once a year. You also get a copy of what we report.')}</p>`
+          + `<p>${L(l, 'It takes about two minutes: {link} (Dashboard → Payments). We need your name, address, date of birth and tax number — or, for a business, its registration details.', { link })}</p>`
+          + (r.step === 'reminder2' ? `<p><strong>${L(l, 'This is our last reminder. If we still don\'t have your details 60 days after our first request, the law may require us to hold your payouts until you add them.')}</strong></p>` : '')
+          + `<p style="color:#7D6A53;font-size:13px">${L(l, 'Your details are private: only you and the CapturaGo team can see them, and they are used only for tax reporting.')}</p>`);
+        if (!sent) continue;   // try again next hour
+        await ctx.db('rpc/mark_tax_request', { method: 'POST', body: { p_user: r.user_id, p_step: r.step } });
+        summary.tax_requests++;
+      } catch (e) { fail('tax-request', r.user_id, e); }
+    }
+  } catch (e) { if (!/due_tax_requests/.test(String(e && e.message))) fail('tax-requests', '-', e); }
 
   // 6. + 10. housekeeping
   await ctx.db(`ai_requests?created_at=lt.${encodeURIComponent(new Date(now - HOUR).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});

@@ -29,6 +29,8 @@
 // 19. Last-minute deals → one email to travellers in that city   20. Text reminders on the shoot day (SMS / WhatsApp)
 //  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
 // 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
+// 22. (v8.15) EU DAC7: creators who can be paid online are asked for their tax details (then 2 reminders: day 14 and 45).
+//     With the secret TAX_INFO_HOLD=on, payouts wait for creators still without details 60 days after the first request.
 const BATCH = 50;
 const HOUR = 3600000;
 
@@ -44,7 +46,7 @@ async function runJobs(ctx, deps) {
   const now = ctx.nowMs();
   const nowIso = new Date(now).toISOString();
   const summary = { expired: 0, nudged: 0, auto_refunded: 0, released: 0, reminders: 0, late_notices: 0, message_emails: 0, photo_reminders: 0, photos_deleted: 0, city_alerts: 0,
-    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, errors: 0 };
+    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, errors: 0 };
   const errors = [];
   const fail = (what, id, e) => { summary.errors++; errors.push(`${what} ${id}: ${e && e.message ? e.message : e}`); console.error('[jobs]', what, id, e); };
   const mark = (b, key) => ctx.db(`bookings?id=eq.${b.id}`, { method: 'PATCH', body: { notices: { ...(b.notices || {}), [key]: nowIso } }, prefer: 'return=minimal' });
@@ -142,6 +144,14 @@ async function runJobs(ctx, deps) {
   }
 
   // 3. automatic payouts
+  // DAC7 (only when switched on): no payout for creators who still haven't given their tax details after the request and 2 reminders
+  let taxHeld = new Set();
+  if (String(ctx.env('TAX_INFO_HOLD', '')).toLowerCase() === 'on') {
+    try {
+      const ids = await ctx.db('rpc/tax_payout_holds', { method: 'POST', body: {} });
+      taxHeld = new Set((ids || []).map((x) => (typeof x === 'string' ? x : x && x.tax_payout_holds)).filter(Boolean));
+    } catch (e) { if (!/tax_payout_holds/.test(String(e && e.message))) fail('tax-holds', '-', e); }
+  }
   const cutoffDate = ctx.isoInDays(-3);
   // Photos promised in the package: not before 3 days after they were sent (the database marks these bookings)
   const sentBefore = encodeURIComponent(new Date(now - RELEASE_DAYS * 86400000).toISOString());
@@ -151,6 +161,7 @@ async function runJobs(ctx, deps) {
   sessionsDone = (sessionsDone || []).filter((b) => { const h = payoutHold(b); return h.releaseAt !== null && h.releaseAt <= now; });   // double check
   const deliveriesDone = await ctx.db(`bookings?status=eq.delivered&delivered_at=lt.${encodeURIComponent(new Date(now - 72 * HOUR).toISOString())}&select=*&limit=${BATCH}`);
   for (const b of [...(sessionsDone || []), ...(deliveriesDone || [])]) {
+    if (taxHeld.has(b.creator_user_id)) { summary.tax_held++; continue; }   // released as soon as the details are in
     try {
       const transferId = await releaseBooking(ctx, b);
       if (await moveBooking(ctx, b.id, b.status, 'completed', { stripe_transfer_id: transferId })) {
@@ -608,6 +619,27 @@ async function runJobs(ctx, deps) {
       } catch (e) { fail('watch', w.watch_id, e); }
     }
   } catch (e) { if (!/due_creator_watches|creator_watches/.test(String(e && e.message))) fail('watches', '-', e); }
+
+  // 22. DAC7 tax details: ask once, then 2 reminders (the law requires them before payouts may be held)
+  try {
+    const due22 = await ctx.db('rpc/due_tax_requests', { method: 'POST', body: { p_limit: 100 } });
+    for (const r of due22 || []) {
+      try {
+        const l = await mailLang(ctx, r.user_id, r.email);
+        const link = `<a href="${ctx.siteUrl}/dashboard.html#payments"><strong>${L(l, 'Add my tax details')}</strong></a>`;
+        const sent = await sendEmail(ctx, deps, r.email,
+          r.step === 'ask' ? L(l, 'Please add your tax details for CapturaGo') : L(l, 'Reminder: your tax details for CapturaGo are still missing'),
+          hiP(l, escHtml(String(r.name || '').split(' ')[0]))
+          + `<p>${L(l, 'EU law (the DAC7 directive) requires platforms like CapturaGo to collect the tax details of everyone who earns money through them, and to report those earnings to the tax authority once a year. You also get a copy of what we report.')}</p>`
+          + `<p>${L(l, 'It takes about two minutes: {link} (Dashboard → Payments). We need your name, address, date of birth and tax number — or, for a business, its registration details.', { link })}</p>`
+          + (r.step === 'reminder2' ? `<p><strong>${L(l, 'This is our last reminder. If we still don\'t have your details 60 days after our first request, the law may require us to hold your payouts until you add them.')}</strong></p>` : '')
+          + `<p style="color:#7D6A53;font-size:13px">${L(l, 'Your details are private: only you and the CapturaGo team can see them, and they are used only for tax reporting.')}</p>`);
+        if (!sent) continue;   // try again next hour
+        await ctx.db('rpc/mark_tax_request', { method: 'POST', body: { p_user: r.user_id, p_step: r.step } });
+        summary.tax_requests++;
+      } catch (e) { fail('tax-request', r.user_id, e); }
+    }
+  } catch (e) { if (!/due_tax_requests/.test(String(e && e.message))) fail('tax-requests', '-', e); }
 
   // 6. + 10. housekeeping
   await ctx.db(`ai_requests?created_at=lt.${encodeURIComponent(new Date(now - HOUR).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});

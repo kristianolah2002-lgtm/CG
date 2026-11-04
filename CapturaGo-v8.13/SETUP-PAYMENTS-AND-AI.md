@@ -479,6 +479,41 @@ What's new:
   email has "Propose a new date"; the link opens that window with *bad weather* chosen.
 - Leave a review with 2 photos → the first one appears under "Clients' favourite shots" on the profile.
 
+## Part 21 — EU DAC7 tax reporting (10 min + your accountant) — v8.15
+**Why:** platforms in the EU must report what their sellers earned once a year (Council Directive (EU) 2021/514,
+"DAC7"). For **personal services like shoots there is no minimum** — every creator who was paid through CapturaGo
+counts. CapturaGo is based in Slovakia, so the report goes to **Finančná správa** by **31 January** for the year
+before, and **every creator must get a copy of what you report by the same date**. Creators who live outside the EU
+aren't reported to an EU authority (they still get a summary).
+
+What's new:
+- **Creators:** Dashboard → Payments → **🧾 Tax details** (and a reminder on the Overview when it's needed): private
+  person (name, date of birth, address, country, tax number — or place of birth if their country issues none) or
+  business (registered name, registration number, address, tax number), VAT number optional. The database checks every
+  field; only the creator and the server can read them. Kept 10 years, also after the account is deleted (the law).
+- **Requests:** the hourly job emails creators who can be paid online and have no details (then reminders after 14
+  and 45 days — the law requires a request and two reminders).
+- **Payout hold (optional):** add the secret `TAX_INFO_HOLD` = `on` to stop automatic payouts for creators still without
+  details 60 days after the first request (the sanction the rules allow). Payouts continue as soon as they add them.
+  You can still release a booking by hand in the admin panel. Default: off.
+- **Admin panel → 🧾 Tax reporting:** choose the year → every creator paid out that year (a booking counts when its
+  payout was released), per quarter: amount (package price before our fee), number of jobs, our fees; "EU" = reportable;
+  red = details missing. **Download CSV** (all DAC7 fields) and **Email statements to creators** (the tax number is
+  masked in the email; each creator is emailed once per year — press again after fixing missing details).
+
+1. **Database:** run the whole `database.sql` again (safe to re-run).
+2. **Re-deploy `scheduled-jobs` and `admin`** (keep their Verify JWT settings). Other `index.ts` files were rebuilt
+   too (shared helper code) but work as before.
+3. **Website:** deploy the whole folder.
+4. **Optional:** secret `TAX_INFO_HOLD` = `on` (see above).
+5. **Your part (with your accountant):** register CapturaGo as a platform operator for DAC7 with Finančná správa,
+   and file the report through their portal by 31 January using the CSV (they need it in their XML format — your
+   accountant or their portal converts it). Then press **Email statements to creators**.
+
+**Test (test mode):** as a creator with payouts set up, Overview shows "🧾 Add your tax details" → Payments → fill the
+form (try a 15-year-old birth date or a VAT number without a country code → refused) → Save → "✓ Saved". As admin:
+complete a test booking → 🧾 Tax reporting → this year → your creator with Q-amounts → Download CSV → Email statements.
+
 ## Going live (only when the site is ready AND these are done)
 1. **Register your business** (živnosť or s.r.o.). Stripe needs real business details to pay you.
 2. Stripe → switch Test mode OFF → **Activate account** → enter business and bank details.

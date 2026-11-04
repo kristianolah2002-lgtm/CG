@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshUnread();
     refreshBookingBadge();
     startInbox();
-    loadAlerts(); loadWatches();
+    loadAlerts(); loadWatches(); taxReminder();
     loadEmailPrefs(); loadGiftCards(); loadPhone();
     handleReturnParams();
   }
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (name === 'inquiries') loadInquiries();
     if (name === 'reviews') loadReviews();
     if (name === 'bookings') loadBookings();
-    if (name === 'payments') loadPayments();
+    if (name === 'payments') { loadPayments(); loadTax(); }
     if (name === 'boost') loadBoost();
     if (name === 'availability') loadAvailability();
     if (name === 'requests') loadRequests();
@@ -1883,6 +1883,114 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  /* ── 🧾 TAX DETAILS (EU DAC7): needed once a creator can be paid online; reported once a year ── */
+  const ISO = 'AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW'.split(' ');
+  const countryName = (() => {
+    let dn = null;
+    try { dn = new Intl.DisplayNames([window.CG_LANG || 'en', 'en'], { type: 'region' }); } catch {}
+    return (c) => { try { return (dn && dn.of(c)) || c; } catch { return c; } };
+  })();
+  const countryOptions = (sel) => ISO.map((c) => [c, countryName(c)]).sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([c, n]) => `<option value="${c}"${c === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+  async function taxReminder() {
+    const box = $('taxReminder');
+    if (!box || !listing) return;
+    const { data } = await CG.tax.mine();
+    if (!data || !data.required || data.info) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = `<div><strong>🧾 Add your tax details</strong><p class="muted small">EU law (DAC7) requires us to collect them from creators who are paid through CapturaGo. It takes about two minutes.${data.hold ? ' <strong class="tax-hold">Your payouts are on hold until you add them.</strong>' : ''}</p></div>
+      <button type="button" class="primary-btn" id="taxGo">Add my tax details</button>`;
+    $('taxGo').addEventListener('click', () => showPanel('payments'));
+  }
+  async function loadTax(editing = false) {
+    const box = $('taxBox');
+    if (!box) return;
+    if (!listing) { box.hidden = true; return; }
+    const { data, error } = await CG.tax.mine();
+    if (error || !data) { box.hidden = true; return; }   // database update not run yet
+    box.hidden = false;
+    const t = data.info;
+    const head = `<h3 style="margin:0 0 4px">🧾 Tax details <span class="muted small">(EU DAC7)</span></h3>`;
+    const why = `<p class="muted small">EU law (DAC7) requires platforms to collect the tax details of creators who are paid through them and to report their earnings to the tax authority once a year. You get a copy every January. Only you and the CapturaGo team can see these details. <a href="/privacy.html#tax" target="_blank">Privacy Policy</a></p>`;
+    if (t && !editing) {
+      const who = t.kind === 'business' ? `${t.business_name} · ${t.business_number}` : `${t.first_name} ${t.last_name}`;
+      box.innerHTML = `${head}<p><strong class="ok">✓ Saved</strong> <span class="muted small">— ${esc(fmtDate(t.confirmed_at))}</span></p>
+        <p class="small" translate="no">${esc(who)}<br/>${esc([t.address, [t.postal_code, t.city].filter(Boolean).join(' '), countryName(t.country)].filter(Boolean).join(', '))}<br/>${t.no_tin ? '—' : `${esc(t.tin_country)} ${esc(t.tin)}`}${t.vat_number ? ` · ${esc(t.vat_number)}` : ''}</p>
+        <button type="button" class="secondary-btn" id="taxEdit">Edit my tax details</button>${why}`;
+      $('taxEdit').addEventListener('click', () => loadTax(true));
+      return;
+    }
+    if (!t && !data.required && !editing) {
+      box.innerHTML = `${head}<p class="small">You'll need these once you can be paid online. You can add them now.</p>
+        <button type="button" class="secondary-btn" id="taxEdit">Add my tax details</button>${why}`;
+      $('taxEdit').addEventListener('click', () => loadTax(true));
+      return;
+    }
+    const v = t || { kind: 'individual', country: '' };
+    const biz = v.kind === 'business';
+    box.innerHTML = `${head}${!t ? `<p class="small">${data.hold ? '<strong class="tax-hold">Your payouts are on hold until you add these details.</strong> ' : ''}Please add your details — we need them before we can report your earnings.</p>` : ''}
+      <form id="taxForm" class="tax-form" novalidate>
+        <div class="tax-kind" role="radiogroup" aria-label="I work as">
+          <label><input type="radio" name="taxKind" value="individual" ${biz ? '' : 'checked'} /> A private person</label>
+          <label><input type="radio" name="taxKind" value="business" ${biz ? 'checked' : ''} /> A business (company or registered sole trader)</label>
+        </div>
+        <div class="tax-ind" ${biz ? 'hidden' : ''}>
+          <div class="tax-two"><div class="form-row"><label for="txFirst">First name(s) *</label><input id="txFirst" maxlength="100" autocomplete="given-name" value="${esc(v.first_name || '')}" /></div>
+            <div class="form-row"><label for="txLast">Last name *</label><input id="txLast" maxlength="100" autocomplete="family-name" value="${esc(v.last_name || '')}" /></div></div>
+          <div class="form-row"><label for="txBirth">Date of birth *</label><input id="txBirth" type="date" autocomplete="bday" value="${esc(v.birth_date || '')}" style="max-width:220px" /></div>
+          <p class="form-note">As on your ID.</p>
+        </div>
+        <div class="tax-biz" ${biz ? '' : 'hidden'}>
+          <div class="form-row"><label for="txBizName">Registered business name *</label><input id="txBizName" maxlength="200" autocomplete="organization" value="${esc(v.business_name || '')}" /></div>
+          <div class="form-row"><label for="txBizNo">Business registration number *</label><input id="txBizNo" maxlength="40" value="${esc(v.business_number || '')}" placeholder="e.g. IČO, trade register number" /></div>
+        </div>
+        <div class="form-row"><label for="txAddr">Street and number *</label><input id="txAddr" maxlength="200" autocomplete="street-address" value="${esc(v.address || '')}" /></div>
+        <div class="tax-two"><div class="form-row"><label for="txZip">Postal code</label><input id="txZip" maxlength="20" autocomplete="postal-code" value="${esc(v.postal_code || '')}" /></div>
+          <div class="form-row"><label for="txCity">City *</label><input id="txCity" maxlength="100" autocomplete="address-level2" value="${esc(v.city || '')}" /></div></div>
+        <div class="form-row"><label for="txCountry">Country where you live *</label><select id="txCountry" translate="no"><option value="">Choose…</option>${countryOptions(v.country)}</select>
+          <p class="form-note tax-biz-note" ${biz ? '' : 'hidden'}>For a business: where it is registered.</p></div>
+        <div class="tax-tin" ${v.no_tin ? 'hidden' : ''}>
+          <div class="tax-two"><div class="form-row"><label for="txTin">Tax number (TIN) *</label><input id="txTin" maxlength="30" autocomplete="off" spellcheck="false" value="${esc(v.tin || '')}" /></div>
+            <div class="form-row"><label for="txTinCountry">Issued by *</label><select id="txTinCountry" translate="no"><option value="">Same as above</option>${countryOptions(v.tin_country && v.tin_country !== v.country ? v.tin_country : '')}</select></div></div>
+          <p class="form-note">The number your tax office gave you (in Slovakia: rodné číslo or DIČ; in Germany: Steuer-ID).</p>
+        </div>
+        <label class="tax-check tax-ind" ${biz ? 'hidden' : ''}><input type="checkbox" id="txNoTin" ${v.no_tin ? 'checked' : ''} /> My country doesn't issue tax numbers</label>
+        <div class="form-row tax-bp" ${v.no_tin && !biz ? '' : 'hidden'}><label for="txBirthPlace">Place of birth (city and country) *</label><input id="txBirthPlace" maxlength="120" value="${esc(v.birth_place || '')}" /></div>
+        <div class="form-row"><label for="txVat">VAT number <span class="muted">(optional)</span></label><input id="txVat" maxlength="20" autocomplete="off" spellcheck="false" value="${esc(v.vat_number || '')}" placeholder="e.g. SK2020123456" /></div>
+        <label class="tax-check"><input type="checkbox" id="txOk" /> I confirm these details are correct and complete.</label>
+        <div class="pm-actions"><button type="submit" class="primary-btn" id="txSave">Save tax details</button>${t ? '<button type="button" class="link-btn" id="txCancel">Cancel</button>' : ''}</div>
+      </form>${why}`;
+    const f = $('taxForm');
+    const kind = () => f.querySelector('input[name="taxKind"]:checked')?.value || 'individual';
+    const sync = () => {
+      const b = kind() === 'business', nt = !b && $('txNoTin').checked;
+      f.querySelectorAll('.tax-ind').forEach((x) => { x.hidden = b; });
+      f.querySelectorAll('.tax-biz, .tax-biz-note').forEach((x) => { x.hidden = !b; });
+      f.querySelector('.tax-tin').hidden = nt;
+      f.querySelector('.tax-bp').hidden = !nt;
+    };
+    f.querySelectorAll('input[name="taxKind"]').forEach((x) => x.addEventListener('change', sync));
+    $('txNoTin').addEventListener('change', sync);
+    $('txCancel')?.addEventListener('click', () => loadTax(false));
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!$('txOk').checked) { showToast('Please confirm that your details are correct.', 'error'); $('txOk').focus(); return; }
+      const b = kind() === 'business', nt = !b && $('txNoTin').checked;
+      const p = {
+        kind: kind(), address: $('txAddr').value, postal_code: $('txZip').value, city: $('txCity').value, country: $('txCountry').value,
+        vat_number: $('txVat').value, no_tin: nt,
+        ...(b ? { business_name: $('txBizName').value, business_number: $('txBizNo').value } : { first_name: $('txFirst').value, last_name: $('txLast').value, birth_date: $('txBirth').value }),
+        ...(nt ? { birth_place: $('txBirthPlace').value } : { tin: $('txTin').value, tin_country: $('txTinCountry').value || $('txCountry').value }),
+      };
+      const btn = $('txSave'); btn.disabled = true;
+      const { error: err } = await CG.tax.save(p);
+      btn.disabled = false;
+      if (err) { showToast(err.message || 'Could not save your tax details.', 'error', 7000); return; }
+      showToast('Tax details saved ✓', 'success');
+      loadTax(false); taxReminder();
+    });
+  }
+
   async function goStripe(action, country) {
     const btn = $(action === 'dashboard' ? 'stripeDash' : 'stripeGo');
     if (btn) { btn.disabled = true; btn.textContent = 'Opening Stripe…'; }
@@ -2845,6 +2953,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /* ── RETURN FROM STRIPE / DEEP LINKS ──────────────── */
+  const DEEP_PANELS = ['messages', 'bookings', 'requests', 'listing', 'availability', 'earnings', 'payments', 'boost', 'reviews', 'overview'];
   function handleReturnParams() {
     const q = new URLSearchParams(location.search);
     if (q.get('c')) { showPanel('messages'); openConversation(q.get('c')); }
@@ -2856,16 +2965,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       showPanel('boost');
       showToast('Payment received — your boost activates within a minute.', 'success', 6000);
       setTimeout(async () => { const { data } = await CG.photographers.getByUserId(user.id); if (data) { listing = { ...data, email: listing?.email }; loadBoost(); } }, 4000);
-    } else if (location.hash === '#bookings') showPanel('bookings');
-    else if (location.hash === '#messages') showPanel('messages');
-    else if (location.hash === '#requests') showPanel('requests');
+    } else if (DEEP_PANELS.includes(location.hash.slice(1))) showPanel(location.hash.slice(1));   // e.g. #payments from the tax email
     if (q.toString()) history.replaceState(null, '', location.pathname + location.hash);
   }
 
   // Links like dashboard.html#messages also work when you're already on the dashboard
   window.addEventListener('hashchange', () => {
     const name = location.hash.slice(1);
-    if (user && ['messages', 'bookings', 'requests', 'listing', 'availability', 'earnings', 'payments', 'boost', 'reviews', 'overview'].includes(name)) showPanel(name);
+    if (user && DEEP_PANELS.includes(name)) showPanel(name);
   });
 
   await init();
