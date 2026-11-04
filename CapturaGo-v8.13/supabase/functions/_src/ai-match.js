@@ -10,8 +10,16 @@ Choose up to 6 creators that best fit the request. Priorities, in order:
 1. Service — what the person needs. If they need remote work (editing, clipping, retouching, thumbnails, UGC), location does NOT matter.
 2. Location — for in-person services the creator must be based in or near the requested place, or marked as travelling ("travels": true). If the request names a place for in-person work and nobody fits, return no matches.
 3. Occasion (e.g. proposal, headshots, dating, wedding, business), style (vibes), budget (price: budget < €80, mid €80–250, premium €250+), languages, experience level.
+4. When creators fit equally well, prefer the ones who reply fast ("replies": "within an hour" beats "within a few hours" beats "within a day"; missing = not measured yet).
 Reply with ONLY a JSON object, no other text:
 {"matches":[{"id":"<creator id from the list>","reason":"<max 20 words, in the same language as the request, why they fit>"}],"note":"<optional, max 25 words>"}`;
+
+/** Same bands as the profile badge (site.js replyLabel): measured by the server, only with 3+ answers. */
+function replyBand(c) {
+  const m = Number(c && c.reply_minutes);
+  if (!Number.isFinite(m) || m <= 0 || Number(c.reply_samples) < 3) return '';
+  return m <= 60 ? 'within an hour' : m <= 180 ? 'within a few hours' : m <= 1440 ? 'within a day' : '';
+}
 
 function createHandler(deps) {
   const ctx = makeCtx(deps);
@@ -36,7 +44,10 @@ function createHandler(deps) {
     // Keep only the last hour of rate-limit records (privacy: nothing older is stored)
     await ctx.db(`ai_requests?created_at=lt.${encodeURIComponent(since)}`, { method: 'DELETE', prefer: 'return=minimal' });
 
-    const rows = await ctx.db('photographers?select=id,name,city,services,vibes,occasions,drone_certified,price,level,languages,travel_available,available,description,local_spots,packages&hidden=is.false&limit=300');
+    const COLS = 'id,name,city,services,vibes,occasions,drone_certified,price,level,languages,travel_available,available,description,local_spots,packages';
+    let rows;
+    try { rows = await ctx.db(`photographers?select=${COLS},reply_minutes,reply_samples&hidden=is.false&limit=300`); }
+    catch (e) { if (!/reply_/.test(String(e && e.message))) throw e; rows = await ctx.db(`photographers?select=${COLS}&hidden=is.false&limit=300`); }   // database update not run yet
     const creators = (rows || []).filter((c) => c.available !== false);
     if (!creators.length) return json({ matches: [], note: 'No creators are listed yet.' });
 
@@ -52,6 +63,7 @@ function createHandler(deps) {
       level: c.level,
       languages: String(c.languages || '').slice(0, 80),
       travels: !!c.travel_available,
+      ...(replyBand(c) ? { replies: replyBand(c) } : {}),
       about: String(c.description || '').slice(0, 300),
       spots: (Array.isArray(c.local_spots) ? c.local_spots : []).slice(0, 5).map((s) => String((s && s.name) || '').slice(0, 60)),
       packages: (Array.isArray(c.packages) ? c.packages : []).slice(0, 5).map((p) => `${String(p.name || '').slice(0, 40)} €${p.price_eur}${p.type === 'delivery' ? ' (remote)' : ''}`),

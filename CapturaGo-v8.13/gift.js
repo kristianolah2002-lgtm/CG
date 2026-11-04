@@ -10,9 +10,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const niceDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
   let amount = 100;
 
-  const preview = (eur, name) => {
+  const preview = (eur, name, surprise) => {
     $('gvAmount').textContent = `€${eur || '—'}`;
-    $('gvFor').textContent = name ? `For ${name}` : 'A photo shoot, anywhere you travel';
+    $('gvFor').textContent = surprise ? (name ? `For ${name} · 🎲 Surprise me` : '🎲 Surprise me — a last-minute shoot') : (name ? `For ${name}` : 'A photo shoot, anywhere you travel');
+    $('giftVisual').classList.toggle('is-surprise', !!surprise);
   };
 
   if (outcome === 'cancel') { showToast('Payment cancelled — nothing was charged.', 'info'); history.replaceState(null, '', '/gift.html'); }
@@ -46,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     x.font = '600 52px Fraunces, Georgia, serif'; x.textBaseline = 'middle';
     x.fillText('CapturaGo', 220, 152);
     x.fillStyle = '#6B5842'; x.font = '500 34px Inter, system-ui, sans-serif';
-    x.fillText('GIFT CARD', 110, 290);
+    x.fillText(g.surprise ? 'GIFT CARD · SURPRISE ME — A LAST-MINUTE SHOOT' : 'GIFT CARD', 110, 290);
     x.fillStyle = '#B04722'; x.font = '600 220px Fraunces, Georgia, serif'; x.textBaseline = 'alphabetic';
     x.fillText(money(g.amount_cents), 100, 520);
     x.fillStyle = '#211911'; x.font = '500 54px Fraunces, Georgia, serif';
@@ -97,13 +98,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         : '<h2>Payment processing</h2><p class="muted">Your payment is still being confirmed. You\'ll get the code by email in a minute — it will also appear here.</p>';
       return;
     }
-    preview(g.amount_cents / 100, g.recipient_name || '');
+    preview(g.amount_cents / 100, g.recipient_name || '', g.surprise);
     $('giftVisual').querySelector('.gv-code').textContent = g.code;
     box.innerHTML = `<h2>${outcome === 'ok' ? 'Thank you! Your gift card is ready 🎁' : 'Your gift card'}</h2>
       <p class="gift-code" translate="no">${esc(g.code)}</p>
       <ul class="pay-facts"><li><span>💶</span><span><strong>${money(g.balance_cents)}</strong>${g.balance_cents < g.amount_cents ? ` left of ${money(g.amount_cents)}` : ''}</span></li>
         <li><span>📅</span><span>Valid until ${esc(niceDate(g.expires_at))}</span></li>
-        ${g.recipient_email ? `<li><span>✉️</span><span>We emailed it to ${esc(g.recipient_email)}</span></li>` : ''}</ul>
+        ${g.recipient_email ? `<li><span>✉️</span><span>We emailed it to ${esc(g.recipient_email)}</span></li>` : ''}
+        ${g.surprise ? '<li><span>🎲</span><span>A “Surprise me” gift — made for last-minute deals</span></li>' : ''}</ul>
       <div class="gift-actions"><button type="button" class="primary-btn" id="gDownload">Download printable card</button>
         <button type="button" class="secondary-btn" id="gCopy">Copy code</button></div>
       <p class="muted small">Anyone with the code can use it, so keep it like cash until you give it.</p>
@@ -123,10 +125,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="form-row"><label for="gEmail">Email it to them <span class="muted">(optional)</span></label><input id="gEmail" type="email" maxlength="254" autocomplete="off" placeholder="We'll send it right after you pay" />
           <p class="form-note">Leave empty to give it yourself — you'll get a printable card.</p></div>
         <div class="form-row"><label for="gMsg">Personal message <span class="muted">(optional)</span></label><textarea id="gMsg" rows="3" maxlength="300" placeholder="Happy birthday! Have the best trip 📸"></textarea></div>
+        <label class="surprise-row gift-surprise"><input type="checkbox" id="gSurprise" /> <span><strong>🎲 Make it a “Surprise me” gift</strong><br/><span class="muted small">We tell them they can let us pick a last-minute shoot for them — often at a lower price. It still works for any shoot.</span></span></label>
         <button type="submit" class="primary-btn" id="gBuy">Buy gift card — €${amount}</button>
         <p class="muted small" style="text-align:center;margin-top:10px">Payments are processed by Stripe. <a href="/terms.html#gift-cards" target="_blank">Gift card terms</a></p>
       </form>`;
-    const btnText = () => { $('gBuy').textContent = `Buy gift card — €${amount || '…'}`; preview(amount, $('gName').value.trim()); };
+    const btnText = () => { $('gBuy').textContent = `Buy gift card — €${amount || '…'}`; preview(amount, $('gName').value.trim(), $('gSurprise').checked); };
     $('gAmounts').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       $('gAmounts').querySelectorAll('button').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
       const other = b.dataset.a === 'other';
@@ -137,13 +140,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }));
     $('gOther').addEventListener('input', () => { amount = Number($('gOther').value) || 0; btnText(); });
     $('gName').addEventListener('input', btnText);
+    $('gSurprise').addEventListener('change', btnText);
     $('giftForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!Number.isInteger(amount) || amount < 25 || amount > 1000) return showToast('Choose an amount from €25 to €1000 (whole euros).', 'error');
       const email = $('gEmail').value.trim();
       if (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) return showToast("The recipient's email doesn't look right.", 'error');
       const btn = $('gBuy'); btn.disabled = true; btn.textContent = 'Opening secure payment…';
-      const { data, error } = await CG.gifts.buy({ amount_eur: amount, recipient_name: $('gName').value.trim(), recipient_email: email, message: $('gMsg').value.trim() });
+      const { data, error } = await CG.gifts.buy({ amount_eur: amount, recipient_name: $('gName').value.trim(), recipient_email: email, message: $('gMsg').value.trim(), surprise: $('gSurprise').checked });
       if (error || !data?.url) { btn.disabled = false; btnText(); showToast(error?.message || 'Could not start the payment. Please try again.', 'error', 6000); return; }
       location.href = data.url;
     });
@@ -159,7 +163,97 @@ document.addEventListener('DOMContentLoaded', async () => {
       <span class="muted small">${g.status === 'refunded' ? 'Refunded' : `${money(g.balance_cents)} left · valid until ${esc(niceDate(g.expires_at))}`}</span></li>`).join('');
   }
 
+  /* ── ⚡ Last-minute deals for gift cards, and 🎲 "Surprise me" (anyone can browse; the code is checked when signed in) ── */
+  const FEE = Number(window.CG_CONFIG?.clientFeePercent ?? 10);
+  let dealRows = null, dealBalance = null, dealCode = '';
+  async function loadDealRows() {
+    if (dealRows) return dealRows;
+    const [{ data: live }, { data: all }] = await Promise.all([CG.deals.active(), CG.photographers.getAll({})]);
+    const byId = new Map((all || []).map((p) => [p.id, p]));
+    dealRows = (live || []).map((d) => {
+      const p = byId.get(d.photographer_id);
+      const pct = Math.round(Number(d.pct) || 0);
+      if (!p || p.hidden || p.available === false || !p.payouts_enabled || !(pct >= 10 && pct <= 50)) return null;
+      const pkgs = (Array.isArray(p.packages) ? p.packages : []).filter((k) => k && k.id && k.type !== 'delivery' && Number(k.price_eur) >= 10 && Number(k.price_eur) <= 5000);
+      if (!pkgs.length) return null;
+      const k = pkgs.reduce((a, b) => (Number(b.price_eur) < Number(a.price_eur) ? b : a));
+      const priceCents = dealCents(k.price_eur, pct);
+      const totalCents = priceCents + Math.round((priceCents * FEE) / 100);
+      const trip = tripOn(p.trips, d.day);
+      return { p, day: d.day, pct, pkg: k, wasCents: Math.round(Number(k.price_eur) * 100), priceCents, totalCents, city: String((trip && trip.city) || p.city || '').split(',')[0].trim() };
+    }).filter(Boolean).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : b.pct - a.pct));
+    return dealRows;
+  }
+  const dealsHere = (rows) => {
+    const c = cityKey($('dlCity').value);
+    return c ? rows.filter((r) => cityKey(r.city).includes(c) || cityKey(r.p.city).includes(c)) : rows;
+  };
+  const coverText = (r) => (dealBalance === null ? '' : dealBalance >= r.totalCents ? '<span class="deal-cover ok">🎁 Fully covered by your card</span>'
+    : `<span class="deal-cover">🎁 ${money(dealBalance)} from your card · ${money(r.totalCents - dealBalance)} to pay</span>`);
+  const dealCard = (r, big) => `
+    <article class="deal-card${big ? ' deal-card-big' : ''}">
+      <img src="${esc(safeUrl(r.p.cover_image_url) || '/images/default.jpg')}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/images/default.jpg'" />
+      <div class="deal-card-body">
+        <span class="deal-badge">⚡ −${r.pct}% · ${esc(dealDay(r.day))}</span>
+        <strong translate="no">${esc(r.p.name)}</strong>
+        <span class="muted small">📍 ${esc(r.city)}</span>
+        <span class="small"><span translate="no">${esc(r.pkg.name)}</span> · <strong>${money(r.priceCents)}</strong> <s class="muted">${money(r.wasCents)}</s>${FEE ? ` <span class="muted">+ ${FEE}% service fee</span>` : ''}</span>
+        ${coverText(r)}
+        <button type="button" class="primary-btn deal-book" data-id="${esc(r.p.id)}" data-day="${esc(r.day)}">Book this deal</button>
+      </div>
+    </article>`;
+  function goBook(id, day) {
+    try { if (dealCode) sessionStorage.setItem('cg_gift_code', dealCode); else sessionStorage.removeItem('cg_gift_code'); } catch {}
+    location.href = `/?creator=${encodeURIComponent(id)}&day=${encodeURIComponent(day)}`;
+  }
+  const wireBook = (root) => root.querySelectorAll('.deal-book').forEach((b) => b.addEventListener('click', () => goBook(b.dataset.id, b.dataset.day)));
+  async function readCode(user) {
+    const raw = $('dlCode').value.trim();
+    if (!raw) { dealCode = ''; dealBalance = null; return true; }
+    const code = giftCodeNorm(raw);
+    if (!code) { showToast('Enter the code from your gift card (CG-XXXX-XXXX-XXXX-XXXX).', 'error'); return false; }
+    if (code === dealCode && dealBalance !== null) return true;
+    if (!user) { showToast('Sign in at the top of this page to check your gift card — or leave the code empty to just browse.', 'info', 6000); return false; }
+    const { data, error } = await CG.gifts.check(code);
+    if (error || !data?.ok) { showToast(data?.error || error?.message || 'Could not check the code. Please try again.', 'error', 6000); return false; }
+    dealCode = code; dealBalance = Number(data.balance_cents) || 0;
+    $('dlCode').value = code;
+    return true;
+  }
+  async function showDeals(user, surprise) {
+    if (!(await readCode(user))) return;
+    const btns = [$('dlShow'), $('dlSurprise')]; btns.forEach((b) => { b.disabled = true; });
+    $('dlStatus').textContent = 'Looking for last-minute deals…';
+    const rows = dealsHere(await loadDealRows());
+    btns.forEach((b) => { b.disabled = false; });
+    const where = $('dlCity').value.trim();
+    if (!rows.length) {
+      $('dlPick').hidden = true; $('dlList').innerHTML = '';
+      $('dlStatus').innerHTML = `<strong>No last-minute deals right now.</strong> <span>Deals are for tomorrow and the day after — check again tomorrow, or</span> <a href="/${where ? `?city=${encodeURIComponent(where)}` : ''}#portfolio-section">use your card on any shoot</a>`;
+      return;
+    }
+    $('dlStatus').textContent = `${rows.length} last-minute deal${rows.length > 1 ? 's' : ''}${where ? ` in ${where}` : ''}.`;
+    if (surprise) {
+      // Prefer deals the card fully covers; pick fairly at random among them
+      const covered = dealBalance === null ? [] : rows.filter((r) => r.totalCents <= dealBalance);
+      const pool = covered.length ? covered : rows;
+      const n = new Uint32Array(1); crypto.getRandomValues(n);
+      const r = pool[n[0] % pool.length];
+      $('dlPick').hidden = false;
+      $('dlPick').innerHTML = `<p class="deal-pick-title">🎲 We picked for you</p>${dealCard(r, true)}
+        <p class="deal-pick-more">${pool.length > 1 ? '<button type="button" class="link-btn" id="dlAgain">🎲 Pick again</button>' : ''}</p>`;
+      wireBook($('dlPick'));
+      $('dlAgain')?.addEventListener('click', () => showDeals(user, true));
+      $('dlPick').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else $('dlPick').hidden = true;
+    $('dlList').innerHTML = rows.slice(0, 24).map((r) => dealCard(r, false)).join('');
+    wireBook($('dlList'));
+  }
+
   const user = await CG.auth.getUser();
+  $('dealsForm').addEventListener('submit', (e) => { e.preventDefault(); showDeals(user, false); });
+  $('dlSurprise').addEventListener('click', () => showDeals(user, true));
+  if (location.hash === '#deals') setTimeout(() => $('deals').scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
   if (!user) {
     if (giftId) { box.innerHTML = '<h2>Sign in to see your gift card</h2><div id="gAuth"></div>'; }
     else { box.innerHTML = '<h2>Buy a gift card</h2><div id="gAuth"></div>'; }

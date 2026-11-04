@@ -37,9 +37,23 @@
     </div>
     <div class="narrow-card gift-card" id="giftBox" aria-live="polite"><h2>One moment…</h2></div>
   </div>
+  <section class="gift-deals" id="deals" aria-labelledby="dealsTitle">
+    <h2 id="dealsTitle">⚡ Use it on a last-minute deal</h2>
+    <p class="muted">Creators lower their price by 10–50% for a free day tomorrow or the day after. Every CapturaGo gift card works on these deals — or press <strong>Surprise me</strong> and we pick one for you.</p>
+    <form class="deals-form" id="dealsForm" novalidate>
+      <div class="form-row"><label for="dlCity">Where? <span class="muted">(optional)</span></label><input id="dlCity" maxlength="80" autocomplete="off" placeholder="City, or leave empty for everywhere" /></div>
+      <div class="form-row"><label for="dlCode">Gift card code <span class="muted">(optional)</span></label><input id="dlCode" maxlength="30" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CG-XXXX-XXXX-XXXX-XXXX" translate="no" />
+        <p class="form-note">We show what your card covers and fill it in when you book. Signed in only; the code never leaves this browser except to check it.</p></div>
+      <div class="deals-actions"><button type="submit" class="secondary-btn" id="dlShow">Show deals</button><button type="button" class="primary-btn" id="dlSurprise">🎲 Surprise me</button></div>
+    </form>
+    <div class="deal-pick" id="dlPick" hidden aria-live="polite"></div>
+    <p class="muted small" id="dlStatus" aria-live="polite"></p>
+    <div class="deals-list" id="dlList"></div>
+  </section>
   <section class="gift-faq">
     <h2>Good to know</h2>
     <details><summary>How is it used?</summary><p>They enter the code when booking any in-person shoot or remote edit. If the booking costs more, they pay the rest by card; if it costs less, the rest stays on the card for next time.</p></details>
+    <details><summary>What is a "Surprise me" gift?</summary><p>The same gift card, with a nudge to be spontaneous: we tell them they can press <strong>Surprise me</strong> on this page and we pick a last-minute deal for them — a creator with a free day tomorrow or the day after, often at a lower price. They can still use it for any other shoot.</p></details>
     <details><summary>How long is it valid?</summary><p>3 years from the day you buy it.</p></details>
     <details><summary>Can I get a refund?</summary><p>Yes — an unused gift card can be refunded within 14 days of buying it. Write to <a href="mailto:hello@capturago.com">hello@capturago.com</a>. <a href="/terms.html#gift-cards">Gift card terms</a></p></details>
     <details><summary>What if a booking is cancelled?</summary><p>The amount paid with the gift card goes back on the card automatically.</p></details>

@@ -2384,6 +2384,8 @@ CREATE TABLE IF NOT EXISTS gift_cards (
   CONSTRAINT gift_balance_range CHECK (balance_cents BETWEEN 0 AND amount_cents)
 );
 CREATE INDEX IF NOT EXISTS idx_gift_cards_buyer ON gift_cards (buyer_user_id, created_at DESC);
+-- v8.14: a "Surprise me" gift — made for last-minute deals (the recipient lets CapturaGo pick a deal for them)
+ALTER TABLE gift_cards ADD COLUMN IF NOT EXISTS surprise BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE gift_cards ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON gift_cards FROM anon, authenticated;          -- codes are money: only the server and the buyer's own RPC see them
 
@@ -2479,13 +2481,20 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION release_gift(UUID) FROM PUBLIC, anon, authenticated;
 
--- The gift cards I bought (with their codes — I may pass them on)
+-- The gift cards I bought (with their codes — I may pass them on). v8.14 added "surprise", so the old
+-- version (different columns) is dropped first; the grant below is given again.
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'my_gift_cards' AND pronamespace = 'public'::regnamespace
+             AND NOT ('surprise' = ANY(coalesce(proargnames, '{}')))) THEN
+    DROP FUNCTION my_gift_cards();
+  END IF;
+END $$;
 CREATE OR REPLACE FUNCTION my_gift_cards()
 RETURNS TABLE (id UUID, code TEXT, amount_cents INTEGER, balance_cents INTEGER, status TEXT, recipient_name TEXT, recipient_email TEXT,
-               created_at TIMESTAMPTZ, paid_at TIMESTAMPTZ, expires_at TIMESTAMPTZ)
+               created_at TIMESTAMPTZ, paid_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, surprise BOOLEAN)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT g.id, CASE WHEN g.status = 'active' THEN g.code END, g.amount_cents, g.balance_cents, g.status, g.recipient_name, g.recipient_email,
-         g.created_at, g.paid_at, g.expires_at
+         g.created_at, g.paid_at, g.expires_at, g.surprise
   FROM gift_cards g
   WHERE g.buyer_user_id = auth.uid() AND auth.uid() IS NOT NULL AND g.status IN ('active', 'refunded', 'pending_payment')
     AND (g.status <> 'pending_payment' OR g.created_at > NOW() - INTERVAL '1 day')
@@ -3332,6 +3341,372 @@ BEGIN
   RETURN FOUND;
 END $$;
 REVOKE ALL ON FUNCTION claim_text(UUID) FROM PUBLIC, anon, authenticated;
+
+-- ================================================================
+-- PART 20 — v8.14: "Notify me" on fully booked creators (email, or a text
+-- if asked): one alert when a day opens up or a last-minute deal appears.
+-- (Also v8.14, no table needed: gift cards for last-minute deals with
+-- "Surprise me" — column in PART 13; weather-aware reminders and the
+-- fast-responder ranking — server and website.) Safe to run more than once.
+-- ================================================================
+CREATE TABLE IF NOT EXISTS creator_watches (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  photographer_id  UUID        NOT NULL REFERENCES photographers(id) ON DELETE CASCADE,
+  by_text          BOOLEAN     NOT NULL DEFAULT FALSE,           -- also a text (the traveller asked; needs a confirmed number)
+  seen_free        DATE[]      NOT NULL DEFAULT '{}',            -- days already free when the watch started: only days that open up later count
+  until_day        DATE        NOT NULL,                         -- days watched: from tomorrow up to 60 days after the watch started
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  checked_at       TIMESTAMPTZ,
+  notified_at      TIMESTAMPTZ,                                  -- one alert, then the watch is done (the traveller can watch again)
+  notified_reason  TEXT        CHECK (notified_reason IS NULL OR notified_reason IN ('free', 'deal')),
+  CONSTRAINT creator_watches_one UNIQUE (user_id, photographer_id),
+  CONSTRAINT creator_watches_seen CHECK (cardinality(seen_free) <= 70)
+);
+CREATE INDEX IF NOT EXISTS idx_creator_watches_due ON creator_watches (checked_at NULLS FIRST) WHERE notified_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_creator_watches_creator ON creator_watches (photographer_id);
+ALTER TABLE creator_watches ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON creator_watches FROM anon, authenticated;
+GRANT SELECT (id, photographer_id, by_text, until_day, created_at, notified_at, notified_reason), DELETE ON creator_watches TO authenticated;
+DROP POLICY IF EXISTS "own_watches_read" ON creator_watches;
+CREATE POLICY "own_watches_read" ON creator_watches FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "own_watches_delete" ON creator_watches;
+CREATE POLICY "own_watches_delete" ON creator_watches FOR DELETE USING (user_id = auth.uid());
+
+-- Days a creator can be booked online between two dates (visible, available, payouts set up, day free)
+CREATE OR REPLACE FUNCTION creator_free_days(p_photographer UUID, p_from DATE, p_to DATE)
+RETURNS DATE[] LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT coalesce(array_agg(d ORDER BY d), '{}'::DATE[])
+  FROM photographers p,
+       generate_series(greatest(p_from, CURRENT_DATE + 1), least(p_to, CURRENT_DATE + 400), INTERVAL '1 day') g(dd),
+       LATERAL (SELECT g.dd::DATE AS d) x
+  WHERE p.id = p_photographer AND p.hidden IS NOT TRUE AND p.available IS NOT FALSE AND p.payouts_enabled IS TRUE
+    AND creator_day_free(p.id, x.d);
+$$;
+REVOKE ALL ON FUNCTION creator_free_days(UUID, DATE, DATE) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION watch_creator(p_photographer UUID, p_text BOOLEAN DEFAULT FALSE)
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE me UUID := auth.uid(); p photographers; seen DATE[]; texts BOOLEAN := coalesce(p_text, FALSE);
+BEGIN
+  IF me IS NULL THEN RAISE EXCEPTION 'Please sign in to get notified.' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO p FROM photographers WHERE id = p_photographer;
+  IF p.id IS NULL OR p.hidden IS TRUE THEN RAISE EXCEPTION 'Creator not found.' USING ERRCODE = 'P0001'; END IF;
+  IF p.user_id = me THEN RAISE EXCEPTION 'That''s your own listing.' USING ERRCODE = 'P0001'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('watch:' || me::text));
+  IF (SELECT count(*) FROM creator_watches WHERE user_id = me AND notified_at IS NULL AND photographer_id <> p.id) >= 30 THEN
+    RAISE EXCEPTION 'You''re already waiting for 30 creators. Remove one in your dashboard first.' USING ERRCODE = 'P0001';
+  END IF;
+  IF texts AND NOT EXISTS (SELECT 1 FROM phone_numbers WHERE user_id = me AND verified_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Add and confirm your mobile number first (Dashboard → Overview → Text reminders).' USING ERRCODE = 'P0001';
+  END IF;
+  seen := creator_free_days(p.id, CURRENT_DATE + 1, CURRENT_DATE + 60);
+  INSERT INTO creator_watches (user_id, photographer_id, by_text, seen_free, until_day)
+  VALUES (me, p.id, texts, seen, CURRENT_DATE + 60)
+  ON CONFLICT (user_id, photographer_id) DO UPDATE SET by_text = EXCLUDED.by_text, seen_free = EXCLUDED.seen_free, until_day = EXCLUDED.until_day,
+    created_at = NOW(), checked_at = NULL, notified_at = NULL, notified_reason = NULL;
+  RETURN jsonb_build_object('watching', true, 'by_text', texts, 'free_days', cardinality(seen));
+END $$;
+REVOKE ALL ON FUNCTION watch_creator(UUID, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION watch_creator(UUID, BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION unwatch_creator(p_photographer UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Please sign in.' USING ERRCODE = '42501'; END IF;
+  DELETE FROM creator_watches WHERE user_id = auth.uid() AND photographer_id = p_photographer;
+  RETURN FOUND;
+END $$;
+REVOKE ALL ON FUNCTION unwatch_creator(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION unwatch_creator(UUID) TO authenticated;
+
+-- The creators I'm waiting for (with their public name, so the dashboard can list them)
+CREATE OR REPLACE FUNCTION my_creator_watches()
+RETURNS TABLE (id UUID, photographer_id UUID, name TEXT, handle TEXT, city TEXT, by_text BOOLEAN, until_day DATE,
+               created_at TIMESTAMPTZ, notified_at TIMESTAMPTZ, notified_reason TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT w.id, w.photographer_id, p.name, p.handle, p.city, w.by_text, w.until_day, w.created_at, w.notified_at, w.notified_reason
+  FROM creator_watches w JOIN photographers p ON p.id = w.photographer_id
+  WHERE w.user_id = auth.uid() AND auth.uid() IS NOT NULL AND p.hidden IS NOT TRUE
+    AND (w.notified_at IS NULL OR w.notified_at > NOW() - INTERVAL '30 days')
+  ORDER BY w.notified_at IS NULL DESC, w.created_at DESC
+  LIMIT 50;
+$$;
+REVOKE ALL ON FUNCTION my_creator_watches() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION my_creator_watches() TO authenticated;
+
+-- For the server (hourly job): watches with news — a new last-minute deal since the watch started, or a day
+-- that was taken then and is free now. Checks the oldest-checked watches first, a batch at a time.
+-- The job marks a watch as notified after the alert was sent (so a failed email is tried again next hour).
+CREATE OR REPLACE FUNCTION due_creator_watches(p_limit INTEGER DEFAULT 100)
+RETURNS TABLE (watch_id UUID, user_id UUID, photographer_id UUID, photographer_name TEXT, photographer_handle TEXT,
+               reason TEXT, day DATE, pct INTEGER, free_count INTEGER, by_text BOOLEAN)
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE w creator_watches; p photographers; dd RECORD; fresh DATE[];
+BEGIN
+  FOR w IN SELECT * FROM creator_watches c
+            WHERE c.notified_at IS NULL AND c.until_day >= CURRENT_DATE + 1
+            ORDER BY c.checked_at NULLS FIRST, c.created_at
+            LIMIT greatest(1, least(coalesce(p_limit, 100), 500))
+            FOR UPDATE SKIP LOCKED LOOP
+    UPDATE creator_watches SET checked_at = NOW() WHERE id = w.id;
+    SELECT * INTO p FROM photographers WHERE id = w.photographer_id;
+    CONTINUE WHEN p.id IS NULL OR p.hidden IS TRUE OR p.available IS FALSE OR p.payouts_enabled IS NOT TRUE OR p.user_id = w.user_id;
+    SELECT d.day, d.pct INTO dd FROM last_minute_deals d
+     WHERE d.photographer_id = p.id AND d.removed_at IS NULL AND d.day BETWEEN CURRENT_DATE + 1 AND CURRENT_DATE + 2
+       AND greatest(d.created_at, d.updated_at) > w.created_at AND creator_day_free(p.id, d.day)
+     ORDER BY d.day LIMIT 1;
+    IF FOUND THEN
+      watch_id := w.id; user_id := w.user_id; photographer_id := p.id; photographer_name := p.name; photographer_handle := p.handle;
+      reason := 'deal'; day := dd.day; pct := dd.pct; free_count := NULL; by_text := w.by_text;
+      RETURN NEXT; CONTINUE;
+    END IF;
+    SELECT coalesce(array_agg(x ORDER BY x), '{}'::DATE[]) INTO fresh
+      FROM unnest(creator_free_days(p.id, CURRENT_DATE + 1, w.until_day)) x WHERE NOT (x = ANY(w.seen_free));
+    IF cardinality(fresh) > 0 THEN
+      watch_id := w.id; user_id := w.user_id; photographer_id := p.id; photographer_name := p.name; photographer_handle := p.handle;
+      reason := 'free'; day := fresh[1]; pct := NULL; free_count := cardinality(fresh); by_text := w.by_text;
+      RETURN NEXT;
+    END IF;
+  END LOOP;
+END $$;
+REVOKE ALL ON FUNCTION due_creator_watches(INTEGER) FROM PUBLIC, anon, authenticated;
+
+-- ================================================================
+-- PART 21 — v8.15: EU DAC7 platform tax reporting. Creators give their tax
+-- details (private — only they and the server can read them); the hourly job
+-- asks for them with 2 reminders; the admin panel builds the yearly report
+-- (per creator and quarter: amount paid, number of jobs, fees) and emails each
+-- creator their statement. Kept 10 years, also after an account is deleted
+-- (legal obligation). Safe to run more than once.
+-- ================================================================
+CREATE TABLE IF NOT EXISTS creator_tax_info (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID        UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,   -- kept (without the link) when the account is deleted
+  stripe_account_id TEXT,                                                              -- links the record to bookings after an account is deleted
+  kind              TEXT        NOT NULL CHECK (kind IN ('individual', 'business')),
+  first_name        TEXT        CHECK (first_name IS NULL OR char_length(first_name) BETWEEN 1 AND 100),
+  last_name         TEXT        CHECK (last_name IS NULL OR char_length(last_name) BETWEEN 1 AND 100),
+  business_name     TEXT        CHECK (business_name IS NULL OR char_length(business_name) BETWEEN 2 AND 200),
+  birth_date        DATE,
+  birth_place       TEXT        CHECK (birth_place IS NULL OR char_length(birth_place) BETWEEN 2 AND 120),
+  address           TEXT        NOT NULL CHECK (char_length(address) BETWEEN 3 AND 200),
+  postal_code       TEXT        CHECK (postal_code IS NULL OR char_length(postal_code) BETWEEN 2 AND 20),
+  city              TEXT        NOT NULL CHECK (char_length(city) BETWEEN 1 AND 100),
+  country           TEXT        NOT NULL CHECK (country ~ '^[A-Z]{2}$'),            -- where the creator lives (company: registered office)
+  tin               TEXT        CHECK (tin IS NULL OR tin ~ '^[A-Z0-9][A-Z0-9 ./-]{2,29}$'),
+  tin_country       TEXT        CHECK (tin_country IS NULL OR tin_country ~ '^[A-Z]{2}$'),
+  no_tin            BOOLEAN     NOT NULL DEFAULT FALSE,                              -- the country doesn't issue tax numbers
+  vat_number        TEXT        CHECK (vat_number IS NULL OR vat_number ~ '^[A-Z]{2}[A-Z0-9]{2,13}$'),
+  business_number   TEXT        CHECK (business_number IS NULL OR char_length(business_number) BETWEEN 2 AND 40),
+  confirmed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT tax_info_complete CHECK (
+        (kind = 'individual' AND first_name IS NOT NULL AND last_name IS NOT NULL AND birth_date IS NOT NULL)
+     OR (kind = 'business' AND business_name IS NOT NULL AND business_number IS NOT NULL))
+  ,CONSTRAINT tax_info_tin CHECK (tin IS NOT NULL OR (no_tin AND kind = 'individual' AND birth_place IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_tax_info_stripe ON creator_tax_info (stripe_account_id);
+ALTER TABLE creator_tax_info ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON creator_tax_info FROM anon, authenticated;   -- only through the functions below
+
+-- When we asked for the details (the law: ask, then 2 reminders; after 60 days payouts may be held)
+CREATE TABLE IF NOT EXISTS tax_info_requests (
+  user_id         UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  first_asked_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reminders       SMALLINT    NOT NULL DEFAULT 0 CHECK (reminders BETWEEN 0 AND 2),
+  last_sent_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  hold_since      TIMESTAMPTZ
+);
+ALTER TABLE tax_info_requests ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON tax_info_requests FROM anon, authenticated;
+
+-- Statements sent to creators (the law: each creator gets the reported information by 31 January)
+CREATE TABLE IF NOT EXISTS dac7_statements (
+  tax_info_id  UUID        NOT NULL REFERENCES creator_tax_info(id) ON DELETE CASCADE,
+  year         INTEGER     NOT NULL CHECK (year BETWEEN 2023 AND 2100),
+  sent_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (tax_info_id, year)
+);
+ALTER TABLE dac7_statements ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON dac7_statements FROM anon, authenticated;
+
+-- Must this creator give tax details? (they can be paid online, or have been paid)
+CREATE OR REPLACE FUNCTION tax_info_required(p_user UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT p_user IS NOT NULL AND (
+    EXISTS (SELECT 1 FROM photographers WHERE user_id = p_user AND payouts_enabled IS TRUE)
+    OR EXISTS (SELECT 1 FROM bookings WHERE creator_user_id = p_user AND status = 'completed'));
+$$;
+REVOKE ALL ON FUNCTION tax_info_required(UUID) FROM PUBLIC, anon, authenticated;
+
+-- My tax details (only mine), whether they're needed, and since when we've been asking
+CREATE OR REPLACE FUNCTION my_tax_info()
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT jsonb_build_object(
+    'info', (SELECT to_jsonb(t) - 'id' - 'user_id' - 'stripe_account_id' - 'created_at' FROM creator_tax_info t WHERE t.user_id = auth.uid()),
+    'required', tax_info_required(auth.uid()),
+    'asked_at', (SELECT first_asked_at FROM tax_info_requests WHERE user_id = auth.uid()),
+    'hold', coalesce((SELECT hold_since IS NOT NULL FROM tax_info_requests WHERE user_id = auth.uid()), FALSE))
+  WHERE auth.uid() IS NOT NULL;
+$$;
+REVOKE ALL ON FUNCTION my_tax_info() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION my_tax_info() TO authenticated;
+
+CREATE OR REPLACE FUNCTION save_tax_info(p JSONB)
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE me UUID := auth.uid();
+  t   TEXT := lower(btrim(coalesce(p->>'kind', '')));
+  cl  TEXT := '[[:cntrl:]]';
+  fn  TEXT := nullif(left(btrim(regexp_replace(coalesce(p->>'first_name', ''), cl, ' ', 'g')), 101), '');
+  ln  TEXT := nullif(left(btrim(regexp_replace(coalesce(p->>'last_name', ''), cl, ' ', 'g')), 101), '');
+  bn  TEXT := nullif(left(btrim(regexp_replace(coalesce(p->>'business_name', ''), cl, ' ', 'g')), 201), '');
+  bd  DATE;
+  bp  TEXT := nullif(left(btrim(regexp_replace(coalesce(p->>'birth_place', ''), cl, ' ', 'g')), 121), '');
+  ad  TEXT := nullif(left(btrim(regexp_replace(coalesce(p->>'address', ''), cl, ' ', 'g')), 201), '');
+  pc  TEXT := nullif(upper(left(btrim(coalesce(p->>'postal_code', '')), 21)), '');
+  ci  TEXT := nullif(left(btrim(regexp_replace(coalesce(p->>'city', ''), cl, ' ', 'g')), 101), '');
+  co  TEXT := upper(btrim(coalesce(p->>'country', '')));
+  nt  BOOLEAN := coalesce((p->>'no_tin')::BOOLEAN, FALSE);
+  tn  TEXT := nullif(upper(regexp_replace(btrim(coalesce(p->>'tin', '')), '\s+', ' ', 'g')), '');
+  tc  TEXT := upper(btrim(coalesce(nullif(p->>'tin_country', ''), p->>'country', '')));
+  vt  TEXT := nullif(upper(regexp_replace(coalesce(p->>'vat_number', ''), '[\s.-]', '', 'g')), '');
+  bz  TEXT := nullif(left(btrim(regexp_replace(coalesce(p->>'business_number', ''), cl, ' ', 'g')), 41), '');
+BEGIN
+  IF me IS NULL THEN RAISE EXCEPTION 'Please sign in.' USING ERRCODE = '42501'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM photographers WHERE user_id = me) THEN RAISE EXCEPTION 'Create your creator listing first.' USING ERRCODE = 'P0001'; END IF;
+  IF t NOT IN ('individual', 'business') THEN RAISE EXCEPTION 'Choose whether you work as a private person or a business.' USING ERRCODE = 'P0001'; END IF;
+  BEGIN bd := nullif(p->>'birth_date', '')::DATE; EXCEPTION WHEN others THEN RAISE EXCEPTION 'Enter your date of birth.' USING ERRCODE = 'P0001'; END;
+  IF t = 'individual' THEN
+    IF fn IS NULL OR ln IS NULL OR char_length(fn) > 100 OR char_length(ln) > 100 THEN RAISE EXCEPTION 'Enter your first and last name as on your ID.' USING ERRCODE = 'P0001'; END IF;
+    IF bd IS NULL OR bd > CURRENT_DATE - INTERVAL '18 years' OR bd < CURRENT_DATE - INTERVAL '120 years' THEN RAISE EXCEPTION 'Enter your date of birth (you must be 18 or older).' USING ERRCODE = 'P0001'; END IF;
+    bn := NULL; bz := NULL;
+  ELSE
+    IF bn IS NULL OR char_length(bn) < 2 OR char_length(bn) > 200 THEN RAISE EXCEPTION 'Enter the registered name of your business.' USING ERRCODE = 'P0001'; END IF;
+    IF bz IS NULL OR char_length(bz) < 2 OR char_length(bz) > 40 THEN RAISE EXCEPTION 'Enter your business registration number (e.g. IČO / trade register number).' USING ERRCODE = 'P0001'; END IF;
+    fn := NULL; ln := NULL; bd := NULL; bp := NULL; nt := FALSE;
+  END IF;
+  IF ad IS NULL OR char_length(ad) < 3 OR char_length(ad) > 200 THEN RAISE EXCEPTION 'Enter your street address.' USING ERRCODE = 'P0001'; END IF;
+  IF ci IS NULL OR char_length(ci) > 100 THEN RAISE EXCEPTION 'Enter your city.' USING ERRCODE = 'P0001'; END IF;
+  IF pc IS NOT NULL AND (char_length(pc) < 2 OR char_length(pc) > 20) THEN RAISE EXCEPTION 'Check your postal code.' USING ERRCODE = 'P0001'; END IF;
+  IF co !~ '^[A-Z]{2}$' THEN RAISE EXCEPTION 'Choose the country where you live (for a business: where it is registered).' USING ERRCODE = 'P0001'; END IF;
+  IF nt THEN
+    IF bp IS NULL OR char_length(bp) < 2 OR char_length(bp) > 120 THEN RAISE EXCEPTION 'Without a tax number, enter your place of birth (city and country).' USING ERRCODE = 'P0001'; END IF;
+    tn := NULL; tc := NULL;
+  ELSE
+    IF tn IS NULL OR tn !~ '^[A-Z0-9][A-Z0-9 ./-]{2,29}$' THEN RAISE EXCEPTION 'Enter your tax identification number (TIN) — letters and numbers, as your tax office gave it to you.' USING ERRCODE = 'P0001'; END IF;
+    IF tc !~ '^[A-Z]{2}$' THEN RAISE EXCEPTION 'Choose the country that issued your tax number.' USING ERRCODE = 'P0001'; END IF;
+    IF t = 'individual' THEN bp := NULL; END IF;
+  END IF;
+  IF vt IS NOT NULL AND vt !~ '^[A-Z]{2}[A-Z0-9]{2,13}$' THEN RAISE EXCEPTION 'A VAT number starts with the country code, e.g. SK2020123456. Leave it empty if you have none.' USING ERRCODE = 'P0001'; END IF;
+  INSERT INTO creator_tax_info (user_id, stripe_account_id, kind, first_name, last_name, business_name, birth_date, birth_place, address, postal_code, city, country,
+                                tin, tin_country, no_tin, vat_number, business_number, confirmed_at)
+  VALUES (me, (SELECT stripe_account_id FROM photographers WHERE user_id = me ORDER BY created_at LIMIT 1), t, fn, ln, bn, bd, bp, ad, pc, ci, co, tn, tc, nt, vt, bz, NOW())
+  ON CONFLICT (user_id) DO UPDATE SET stripe_account_id = coalesce(EXCLUDED.stripe_account_id, creator_tax_info.stripe_account_id),
+    kind = EXCLUDED.kind, first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, business_name = EXCLUDED.business_name,
+    birth_date = EXCLUDED.birth_date, birth_place = EXCLUDED.birth_place, address = EXCLUDED.address, postal_code = EXCLUDED.postal_code,
+    city = EXCLUDED.city, country = EXCLUDED.country, tin = EXCLUDED.tin, tin_country = EXCLUDED.tin_country, no_tin = EXCLUDED.no_tin,
+    vat_number = EXCLUDED.vat_number, business_number = EXCLUDED.business_number, confirmed_at = NOW();
+  DELETE FROM tax_info_requests WHERE user_id = me;   -- done: no more reminders, any payout hold ends
+  RETURN my_tax_info();
+END $$;
+REVOKE ALL ON FUNCTION save_tax_info(JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION save_tax_info(JSONB) TO authenticated;
+
+-- For the server (hourly job): creators to ask now — 'ask' (first time), 'reminder1' (14 days), 'reminder2' (45 days)
+CREATE OR REPLACE FUNCTION due_tax_requests(p_limit INTEGER DEFAULT 100)
+RETURNS TABLE (user_id UUID, email TEXT, name TEXT, step TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT x.user_id, x.email, x.name, x.step FROM (
+    SELECT DISTINCT ON (p.user_id) p.user_id, p.email, p.name,
+      CASE WHEN r.user_id IS NULL THEN 'ask'
+           WHEN r.reminders = 0 AND r.first_asked_at <= NOW() - INTERVAL '14 days' THEN 'reminder1'
+           WHEN r.reminders = 1 AND r.first_asked_at <= NOW() - INTERVAL '45 days' THEN 'reminder2' END AS step
+    FROM photographers p
+    LEFT JOIN tax_info_requests r ON r.user_id = p.user_id
+    WHERE p.user_id IS NOT NULL AND coalesce(p.email, '') <> '' AND tax_info_required(p.user_id)
+      AND NOT EXISTS (SELECT 1 FROM creator_tax_info t WHERE t.user_id = p.user_id)
+    ORDER BY p.user_id, p.created_at) x
+  WHERE x.step IS NOT NULL
+  LIMIT greatest(1, least(coalesce(p_limit, 100), 500));
+$$;
+REVOKE ALL ON FUNCTION due_tax_requests(INTEGER) FROM PUBLIC, anon, authenticated;
+
+-- For the server: count a request or reminder as sent
+CREATE OR REPLACE FUNCTION mark_tax_request(p_user UUID, p_step TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF p_step = 'ask' THEN
+    INSERT INTO tax_info_requests (user_id) VALUES (p_user) ON CONFLICT (user_id) DO NOTHING;
+  ELSIF p_step IN ('reminder1', 'reminder2') THEN
+    UPDATE tax_info_requests SET reminders = CASE WHEN p_step = 'reminder1' THEN 1 ELSE 2 END, last_sent_at = NOW()
+     WHERE user_id = p_user AND reminders = CASE WHEN p_step = 'reminder1' THEN 0 ELSE 1 END;
+  ELSE RETURN FALSE;
+  END IF;
+  RETURN FOUND;
+END $$;
+REVOKE ALL ON FUNCTION mark_tax_request(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+
+-- For the server (only when the operator switched it on): 60 days and 2 reminders without details → payouts on hold.
+-- Returns the creators whose payouts are on hold now.
+CREATE OR REPLACE FUNCTION tax_payout_holds()
+RETURNS SETOF UUID LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  UPDATE tax_info_requests r SET hold_since = NOW()
+   WHERE r.hold_since IS NULL AND r.reminders >= 2 AND r.first_asked_at <= NOW() - INTERVAL '60 days'
+     AND NOT EXISTS (SELECT 1 FROM creator_tax_info t WHERE t.user_id = r.user_id);
+  RETURN QUERY SELECT r.user_id FROM tax_info_requests r
+    WHERE r.hold_since IS NOT NULL AND NOT EXISTS (SELECT 1 FROM creator_tax_info t WHERE t.user_id = r.user_id);
+END $$;
+REVOKE ALL ON FUNCTION tax_payout_holds() FROM PUBLIC, anon, authenticated;
+
+-- For the server (admin panel): the DAC7 report for one year. One row per creator who was paid that year
+-- (bookings completed = payout released), per quarter: amount paid (package price before our fee), number of
+-- jobs and our fees. "reportable" = lives in an EU country (those are reported to the tax authority).
+CREATE OR REPLACE FUNCTION dac7_report(p_year INTEGER)
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE f TIMESTAMPTZ := make_timestamptz(p_year, 1, 1, 0, 0, 0, 'UTC'); out JSONB;
+BEGIN
+  IF p_year IS NULL OR p_year < 2023 OR p_year > 2100 THEN RAISE EXCEPTION 'Choose a year.' USING ERRCODE = 'P0001'; END IF;
+  -- creators who added their details before setting up payouts: link them to their payout account now
+  UPDATE creator_tax_info t SET stripe_account_id = p.stripe_account_id FROM photographers p
+   WHERE p.user_id = t.user_id AND p.stripe_account_id IS NOT NULL AND t.stripe_account_id IS DISTINCT FROM p.stripe_account_id;
+  WITH paid AS (
+    SELECT coalesce(b.creator_user_id::TEXT, 'acct:' || b.creator_stripe_account_id) AS seller,
+           b.creator_user_id, b.creator_stripe_account_id, b.photographer_id,
+           extract(quarter FROM b.completed_at AT TIME ZONE 'UTC')::INT AS q, b.price_cents, b.creator_fee_cents
+    FROM bookings b
+    WHERE b.status = 'completed' AND b.completed_at >= f AND b.completed_at < f + INTERVAL '1 year'
+      AND (b.creator_user_id IS NOT NULL OR b.creator_stripe_account_id IS NOT NULL)),
+  per AS (
+    SELECT seller, max(creator_user_id::TEXT)::UUID AS user_id, max(creator_stripe_account_id) AS stripe_account_id, max(photographer_id::TEXT)::UUID AS photographer_id,
+      jsonb_build_array(
+        jsonb_build_object('amount_cents', coalesce(sum(price_cents) FILTER (WHERE q = 1), 0), 'fees_cents', coalesce(sum(creator_fee_cents) FILTER (WHERE q = 1), 0), 'count', count(*) FILTER (WHERE q = 1)),
+        jsonb_build_object('amount_cents', coalesce(sum(price_cents) FILTER (WHERE q = 2), 0), 'fees_cents', coalesce(sum(creator_fee_cents) FILTER (WHERE q = 2), 0), 'count', count(*) FILTER (WHERE q = 2)),
+        jsonb_build_object('amount_cents', coalesce(sum(price_cents) FILTER (WHERE q = 3), 0), 'fees_cents', coalesce(sum(creator_fee_cents) FILTER (WHERE q = 3), 0), 'count', count(*) FILTER (WHERE q = 3)),
+        jsonb_build_object('amount_cents', coalesce(sum(price_cents) FILTER (WHERE q = 4), 0), 'fees_cents', coalesce(sum(creator_fee_cents) FILTER (WHERE q = 4), 0), 'count', count(*) FILTER (WHERE q = 4))) AS quarters,
+      sum(price_cents) AS amount_cents, sum(creator_fee_cents) AS fees_cents, count(*) AS jobs
+    FROM paid GROUP BY seller)
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+      'seller', per.seller, 'user_id', per.user_id, 'stripe_account_id', per.stripe_account_id,
+      'listing_name', ph.name, 'email', ph.email,
+      'quarters', per.quarters, 'amount_cents', per.amount_cents, 'fees_cents', per.fees_cents, 'jobs', per.jobs,
+      'tax', CASE WHEN t.id IS NULL THEN NULL ELSE to_jsonb(t) - 'user_id' - 'created_at' END,
+      'statement_sent_at', (SELECT s.sent_at FROM dac7_statements s WHERE s.tax_info_id = t.id AND s.year = p_year),
+      'reportable', t.country = ANY(ARRAY['AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI','FR','GR','HR','HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK']),
+      'missing', t.id IS NULL)
+    ORDER BY (t.id IS NULL) DESC, per.amount_cents DESC), '[]'::JSONB) INTO out
+  FROM per
+  LEFT JOIN LATERAL (SELECT * FROM creator_tax_info x
+                      WHERE (per.user_id IS NOT NULL AND x.user_id = per.user_id)
+                         OR (per.user_id IS NULL AND per.stripe_account_id IS NOT NULL AND x.stripe_account_id = per.stripe_account_id)
+                      ORDER BY x.confirmed_at DESC LIMIT 1) t ON TRUE
+  LEFT JOIN LATERAL (SELECT p.name, p.email FROM photographers p
+                      WHERE p.id = per.photographer_id OR (per.user_id IS NOT NULL AND p.user_id = per.user_id)
+                      ORDER BY p.created_at LIMIT 1) ph ON TRUE;
+  RETURN out;
+END $$;
+REVOKE ALL ON FUNCTION dac7_report(INTEGER) FROM PUBLIC, anon, authenticated;
 
 -- ================================================================
 -- Done. You should see "Success. No rows returned."

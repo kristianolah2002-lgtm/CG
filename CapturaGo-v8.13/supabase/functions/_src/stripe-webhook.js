@@ -64,13 +64,16 @@ async function handleEvent(ctx, deps, event) {
         await sendEmail(ctx, deps, g.buyer_email, L(l, 'Your CapturaGo gift card ({amount})', { amount: euro(g.amount_cents) }),
           `<p>${L(l, 'Hi,')}</p><p>${g.recipient_name ? L(l, 'Thank you! Here is your gift card for {amount} for {name}:', { amount, name: `<strong>${escHtml(g.recipient_name)}</strong>` }) : L(l, 'Thank you! Here is your gift card for {amount}:', { amount })}</p>${card}`
           + `<p>${L(l, 'It can be used for any shoot on CapturaGo until {date} — enter the code when booking. {link}.', { date: escHtml(until), link: `<a href="${ctx.siteUrl}/gift.html?g=${g.id}">${L(l, 'Download a printable card')}</a>` })}</p>`
+          + (g.surprise ? `<p>${L(l, '🎲 It\'s a “Surprise me” gift: they can let us pick a last-minute deal for them on {link}.', { link: `<a href="${ctx.siteUrl}/gift.html#deals">${L(l, 'the deals page')}</a>` })}</p>` : '')
           + (g.recipient_email ? `<p>${L(l, 'We\'ve also emailed it to {email}.', { email: escHtml(g.recipient_email) })}</p>` : ''));
       }
       if (g.recipient_email) {
         const sent = await sendEmail(ctx, deps, g.recipient_email, L(l, '🎁 You\'ve got a CapturaGo gift card'),
           hiP(l, g.recipient_name ? escHtml(g.recipient_name) : '').replace(L(l, 'Hi there,'), L(l, 'Hi,')) + `<p>${L(l, 'Someone gave you a photo shoot! Here is your CapturaGo gift card for {amount}:', { amount })}</p>${card}`
           + (g.message ? `<p style="font-style:italic">“${escHtml(g.message)}”</p>` : '')
-          + `<p>${L(l, 'Find a photographer, videographer or local guide wherever you travel on {site} and enter the code when you book. Valid until {date}.', { site: `<a href="${ctx.siteUrl}/">CapturaGo</a>`, date: escHtml(until) })}</p>`);
+          + `<p>${L(l, 'Find a photographer, videographer or local guide wherever you travel on {site} and enter the code when you book. Valid until {date}.', { site: `<a href="${ctx.siteUrl}/">CapturaGo</a>`, date: escHtml(until) })}</p>`
+          + (g.surprise ? `<p>${L(l, '🎲 <strong>Feeling spontaneous?</strong> This is a “Surprise me” gift: {link}, press “Surprise me” and we pick a last-minute shoot for you — often at a lower price.', { link: `<a href="${ctx.siteUrl}/gift.html#deals">${L(l, 'open the last-minute deals')}</a>` })}</p>` : '')
+          + `<p>${L(l, 'It also works for last-minute deals: {link}.', { link: `<a href="${ctx.siteUrl}/gift.html#deals">${L(l, 'see who has a lower price tomorrow')}</a>` })}</p>`);
         if (sent) await ctx.db(`gift_cards?id=eq.${g.id}`, { method: 'PATCH', body: { recipient_emailed_at: nowIso }, prefer: 'return=minimal' });
       }
       return;

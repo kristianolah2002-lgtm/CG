@@ -15,20 +15,26 @@ function createHandler(deps) {
     const message = String(body.message || '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').trim().slice(0, 300);
     const recipientEmail = clean(body.recipient_email, 254).toLowerCase();
     if (recipientEmail && !EMAIL_RE.test(recipientEmail)) throw new HttpError(400, "The recipient's email doesn't look right.");
+    const surprise = body.surprise === true;   // "Surprise me" gift: made for last-minute deals (it works for any shoot too)
 
     // A few unpaid gift checkouts at most (stops someone from creating thousands of codes)
     const since = encodeURIComponent(new Date(ctx.nowMs() - 3600000).toISOString());
     const open = await ctx.db(`gift_cards?buyer_user_id=eq.${user.id}&status=eq.pending_payment&created_at=gt.${since}&select=id&limit=6`);
     if ((open || []).length >= 5) throw new HttpError(429, 'You have several unfinished gift card payments. Please try again in an hour.');
 
-    let gift = null;
-    for (let i = 0; i < 4 && !gift; i++) {
+    let gift = null, withSurprise = surprise;
+    for (let i = 0; i < 5 && !gift; i++) {
       try {
         [gift] = await ctx.db('gift_cards', { method: 'POST', body: {
           code: newGiftCode(), buyer_user_id: user.id, buyer_email: user.email, amount_cents: amount * 100, balance_cents: amount * 100,
           recipient_name: recipientName || null, recipient_email: recipientEmail || null, message: message || null,
+          ...(withSurprise ? { surprise: true } : {}),
         } });
-      } catch (e) { if (!/duplicate|unique/i.test(String(e && e.message))) throw e; }   // code already taken → new code
+      } catch (e) {
+        const m = String(e && e.message);
+        if (withSurprise && /surprise/.test(m)) { withSurprise = false; continue; }   // database update not run yet → a normal gift card
+        if (!/duplicate|unique/i.test(m)) throw e;   // code already taken → new code
+      }
     }
     if (!gift) throw new HttpError(500, 'Could not create the gift card. Please try again.');
 
@@ -39,7 +45,7 @@ function createHandler(deps) {
         customer_email: user.email,
         client_reference_id: gift.id,
         line_items: [{ quantity: 1, price_data: { currency: 'eur', unit_amount: amount * 100,
-          product_data: { name: `CapturaGo gift card — €${amount}`, description: `${recipientName ? `For ${recipientName}. ` : ''}Valid 3 years for any shoot on CapturaGo.` } } }],
+          product_data: { name: `CapturaGo gift card — €${amount}${withSurprise ? ' (Surprise me)' : ''}`, description: `${recipientName ? `For ${recipientName}. ` : ''}${withSurprise ? 'Made for last-minute deals — or any shoot. ' : ''}Valid 3 years for any shoot on CapturaGo.` } } }],
         payment_intent_data: { metadata: { gift_id: gift.id } },
         metadata: { kind: 'gift', gift_id: gift.id },
         success_url: `${ctx.siteUrl}/gift.html?g=${gift.id}&s=ok`,

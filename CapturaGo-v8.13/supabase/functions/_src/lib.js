@@ -214,6 +214,39 @@ async function sendText(ctx, deps, to, channel, body, wa, lang) {
   }
 }
 
+/* ── Weather-aware reminders: heavy rain on a shoot day (Open-Meteo, free, no key) ──
+   Heavy = a heavy-rain / violent-shower / thunderstorm forecast, or lots of rain that is very likely.
+   Light drizzle or a "40 % chance" is not heavy — many shoots go ahead in that. */
+const HEAVY_RAIN_CODES = [65, 67, 82, 95, 96, 99];   // heavy rain, heavy freezing rain, violent showers, thunderstorms
+function isHeavyRain(code, pct, mm) {
+  const c = Number(code), p = Number(pct), m = Number(mm);
+  if (HEAVY_RAIN_CODES.includes(c)) return true;
+  if ((c === 63 || c === 81) && Number.isFinite(p) && p >= 70) return true;   // moderate rain / showers, very likely
+  return Number.isFinite(m) && m >= 10 && Number.isFinite(p) && p >= 60;      // 10 mm+ of rain, likely
+}
+/** { heavy, pct, mm } for a place and day (0–15 days ahead), or null when unknown. Cached per run; never throws. */
+async function rainForecast(ctx, deps, coords, isoDate) {
+  const lat = Number(coords && coords.lat), lon = Number(coords && coords.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate || ''))) return null;
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)},${isoDate}`;
+  if (!ctx._wx) ctx._wx = new Map();
+  if (ctx._wx.has(key)) return ctx._wx.get(key);
+  let out = null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,precipitation_probability_max,precipitation_sum&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
+    const r = await Promise.race([deps.fetch(url), new Promise((_, no) => setTimeout(() => no(new Error('weather timeout')), 6000))]);
+    if (r && r.ok) {
+      const d = ((await r.json()) || {}).daily || {};
+      const code = Number(d.weather_code && d.weather_code[0]);
+      const pct = Number(d.precipitation_probability_max && d.precipitation_probability_max[0]);
+      const mm = Number(d.precipitation_sum && d.precipitation_sum[0]);
+      if (Number.isFinite(code)) out = { heavy: isHeavyRain(code, pct, mm), pct: Number.isFinite(pct) ? Math.round(pct) : null, mm: Number.isFinite(mm) ? Math.round(mm) : null };
+    }
+  } catch (e) { console.error('[weather]', e && e.message ? e.message : e); }
+  ctx._wx.set(key, out);
+  return out;
+}
+
 function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

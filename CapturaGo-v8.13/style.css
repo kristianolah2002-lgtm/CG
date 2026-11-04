@@ -1384,3 +1384,43 @@ button.dest-card{background:none;padding:0;text-align:left;font:inherit;color:in
 .cal-day.deal:not(:disabled)::after{content:'⚡';position:absolute;top:1px;right:3px;font-size:.6rem}
 .cal-day.deal.trip:not(:disabled){box-shadow:inset 0 -3px 0 var(--amber,#C2802E)}
 .deal-cal-note{color:#7A2E12;font-weight:500}
+
+/* ── v8.14: fast responders, clients' favourite shots, "notify me", deals for gift cards ── */
+.fast-reply-chip{display:inline-block;margin:0 0 8px;font-size:.74rem;font-weight:600;color:var(--ok);background:rgba(47,107,69,.08);border:1px solid rgba(47,107,69,.22);border-radius:999px;padding:2px 10px}
+.client-photos{margin:6px 0 20px}
+.client-photos-title{display:block;font-size:.92rem;margin-bottom:8px}
+.client-photos-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+.client-photos-row button{position:relative;flex:0 0 auto;width:96px;height:96px;padding:0;border:0;border-radius:var(--radius-sm);overflow:hidden;cursor:zoom-in;background:var(--bg-deep);scroll-snap-align:start}
+.client-photos-row img{width:100%;height:100%;object-fit:cover;display:block}
+.cp-stars{position:absolute;left:0;right:0;bottom:0;padding:10px 6px 4px;font-size:.62rem;letter-spacing:1px;color:#FFE7A8;background:linear-gradient(transparent,rgba(0,0,0,.55));text-align:left}
+.client-photos .muted{margin-top:6px}
+.watch-box{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:-8px 0 22px;padding:14px 16px;border:1px dashed rgba(176,71,34,.35);border-radius:var(--radius-md);background:var(--amber-dim)}
+.watch-box p{margin:2px 0 0}
+.watch-box .primary-btn{flex-shrink:0}
+.watch-text{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:.86rem;cursor:pointer}
+.gift-surprise{margin:4px 0 18px}
+.gift-visual.is-surprise .gv-for{color:var(--amber)}
+.gift-deals{max-width:1080px;margin:48px 0 0;padding:28px clamp(16px,3vw,32px);border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg-card)}
+.gift-deals h2{font-family:"Fraunces",Georgia,serif;font-size:1.5rem;margin:0 0 8px}
+.deals-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 18px;margin:18px 0 6px;align-items:start}
+.deals-actions{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap}
+.deal-pick{margin:18px 0 8px;padding:16px;border-radius:var(--radius-lg);background:var(--amber-dim);border:1px solid rgba(176,71,34,.3)}
+.deal-pick-title{margin:0 0 10px;font-weight:700;color:var(--amber)}
+.deal-pick-more{margin:10px 0 0}
+.deals-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:12px}
+.deal-card{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:var(--bg-card2)}
+.deal-card img{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;background:var(--bg-deep)}
+.deal-card-body{display:flex;flex-direction:column;gap:4px;padding:12px 14px 14px}
+.deal-card-body .primary-btn{margin-top:8px;align-self:flex-start}
+.deal-card-big{flex-direction:row}
+.deal-card-big img{width:42%;aspect-ratio:auto;min-height:180px}
+.deal-badge{align-self:flex-start;font-size:.74rem;font-weight:700;color:#7A2E12;background:#FBEADF;border-radius:999px;padding:2px 10px}
+.deal-cover{font-size:.8rem;color:var(--text-muted)}
+.deal-cover.ok{color:var(--ok);font-weight:600}
+.rv-pick.fav span{background:#E2A400}
+@media(max-width:640px){
+  .deals-form{grid-template-columns:1fr}
+  .deal-card-big{flex-direction:column}
+  .deal-card-big img{width:100%;min-height:0;aspect-ratio:16/10}
+  .watch-box .primary-btn{width:100%}
+}

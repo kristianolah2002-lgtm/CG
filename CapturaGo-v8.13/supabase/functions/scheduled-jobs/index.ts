@@ -284,6 +284,58 @@ const MAIL_TEXT = {
   'your shoot with {name} {when} {time}': { de: 'dein Shooting mit {name} {when} {time}', es: 'tu sesión con {name} {when} {time}', fr: 'ton shooting avec {name} {when} {time}' },
   'CapturaGo reminder: {what}. Details: {link}': { de: 'CapturaGo-Erinnerung: {what}. Details: {link}', es: 'Recordatorio de CapturaGo: {what}. Detalles: {link}', fr: 'Rappel CapturaGo : {what}. Détails : {link}' },
   'CapturaGo reminder: {what}. Meeting point: {place}. Details: {link}': { de: 'CapturaGo-Erinnerung: {what}. Treffpunkt: {place}. Details: {link}', es: 'Recordatorio de CapturaGo: {what}. Punto de encuentro: {place}. Detalles: {link}', fr: 'Rappel CapturaGo : {what}. Point de rendez-vous : {place}. Détails : {link}' },
+
+  // weather-aware reminders, "notify me" on a creator, "Surprise me" gift cards (v8.14)
+  '🌧 <strong>Heavy rain is forecast</strong> for the shoot day{detail}.': { de: '🌧 Für den Shooting-Tag ist <strong>starker Regen vorhergesagt</strong>{detail}.', es: '🌧 Se prevé <strong>lluvia fuerte</strong> para el día de la sesión{detail}.', fr: '🌧 De <strong>fortes pluies sont prévues</strong> le jour du shooting{detail}.' },
+  ' ({pct}% chance of rain)': { de: ' ({pct} % Regenwahrscheinlichkeit)', es: ' ({pct} % de probabilidad de lluvia)', fr: ' ({pct} % de risque de pluie)' },
+  'Want to move it? {link} — moving is free if you both agree, and the other person is asked right away.': { de: 'Lieber verschieben? {link} — Verschieben ist kostenlos, wenn ihr beide zustimmt, und die andere Person wird sofort gefragt.', es: '¿Quieres moverla? {link}: cambiarla es gratis si estáis de acuerdo, y se le pregunta a la otra persona enseguida.', fr: 'Tu veux le déplacer ? {link} — c\'est gratuit si vous êtes d\'accord tous les deux, et l\'autre personne est prévenue tout de suite.' },
+  '📅 Propose a new date': { de: '📅 Neuen Termin vorschlagen', es: '📅 Proponer otra fecha', fr: '📅 Proposer une nouvelle date' },
+  'Your shoot is tomorrow — heavy rain forecast: {pkg}': { de: 'Dein Shooting ist morgen — starker Regen vorhergesagt: {pkg}', es: 'Tu sesión es mañana, con lluvia fuerte prevista: {pkg}', fr: 'Ton shooting est demain — fortes pluies prévues : {pkg}' },
+  'Shoot tomorrow — heavy rain forecast: {pkg}': { de: 'Shooting morgen — starker Regen vorhergesagt: {pkg}', es: 'Sesión mañana, con lluvia fuerte prevista: {pkg}', fr: 'Shooting demain — fortes pluies prévues : {pkg}' },
+  'heavy rain forecast; to move it, tap the link': { de: 'starker Regen vorhergesagt; zum Verschieben auf den Link tippen', es: 'se prevé lluvia fuerte; para cambiarla, toca el enlace', fr: 'fortes pluies prévues ; pour le déplacer, touche le lien' },
+  '⚡ {name} has a last-minute deal: −{pct}% on {date}': { de: '⚡ {name} hat ein Last-Minute-Angebot: −{pct} % am {date}', es: '⚡ {name} tiene una oferta de última hora: −{pct} % el {date}', fr: '⚡ {name} a une offre de dernière minute : −{pct} % le {date}' },
+  '🔔 {name} has a free day again': { de: '🔔 {name} hat wieder einen freien Tag', es: '🔔 {name} vuelve a tener un día libre', fr: '🔔 {name} a de nouveau un jour libre' },
+  'You asked us to tell you when {name} has something for you. They just lowered their price by {pct}% for {date}.': { de: 'Du wolltest Bescheid bekommen, wenn {name} etwas für dich hat. Gerade wurde der Preis für {date} um {pct} % gesenkt.', es: 'Nos pediste que te avisáramos cuando {name} tuviera algo para ti. Acaba de bajar su precio un {pct} % para el {date}.', fr: 'Tu nous as demandé de te prévenir quand {name} aurait quelque chose pour toi. Le prix vient de baisser de {pct} % pour le {date}.' },
+  'You asked us to tell you when {name} has a free day. {n} days just opened up — the first is {date}.': { de: 'Du wolltest Bescheid bekommen, wenn {name} einen freien Tag hat. Gerade sind {n} Tage frei geworden — der erste ist {date}.', es: 'Nos pediste que te avisáramos cuando {name} tuviera un día libre. Acaban de quedar libres {n} días; el primero es el {date}.', fr: 'Tu nous as demandé de te prévenir quand {name} aurait un jour libre. {n} jours viennent de se libérer — le premier est le {date}.' },
+  'You asked us to tell you when {name} has a free day. {date} just opened up.': { de: 'Du wolltest Bescheid bekommen, wenn {name} einen freien Tag hat. {date} ist gerade frei geworden.', es: 'Nos pediste que te avisáramos cuando {name} tuviera un día libre. Acaba de quedar libre el {date}.', fr: 'Tu nous as demandé de te prévenir quand {name} aurait un jour libre. Le {date} vient de se libérer.' },
+  '{link} — free days go quickly, and the payment is protected as always.': { de: '{link} — freie Tage sind schnell weg, und die Zahlung ist wie immer geschützt.', es: '{link}: los días libres vuelan, y el pago está protegido como siempre.', fr: '{link} — les jours libres partent vite, et le paiement est protégé comme toujours.' },
+  'Book {name}': { de: '{name} buchen', es: 'Reservar con {name}', fr: 'Réserver {name}' },
+  'This was a one-time alert. Watch again any time from {link}.': { de: 'Das war eine einmalige Benachrichtigung. Du kannst jederzeit wieder über {link} folgen.', es: 'Era un aviso único. Puedes volver a activarlo cuando quieras desde {link}.', fr: 'C\'était une alerte unique. Tu peux la réactiver à tout moment depuis {link}.' },
+  '{name}’s profile': { de: 'dem Profil von {name}', es: 'el perfil de {name}', fr: 'le profil de {name}' },
+  'CapturaGo: {name} has a last-minute deal, −{pct}% on {date}. Book: {link}': { de: 'CapturaGo: {name} hat ein Last-Minute-Angebot, −{pct} % am {date}. Buchen: {link}', es: 'CapturaGo: {name} tiene una oferta de última hora, −{pct} % el {date}. Reserva: {link}', fr: 'CapturaGo : {name} a une offre de dernière minute, −{pct} % le {date}. Réserver : {link}' },
+  'CapturaGo: {name} has a free day again ({date}). Book: {link}': { de: 'CapturaGo: {name} hat wieder einen freien Tag ({date}). Buchen: {link}', es: 'CapturaGo: {name} vuelve a tener un día libre ({date}). Reserva: {link}', fr: 'CapturaGo : {name} a de nouveau un jour libre ({date}). Réserver : {link}' },
+  '🎲 It\'s a “Surprise me” gift: they can let us pick a last-minute deal for them on {link}.': { de: '🎲 Es ist ein „Überrasch mich“-Gutschein: Sie können uns auf {link} ein Last-Minute-Angebot für sich aussuchen lassen.', es: '🎲 Es un regalo «Sorpréndeme»: puede dejar que elijamos una oferta de última hora en {link}.', fr: '🎲 C\'est un cadeau « Surprends-moi » : la personne peut nous laisser choisir une offre de dernière minute sur {link}.' },
+  'the deals page': { de: 'der Angebotsseite', es: 'la página de ofertas', fr: 'la page des offres' },
+  '🎲 <strong>Feeling spontaneous?</strong> This is a “Surprise me” gift: {link}, press “Surprise me” and we pick a last-minute shoot for you — often at a lower price.': { de: '🎲 <strong>Lust auf Spontanes?</strong> Das ist ein „Überrasch mich“-Gutschein: {link}, tippe auf „Überrasch mich“, und wir suchen ein Last-Minute-Shooting für dich aus — oft günstiger.', es: '🎲 <strong>¿Te apetece algo espontáneo?</strong> Es un regalo «Sorpréndeme»: {link}, pulsa «Sorpréndeme» y elegimos una sesión de última hora para ti, a menudo más barata.', fr: '🎲 <strong>Envie de spontanéité ?</strong> C\'est un cadeau « Surprends-moi » : {link}, appuie sur « Surprends-moi » et on choisit un shooting de dernière minute pour toi — souvent moins cher.' },
+  'open the last-minute deals': { de: 'öffne die Last-Minute-Angebote', es: 'abre las ofertas de última hora', fr: 'ouvre les offres de dernière minute' },
+  'It also works for last-minute deals: {link}.': { de: 'Er gilt auch für Last-Minute-Angebote: {link}.', es: 'También sirve para ofertas de última hora: {link}.', fr: 'Elle fonctionne aussi pour les offres de dernière minute : {link}.' },
+  'see who has a lower price tomorrow': { de: 'sieh nach, wer morgen günstiger ist', es: 'mira quién tiene un precio más bajo mañana', fr: 'vois qui est moins cher demain' },
+
+  // EU DAC7 tax details and the yearly statement (v8.15)
+  'Add my tax details': { de: 'Meine Steuerdaten hinzufügen', es: 'Añadir mis datos fiscales', fr: 'Ajouter mes informations fiscales' },
+  'Please add your tax details for CapturaGo': { de: 'Bitte ergänze deine Steuerdaten für CapturaGo', es: 'Añade tus datos fiscales para CapturaGo', fr: 'Merci d\'ajouter tes informations fiscales pour CapturaGo' },
+  'Reminder: your tax details for CapturaGo are still missing': { de: 'Erinnerung: Deine Steuerdaten für CapturaGo fehlen noch', es: 'Recordatorio: aún faltan tus datos fiscales para CapturaGo', fr: 'Rappel : il manque encore tes informations fiscales pour CapturaGo' },
+  'EU law (the DAC7 directive) requires platforms like CapturaGo to collect the tax details of everyone who earns money through them, and to report those earnings to the tax authority once a year. You also get a copy of what we report.': { de: 'Das EU-Recht (die DAC7-Richtlinie) verpflichtet Plattformen wie CapturaGo, die Steuerdaten aller zu erfassen, die über sie Geld verdienen, und diese Einnahmen einmal im Jahr an die Steuerbehörde zu melden. Du bekommst eine Kopie dessen, was wir melden.', es: 'La ley de la UE (la directiva DAC7) obliga a plataformas como CapturaGo a recoger los datos fiscales de quienes ganan dinero a través de ellas y a comunicar esos ingresos a la autoridad tributaria una vez al año. Recibirás una copia de lo que comunicamos.', fr: 'Le droit européen (la directive DAC7) oblige les plateformes comme CapturaGo à collecter les informations fiscales de toutes les personnes qui gagnent de l\'argent grâce à elles, et à déclarer ces revenus à l\'administration fiscale une fois par an. Tu reçois une copie de ce que nous déclarons.' },
+  'It takes about two minutes: {link} (Dashboard → Payments). We need your name, address, date of birth and tax number — or, for a business, its registration details.': { de: 'Das dauert etwa zwei Minuten: {link} (Dashboard → Zahlungen). Wir brauchen deinen Namen, deine Adresse, dein Geburtsdatum und deine Steuernummer — oder, für ein Unternehmen, dessen Registerdaten.', es: 'Son unos dos minutos: {link} (Panel → Pagos). Necesitamos tu nombre, dirección, fecha de nacimiento y número fiscal o, si eres empresa, sus datos de registro.', fr: 'Ça prend environ deux minutes : {link} (Tableau de bord → Paiements). Il nous faut ton nom, ton adresse, ta date de naissance et ton numéro fiscal — ou, pour une entreprise, ses données d\'immatriculation.' },
+  'This is our last reminder. If we still don\'t have your details 60 days after our first request, the law may require us to hold your payouts until you add them.': { de: 'Das ist unsere letzte Erinnerung. Wenn wir deine Daten 60 Tage nach unserer ersten Anfrage noch nicht haben, kann das Gesetz uns verpflichten, deine Auszahlungen zurückzuhalten, bis du sie ergänzt.', es: 'Es nuestro último recordatorio. Si 60 días después de nuestra primera solicitud aún no tenemos tus datos, la ley puede obligarnos a retener tus pagos hasta que los añadas.', fr: 'C\'est notre dernier rappel. Si nous n\'avons toujours pas tes informations 60 jours après notre première demande, la loi peut nous obliger à bloquer tes versements jusqu\'à ce que tu les ajoutes.' },
+  'Your details are private: only you and the CapturaGo team can see them, and they are used only for tax reporting.': { de: 'Deine Daten sind privat: Nur du und das CapturaGo-Team könnt sie sehen, und sie werden nur für die Steuermeldung verwendet.', es: 'Tus datos son privados: solo tú y el equipo de CapturaGo podéis verlos, y solo se usan para la declaración fiscal.', fr: 'Tes informations sont privées : seuls toi et l\'équipe CapturaGo pouvez les voir, et elles servent uniquement à la déclaration fiscale.' },
+  'Your CapturaGo earnings statement for {year} (DAC7)': { de: 'Deine CapturaGo-Einnahmenübersicht für {year} (DAC7)', es: 'Tu resumen de ingresos de CapturaGo de {year} (DAC7)', fr: 'Ton relevé de revenus CapturaGo pour {year} (DAC7)' },
+  'none (place of birth: {place})': { de: 'keine (Geburtsort: {place})', es: 'ninguno (lugar de nacimiento: {place})', fr: 'aucun (lieu de naissance : {place})' },
+  'As required by EU law (the DAC7 directive), CapturaGo reports the earnings of creators who live in the EU to the Slovak tax authority (Finančná správa), which shares them with the tax authority of your country. This is what we report for {year}:': { de: 'Wie vom EU-Recht (DAC7-Richtlinie) vorgeschrieben, meldet CapturaGo die Einnahmen von Creatorn mit Wohnsitz in der EU an die slowakische Steuerbehörde (Finančná správa), die sie an die Steuerbehörde deines Landes weitergibt. Das melden wir für {year}:', es: 'Como exige la ley de la UE (directiva DAC7), CapturaGo comunica los ingresos de los creadores que viven en la UE a la autoridad tributaria eslovaca (Finančná správa), que los comparte con la autoridad tributaria de tu país. Esto es lo que comunicamos de {year}:', fr: 'Comme l\'exige le droit européen (directive DAC7), CapturaGo déclare les revenus des créateurs qui vivent dans l\'UE à l\'administration fiscale slovaque (Finančná správa), qui les transmet à celle de ton pays. Voici ce que nous déclarons pour {year} :' },
+  'Here is the summary of your earnings on CapturaGo in {year}. You live outside the EU, so it isn\'t reported to an EU tax authority — keep it for your own tax return:': { de: 'Hier ist die Übersicht deiner Einnahmen auf CapturaGo im Jahr {year}. Du wohnst außerhalb der EU, daher wird sie keiner EU-Steuerbehörde gemeldet — bewahre sie für deine eigene Steuererklärung auf:', es: 'Este es el resumen de tus ingresos en CapturaGo en {year}. Vives fuera de la UE, así que no se comunica a ninguna autoridad tributaria de la UE; guárdalo para tu propia declaración:', fr: 'Voici le récapitulatif de tes revenus sur CapturaGo en {year}. Tu vis hors de l\'UE, il n\'est donc pas déclaré à une administration fiscale européenne — garde-le pour ta propre déclaration :' },
+  'Name': { de: 'Name', es: 'Nombre', fr: 'Nom' },
+  'Address': { de: 'Adresse', es: 'Dirección', fr: 'Adresse' },
+  'Tax number': { de: 'Steuernummer', es: 'Número fiscal', fr: 'Numéro fiscal' },
+  'VAT number': { de: 'USt-IdNr.', es: 'Número de IVA', fr: 'Numéro de TVA' },
+  'Registration number': { de: 'Registernummer', es: 'Número de registro', fr: 'Numéro d\'immatriculation' },
+  'Quarter': { de: 'Quartal', es: 'Trimestre', fr: 'Trimestre' },
+  'Paid to you': { de: 'An dich ausgezahlt', es: 'Pagado a ti', fr: 'Versé à toi' },
+  'Jobs': { de: 'Aufträge', es: 'Trabajos', fr: 'Missions' },
+  'Our fees': { de: 'Unsere Gebühren', es: 'Nuestras comisiones', fr: 'Nos frais' },
+  'Total': { de: 'Gesamt', es: 'Total', fr: 'Total' },
+  '“Paid to you” is the price of the shoots that were paid out to you in that quarter, before our fees; tips and payments outside CapturaGo aren\'t included.': { de: '„An dich ausgezahlt“ ist der Preis der Shootings, die dir in diesem Quartal ausgezahlt wurden, vor unseren Gebühren; Trinkgelder und Zahlungen außerhalb von CapturaGo sind nicht enthalten.', es: '«Pagado a ti» es el precio de las sesiones que se te pagaron en ese trimestre, antes de nuestras comisiones; no incluye propinas ni pagos fuera de CapturaGo.', fr: '« Versé à toi » est le prix des shootings qui t\'ont été versés ce trimestre-là, avant nos frais ; les pourboires et paiements hors CapturaGo ne sont pas inclus.' },
+  'If anything is wrong, correct it in {link} and reply to this email so we can update the report.': { de: 'Wenn etwas nicht stimmt, korrigiere es in {link} und antworte auf diese E-Mail, damit wir die Meldung aktualisieren können.', es: 'Si algo está mal, corrígelo en {link} y responde a este correo para que podamos actualizar la declaración.', fr: 'Si quelque chose est faux, corrige-le dans {link} et réponds à cet e-mail pour que nous mettions à jour la déclaration.' },
+  'your tax details': { de: 'deinen Steuerdaten', es: 'tus datos fiscales', fr: 'tes informations fiscales' },
 };
 
 // ── CapturaGo server helpers (inlined into every function by build.py) ──
@@ -500,6 +552,39 @@ async function sendText(ctx, deps, to, channel, body, wa, lang) {
     console.error('[text]', e);
     return false;
   }
+}
+
+/* ── Weather-aware reminders: heavy rain on a shoot day (Open-Meteo, free, no key) ──
+   Heavy = a heavy-rain / violent-shower / thunderstorm forecast, or lots of rain that is very likely.
+   Light drizzle or a "40 % chance" is not heavy — many shoots go ahead in that. */
+const HEAVY_RAIN_CODES = [65, 67, 82, 95, 96, 99];   // heavy rain, heavy freezing rain, violent showers, thunderstorms
+function isHeavyRain(code, pct, mm) {
+  const c = Number(code), p = Number(pct), m = Number(mm);
+  if (HEAVY_RAIN_CODES.includes(c)) return true;
+  if ((c === 63 || c === 81) && Number.isFinite(p) && p >= 70) return true;   // moderate rain / showers, very likely
+  return Number.isFinite(m) && m >= 10 && Number.isFinite(p) && p >= 60;      // 10 mm+ of rain, likely
+}
+/** { heavy, pct, mm } for a place and day (0–15 days ahead), or null when unknown. Cached per run; never throws. */
+async function rainForecast(ctx, deps, coords, isoDate) {
+  const lat = Number(coords && coords.lat), lon = Number(coords && coords.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate || ''))) return null;
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)},${isoDate}`;
+  if (!ctx._wx) ctx._wx = new Map();
+  if (ctx._wx.has(key)) return ctx._wx.get(key);
+  let out = null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,precipitation_probability_max,precipitation_sum&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
+    const r = await Promise.race([deps.fetch(url), new Promise((_, no) => setTimeout(() => no(new Error('weather timeout')), 6000))]);
+    if (r && r.ok) {
+      const d = ((await r.json()) || {}).daily || {};
+      const code = Number(d.weather_code && d.weather_code[0]);
+      const pct = Number(d.precipitation_probability_max && d.precipitation_probability_max[0]);
+      const mm = Number(d.precipitation_sum && d.precipitation_sum[0]);
+      if (Number.isFinite(code)) out = { heavy: isHeavyRain(code, pct, mm), pct: Number.isFinite(pct) ? Math.round(pct) : null, mm: Number.isFinite(mm) ? Math.round(mm) : null };
+    }
+  } catch (e) { console.error('[weather]', e && e.message ? e.message : e); }
+  ctx._wx.set(key, out);
+  return out;
 }
 
 function escHtml(s) {
@@ -1095,6 +1180,11 @@ function buildIcsFeed(bookings, userId, siteUrl, nowMs) {
 // 16. Calendar sync: busy days read from creators' own calendars (every 3 hours)
 // 18. Invite rewards: both creators emailed about their free 7-day boost (the database gives it)
 // 17. Shoot requests: new request → matching creators emailed once; new offers → one email to the traveller; past requests closed
+// 19. Last-minute deals → one email to travellers in that city   20. Text reminders on the shoot day (SMS / WhatsApp)
+//  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
+// 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
+// 22. (v8.15) EU DAC7: creators who can be paid online are asked for their tax details (then 2 reminders: day 14 and 45).
+//     With the secret TAX_INFO_HOLD=on, payouts wait for creators still without details 60 days after the first request.
 const BATCH = 50;
 const HOUR = 3600000;
 
@@ -1110,7 +1200,7 @@ async function runJobs(ctx, deps) {
   const now = ctx.nowMs();
   const nowIso = new Date(now).toISOString();
   const summary = { expired: 0, nudged: 0, auto_refunded: 0, released: 0, reminders: 0, late_notices: 0, message_emails: 0, photo_reminders: 0, photos_deleted: 0, city_alerts: 0,
-    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, errors: 0 };
+    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, errors: 0 };
   const errors = [];
   const fail = (what, id, e) => { summary.errors++; errors.push(`${what} ${id}: ${e && e.message ? e.message : e}`); console.error('[jobs]', what, id, e); };
   const mark = (b, key) => ctx.db(`bookings?id=eq.${b.id}`, { method: 'PATCH', body: { notices: { ...(b.notices || {}), [key]: nowIso } }, prefer: 'return=minimal' });
@@ -1129,6 +1219,17 @@ async function runJobs(ctx, deps) {
     await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${html}</p>${dash(c.lang)}`);
   }
   const LOCALE = { en: 'en-GB', de: 'de-DE', es: 'es-ES', fr: 'fr-FR' };
+  // Weather-aware reminders: heavy rain on the shoot day → offer to move it (free when both agree; max 3 moves)
+  const moveLink = (b) => `${ctx.siteUrl}/dashboard.html?move=${b.id}#bookings`;
+  const canMove = (b) => b.booking_type !== 'delivery' && ['paid', 'confirmed'].includes(b.status) && !b.proposed_date && (Number(b.reschedules) || 0) < 3;
+  const shootCoords = (b) => (b.shoot_city ? b.shoot_coords : (b.photographers && b.photographers.coords)) || null;   // a trip: the trip city
+  async function heavyRainFor(b) {
+    if (!canMove(b)) return null;
+    const w = await rainForecast(ctx, deps, shootCoords(b), b.shoot_date);
+    return w && w.heavy ? w : null;
+  }
+  const rainHtml = (w, b, l) => `<p style="background:#EEF3F8;border-radius:12px;padding:12px 14px">${L(l, '🌧 <strong>Heavy rain is forecast</strong> for the shoot day{detail}.', { detail: w.pct !== null ? L(l, ' ({pct}% chance of rain)', { pct: w.pct }) : '' })} `
+    + `${L(l, 'Want to move it? {link} — moving is free if you both agree, and the other person is asked right away.', { link: `<a href="${moveLink(b)}"><strong>${L(l, '📅 Propose a new date')}</strong></a>` })}</p>`;
 
   const [run] = await ctx.db('job_runs', { method: 'POST', body: { started_at: nowIso } });
 
@@ -1197,6 +1298,14 @@ async function runJobs(ctx, deps) {
   }
 
   // 3. automatic payouts
+  // DAC7 (only when switched on): no payout for creators who still haven't given their tax details after the request and 2 reminders
+  let taxHeld = new Set();
+  if (String(ctx.env('TAX_INFO_HOLD', '')).toLowerCase() === 'on') {
+    try {
+      const ids = await ctx.db('rpc/tax_payout_holds', { method: 'POST', body: {} });
+      taxHeld = new Set((ids || []).map((x) => (typeof x === 'string' ? x : x && x.tax_payout_holds)).filter(Boolean));
+    } catch (e) { if (!/tax_payout_holds/.test(String(e && e.message))) fail('tax-holds', '-', e); }
+  }
   const cutoffDate = ctx.isoInDays(-3);
   // Photos promised in the package: not before 3 days after they were sent (the database marks these bookings)
   const sentBefore = encodeURIComponent(new Date(now - RELEASE_DAYS * 86400000).toISOString());
@@ -1206,6 +1315,7 @@ async function runJobs(ctx, deps) {
   sessionsDone = (sessionsDone || []).filter((b) => { const h = payoutHold(b); return h.releaseAt !== null && h.releaseAt <= now; });   // double check
   const deliveriesDone = await ctx.db(`bookings?status=eq.delivered&delivered_at=lt.${encodeURIComponent(new Date(now - 72 * HOUR).toISOString())}&select=*&limit=${BATCH}`);
   for (const b of [...(sessionsDone || []), ...(deliveriesDone || [])]) {
+    if (taxHeld.has(b.creator_user_id)) { summary.tax_held++; continue; }   // released as soon as the details are in
     try {
       const transferId = await releaseBooking(ctx, b);
       if (await moveBooking(ctx, b.id, b.status, 'completed', { stripe_transfer_id: transferId })) {
@@ -1217,15 +1327,19 @@ async function runJobs(ctx, deps) {
 
   // 4. reminders for tomorrow
   const tomorrow = ctx.isoInDays(1);
-  const due = await ctx.db(`bookings?status=eq.confirmed&shoot_date=eq.${tomorrow}&select=*&limit=${BATCH}`);
+  let due;
+  try { due = await ctx.db(`bookings?status=eq.confirmed&shoot_date=eq.${tomorrow}&select=*,photographers(coords)&limit=${BATCH}`); }
+  catch { due = await ctx.db(`bookings?status=eq.confirmed&shoot_date=eq.${tomorrow}&select=*&limit=${BATCH}`); }
   for (const b of due || []) {
     if (b.notices && b.notices.reminder) continue;
     try {
+      const rain = b.booking_type === 'delivery' ? null : await heavyRainFor(b);
+      if (rain) summary.rain_warnings++;
       if (b.booking_type === 'delivery') {
         await mailCreator(b, (l) => [L(l, 'Due tomorrow: {pkg}', { pkg: b.package_name }), L(l, 'Delivery for {pkg} is due tomorrow ({date}). Deliver the files from your dashboard.', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })]);
       } else {
-        await mailClient(b, (l) => [L(l, 'Your shoot is tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Just a reminder — your shoot {pkg} is tomorrow ({date}).', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })}</p>${planHtml(b, false, l) || `<p>${L(l, 'Your creator hasn\'t shared a meeting point yet — message them on CapturaGo.')}`}<p>${L(l, 'Enjoy it!')}`]);
-        await mailCreator(b, (l) => [L(l, 'Shoot tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Reminder: you\'re shooting {pkg} with {name} tomorrow ({date}).', { pkg: pkgOf(b), name: escHtml(b.client_name), date: escHtml(b.shoot_date) })}</p>${planHtml(b, true, l) || `<p>${L(l, 'Tip: share a meeting point and time from your bookings so the traveller knows where to go.')}`}<p>`]);
+        await mailClient(b, (l) => [rain ? L(l, 'Your shoot is tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Your shoot is tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Just a reminder — your shoot {pkg} is tomorrow ({date}).', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${planHtml(b, false, l) || `<p>${L(l, 'Your creator hasn\'t shared a meeting point yet — message them on CapturaGo.')}`}<p>${L(l, 'Enjoy it!')}`]);
+        await mailCreator(b, (l) => [rain ? L(l, 'Shoot tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Shoot tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Reminder: you\'re shooting {pkg} with {name} tomorrow ({date}).', { pkg: pkgOf(b), name: escHtml(b.client_name), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${planHtml(b, true, l) || `<p>${L(l, 'Tip: share a meeting point and time from your bookings so the traveller knows where to go.')}`}<p>`]);
       }
       await mark(b, 'reminder');
       summary.reminders++;
@@ -1571,7 +1685,7 @@ async function runJobs(ctx, deps) {
   //     Local time is estimated from the place's longitude (no time zone is stored).
   if (textsConfigured(ctx)) {
     try {
-      const rows = await ctx.db(`bookings?status=eq.confirmed&booking_type=eq.session&shoot_date=gte.${ctx.isoInDays(-1)}&shoot_date=lte.${ctx.isoInDays(2)}&notices->>text_reminder=is.null&select=id,client_user_id,creator_user_id,client_name,package_name,shoot_date,time_slot,meeting_point,meeting_time,shoot_coords,surprise,notices,photographers(name,coords)&order=shoot_date.asc&limit=300`);
+      const rows = await ctx.db(`bookings?status=eq.confirmed&booking_type=eq.session&shoot_date=gte.${ctx.isoInDays(-1)}&shoot_date=lte.${ctx.isoInDays(2)}&notices->>text_reminder=is.null&select=id,status,booking_type,client_user_id,creator_user_id,client_name,package_name,shoot_date,time_slot,meeting_point,meeting_time,shoot_city,shoot_coords,surprise,notices,proposed_date,reschedules,photographers(name,coords)&order=shoot_date.asc&limit=300`);
       for (const b of rows || []) {
         try {
           const ph = b.photographers || {};
@@ -1588,6 +1702,7 @@ async function runJobs(ctx, deps) {
           if (!claimed || !claimed.length) continue;
           const ids = [b.client_user_id, b.creator_user_id].filter((x) => UUID_RE.test(String(x || '')));
           if (!ids.length) continue;
+          const rain = await heavyRainFor(b);   // heavy rain → the text offers to move it (one tap)
           const phones = await ctx.db(`phone_numbers?user_id=in.(${ids.join(',')})&verified_at=not.is.null&reminders=is.true&select=user_id,phone,channel`);
           for (const pn of phones || []) {
             if (!(await ctx.db('rpc/claim_text', { method: 'POST', body: { p_user: pn.user_id } }))) continue;   // max 4 a day
@@ -1597,20 +1712,88 @@ async function runJobs(ctx, deps) {
             const time = MEETING_TIME_RE.test(String(b.meeting_time || '')) ? L(l, 'at {time}', { time: b.meeting_time }) : (b.time_slot ? `(${L(l, slotLabel(b.time_slot))})` : '');
             const other = String(forCreator ? (b.client_name || '') : (ph.name || '')).split(' ')[0];
             const place = b.meeting_point ? String(b.meeting_point).slice(0, 120) : L(l, 'not shared yet — message each other in CapturaGo');
-            const link = `${ctx.siteUrl}/dashboard.html#bookings`;
-            const what = !forCreator && b.surprise
+            const link = rain ? moveLink(b) : `${ctx.siteUrl}/dashboard.html#bookings`;
+            const what0 = !forCreator && b.surprise
               ? L(l, 'your plans {when} {time}', { when, time }).replace(/\s+/g, ' ').trim()
               : L(l, 'your shoot with {name} {when} {time}', { name: other, when, time }).replace(/\s+/g, ' ').trim();
+            // Heavy rain: said in the same message (also fits the approved WhatsApp template: {{1}} and the link in {{3}})
+            const what = rain ? `${what0} — ${L(l, 'heavy rain forecast; to move it, tap the link')}` : what0;
             const text = !forCreator && b.surprise
               ? L(l, 'CapturaGo reminder: {what}. Details: {link}', { what, link })
               : L(l, 'CapturaGo reminder: {what}. Meeting point: {place}. Details: {link}', { what, place, link });
             const ok = await sendText(ctx, deps, pn.phone, pn.channel, text, { 1: what, 2: !forCreator && b.surprise ? '—' : place, 3: link }, l);
             if (ok) summary.texts++;
           }
+          if (rain) summary.rain_warnings++;
         } catch (e) { fail('text', b.id, e); }
       }
     } catch (e) { if (!/phone_numbers|text_reminder/.test(String(e && e.message))) fail('texts', '-', e); }
   }
+
+  // 21. "Notify me" on a fully booked creator: a day opened up, or a last-minute deal appeared → one email
+  //     (+ one text if the traveller asked for it and confirmed their number), then the watch is done.
+  try {
+    const due21 = await ctx.db('rpc/due_creator_watches', { method: 'POST', body: { p_limit: 100 } });
+    const niceDay = (iso, l) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(LOCALE[l] || 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    for (const w of due21 || []) {
+      try {
+        const u = await authUser(ctx, deps, w.user_id);
+        const email = u && u.email;
+        const l = await mailLang(ctx, w.user_id, email);
+        const name = String(w.photographer_name || '');
+        const first = name.split(' ')[0] || L(l, 'Your creator');
+        const profile = w.photographer_handle ? `${ctx.siteUrl}/c/${encodeURIComponent(w.photographer_handle)}` : `${ctx.siteUrl}/?creator=${encodeURIComponent(w.photographer_id)}`;
+        const book = `${ctx.siteUrl}/?creator=${encodeURIComponent(w.photographer_id)}&day=${encodeURIComponent(w.day)}`;
+        const when = niceDay(w.day, l);
+        const deal = w.reason === 'deal';
+        let sent = false;
+        if (email) {
+          const subject = deal ? L(l, '⚡ {name} has a last-minute deal: −{pct}% on {date}', { name: first, pct: w.pct, date: when })
+            : L(l, '🔔 {name} has a free day again', { name: first });
+          const body = deal
+            ? L(l, 'You asked us to tell you when {name} has something for you. They just lowered their price by {pct}% for {date}.', { name: `<strong>${escHtml(name)}</strong>`, pct: w.pct, date: `<strong>${escHtml(when)}</strong>` })
+            : (Number(w.free_count) > 1
+              ? L(l, 'You asked us to tell you when {name} has a free day. {n} days just opened up — the first is {date}.', { name: `<strong>${escHtml(name)}</strong>`, n: Number(w.free_count), date: `<strong>${escHtml(when)}</strong>` })
+              : L(l, 'You asked us to tell you when {name} has a free day. {date} just opened up.', { name: `<strong>${escHtml(name)}</strong>`, date: `<strong>${escHtml(when)}</strong>` }));
+          sent = await sendEmail(ctx, deps, email, subject,
+            `<p>${L(l, 'Hi,')}</p><p>${body}</p><p>${L(l, '{link} — free days go quickly, and the payment is protected as always.', { link: `<a href="${book}"><strong>${L(l, 'Book {name}', { name: escHtml(first) })}</strong></a>` })}</p>`
+            + `<p style="color:#7D6A53;font-size:13px">${L(l, 'This was a one-time alert. Watch again any time from {link}.', { link: `<a href="${profile}">${L(l, '{name}’s profile', { name: escHtml(first) })}</a>` })}</p>`);
+        }
+        if (w.by_text && textsConfigured(ctx)) {
+          const [pn] = await ctx.db(`phone_numbers?user_id=eq.${w.user_id}&verified_at=not.is.null&select=phone,channel`);
+          if (pn && (await ctx.db('rpc/claim_text', { method: 'POST', body: { p_user: w.user_id } }))) {
+            const text = deal ? L(l, 'CapturaGo: {name} has a last-minute deal, −{pct}% on {date}. Book: {link}', { name: first, pct: w.pct, date: when, link: book })
+              : L(l, 'CapturaGo: {name} has a free day again ({date}). Book: {link}', { name: first, date: when, link: book });
+            if (await sendText(ctx, deps, pn.phone, 'sms', text, null, l)) sent = true;   // an alert, not a reminder: always SMS
+          }
+        }
+        if (!sent && email) continue;   // email failed → try again next hour
+        await ctx.db(`creator_watches?id=eq.${w.watch_id}&notified_at=is.null`, { method: 'PATCH', body: { notified_at: nowIso, notified_reason: deal ? 'deal' : 'free' }, prefer: 'return=minimal' });
+        summary.watch_alerts++;
+      } catch (e) { fail('watch', w.watch_id, e); }
+    }
+  } catch (e) { if (!/due_creator_watches|creator_watches/.test(String(e && e.message))) fail('watches', '-', e); }
+
+  // 22. DAC7 tax details: ask once, then 2 reminders (the law requires them before payouts may be held)
+  try {
+    const due22 = await ctx.db('rpc/due_tax_requests', { method: 'POST', body: { p_limit: 100 } });
+    for (const r of due22 || []) {
+      try {
+        const l = await mailLang(ctx, r.user_id, r.email);
+        const link = `<a href="${ctx.siteUrl}/dashboard.html#payments"><strong>${L(l, 'Add my tax details')}</strong></a>`;
+        const sent = await sendEmail(ctx, deps, r.email,
+          r.step === 'ask' ? L(l, 'Please add your tax details for CapturaGo') : L(l, 'Reminder: your tax details for CapturaGo are still missing'),
+          hiP(l, escHtml(String(r.name || '').split(' ')[0]))
+          + `<p>${L(l, 'EU law (the DAC7 directive) requires platforms like CapturaGo to collect the tax details of everyone who earns money through them, and to report those earnings to the tax authority once a year. You also get a copy of what we report.')}</p>`
+          + `<p>${L(l, 'It takes about two minutes: {link} (Dashboard → Payments). We need your name, address, date of birth and tax number — or, for a business, its registration details.', { link })}</p>`
+          + (r.step === 'reminder2' ? `<p><strong>${L(l, 'This is our last reminder. If we still don\'t have your details 60 days after our first request, the law may require us to hold your payouts until you add them.')}</strong></p>` : '')
+          + `<p style="color:#7D6A53;font-size:13px">${L(l, 'Your details are private: only you and the CapturaGo team can see them, and they are used only for tax reporting.')}</p>`);
+        if (!sent) continue;   // try again next hour
+        await ctx.db('rpc/mark_tax_request', { method: 'POST', body: { p_user: r.user_id, p_step: r.step } });
+        summary.tax_requests++;
+      } catch (e) { fail('tax-request', r.user_id, e); }
+    }
+  } catch (e) { if (!/due_tax_requests/.test(String(e && e.message))) fail('tax-requests', '-', e); }
 
   // 6. + 10. housekeeping
   await ctx.db(`ai_requests?created_at=lt.${encodeURIComponent(new Date(now - HOUR).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
@@ -1620,6 +1803,7 @@ async function runJobs(ctx, deps) {
   await ctx.db(`last_minute_deals?day=lt.${ctx.isoInDays(-14)}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`deal_emails?sent_on=lt.${ctx.isoInDays(-7)}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`phone_code_log?created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
+  await ctx.db(`creator_watches?or=(until_day.lt.${ctx.isoInDays(-7)},notified_at.lt.${encodeURIComponent(new Date(now - 60 * 86400000).toISOString())})`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`phone_numbers?verified_at=is.null&created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});   // never confirmed
 
   if (run && run.id) {

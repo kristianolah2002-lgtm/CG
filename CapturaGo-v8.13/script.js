@@ -276,6 +276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Welcome back! 👋', 'success');
     continuePendingMessage();
     continuePendingAlert();
+    continuePendingWatch();
   });
 
   $('signUpForm').addEventListener('submit', async (e) => {
@@ -297,6 +298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast(`Welcome to CapturaGo, ${firstName(name)}! 🎉`, 'success');
       continuePendingMessage();
       continuePendingAlert();
+      continuePendingWatch();
     } else {
       $('signUpSuccess').textContent = 'Almost done! We sent a confirmation link to your email. Open it, then sign in here. (Check spam if you don\'t see it.)';
       e.target.reset();
@@ -468,6 +470,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <h3><span translate="no">${esc(p.name)}</span>${verifiedBadge(p.verified)}</h3>
             <div class="portfolio-rating">${p.reviews_count > 0 ? `${starRating(p.rating)} <small>${Number(p.rating).toFixed(1)} · ${p.reviews_count} review${p.reviews_count > 1 ? 's' : ''}</small>` : '<small class="muted">New on CapturaGo</small>'}</div>
             <p class="portfolio-location">📍 ${esc(p.city)}${p.travel_available ? ' · <span class="travels">✈ Travels</span>' : ''}${TAX.hasRemote(p.services) ? ' · <span class="remote-chip">🌐 Remote</span>' : ''}</p>
+            ${replyRank(p) === 3 ? '<p class="fast-reply-chip" title="Measured from their replies on CapturaGo">💬 Replies within an hour</p>' : ''}
             ${spots.length || galleryOf(p).length ? `<div class="spots-count-pill">${galleryOf(p).length ? `📷 ${galleryOf(p).length} photo${galleryOf(p).length > 1 ? 's' : ''}` : ''}${spots.length && galleryOf(p).length ? ' · ' : ''}${spots.length ? `🗺️ ${spots.length} local spot${spots.length > 1 ? 's' : ''}` : ''}</div>` : ''}
             ${p._reason ? `<p class="ai-reason">✦ ${esc(p._reason)}</p>` : ''}
             <p class="portfolio-description" translate="no">${esc(desc.slice(0, 120))}${desc.length > 120 ? '…' : ''}</p>
@@ -559,7 +562,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await allRealReady;
     if (token !== loadToken) return;
     const real = clientFilter(data || []);
-    real.sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)));   // stable: keeps the rest in order
+    // Boosted first, then fast responders (usually reply within an hour / a few hours / a day); stable, so newest first within each group
+    real.sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)) || replyRank(b) - replyRank(a));
     // Creators on the road: planning a trip to the searched city (listed after the locals)
     const travelling = city && !remote
       ? clientFilter(allReal.filter((c) => !real.some((r) => r.id === c.id) && upcomingTrips(c.trips).some((t) => tripMatches(t, city))))
@@ -621,6 +625,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── TRIP PLANNER: who is free in a city on my dates ── */
   let tripRange = null;   // { from, to } — the booking calendar opens there
+  let wantDay = null;     // { id, day } from a deal / "a day opened up" link — that day is picked in the booking window
   const localIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
   const niceDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -713,7 +718,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return { ...c, ...(t ? { _trip: t } : {}), _reason: t ? `✈️ In ${tripCity(t)} ${tripDates(t)} · ${free}` : free, _free: x.free_days };
       })
       .filter((c) => !activeType || activeType === 'remote' || TAX.isRemote(activeType) || (c.services || []).includes(activeType))
-      .sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)) || Number(canBook(b)) - Number(canBook(a)) || b._free - a._free);
+      .sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)) || Number(canBook(b)) - Number(canBook(a)) || replyRank(b) - replyRank(a) || b._free - a._free);
     CG.logEvent('trip_search', city, TAX.service(activeType) ? activeType : '', list.length);
     tripRange = { from, to };
     aiActive = true; shown = list;
@@ -779,6 +784,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gallery = galleryOf(p);
     const sample = galleryOf({ gallery: p.sample_gallery }).slice(0, 40);
     const verifiedCount = reviews.filter(r => r.booking_id).length;
+    // Clients' favourite shots: the first photo of each review (the one the traveller picked first), newest first
+    const clientPhotos = reviews.filter(r => Array.isArray(r.photos) && safeUrl(r.photos[0])).slice(0, 8);
+    const canWatch = !p.isExample && !isOwn && !!p.payouts_enabled && (canBook(p) || p.available === false);
     box.innerHTML = `
       <img class="modal-img" src="${esc(coverOf(p))}" ${imgFallback} alt="${esc(p.name)}" />
       <div class="modal-body">
@@ -808,8 +816,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           <p class="gallery-count">📷 ${gallery.length} photo${gallery.length > 1 ? 's' : ''} by ${esc(firstName(p.name))} · tap to view</p>` : ''}
         ${sample.length ? `<button type="button" class="sample-btn" id="mSample"><span class="sample-thumbs">${sample.slice(0, 3).map(g => `<img src="${esc(safeUrl(g.thumb) || safeUrl(g.url))}" alt="" loading="lazy" />`).join('')}</span>
           <span><strong>📂 See a full shoot</strong><span class="muted small">${esc(p.sample_title || `Every photo from one real shoot`)} · ${sample.length} photos</span></span></button>` : ''}
+        ${clientPhotos.length ? `<div class="client-photos"><strong class="client-photos-title">📸 Clients' favourite shots</strong>
+          <div class="client-photos-row">${clientPhotos.map(r => `<button type="button" data-rv="${esc(r.id)}" data-rk="0" aria-label="Open the favourite photo from ${esc(r.reviewer_name)}'s review"><img src="${esc(safeUrl(r.photos[0]))}" alt="" loading="lazy" ${imgFallback} /><span class="cp-stars" aria-hidden="true">${'★'.repeat(Math.max(1, Math.min(5, Math.round(Number(r.rating) || 0))))}</span></button>`).join('')}</div>
+          <p class="muted small">Picked by travellers who booked ${esc(firstName(p.name))} — tap to see their review photos.</p></div>` : ''}
         ${(p.occasions || []).length ? `<p class="occasion-line"><strong>Great for:</strong> ${p.occasions.map(o => esc(OCC_LABELS[o] || o)).join(' · ')}</p>` : ''}
         ${renderPackages(p, isOwn)}
+        ${canWatch ? '<div class="watch-box" id="mWatch" hidden></div>' : ''}
         <div class="modal-actions">
           ${p.isExample || isOwn ? '' : `<button class="primary-btn" id="mInquiry">Message ${esc(firstName(p.name))}</button>`}
           ${isOwn ? '<a class="primary-btn" href="/dashboard.html" style="text-decoration:none">Edit my listing</a>' : ''}
@@ -900,6 +912,63 @@ document.addEventListener('DOMContentLoaded', async () => {
       openLightbox(urls.map((u, k) => ({ src: safeUrl(u), caption: `From ${r.reviewer_name}'s review · ${k + 1}/${urls.length}` })), +btn.dataset.rk,
         canReport ? { onReport: (k) => openReport(safeUrl(urls[k])) } : {});
     }));
+    if (canWatch) renderWatch(p);
+  }
+
+  /* ── 🔔 "NOTIFY ME" on a fully booked creator: one email (or text) when a day opens up or a deal appears ── */
+  const WATCH_DAYS = 14;   // "fully booked" = no free day in the next two weeks (or not taking bookings right now)
+  let pendingWatch = null;
+  async function renderWatch(p) {
+    const el = $('mWatch');
+    if (!el) return;
+    const busy = new Set(await CG.photographers.busyDates(p.id));
+    const days = Array.from({ length: WATCH_DAYS }, (_, i) => localIso(addDays(new Date(), i + 1)));
+    const off = p.available === false;
+    const full = off || (!dealsOf(p).length && days.every((d) => busy.has(d)));
+    if (!$('mWatch') || !full) return;
+    const first = esc(firstName(p.name));
+    let watching = false, phoneOk = false;
+    if (currentUser) {
+      const [{ data: mine }, { data: ph }] = await Promise.all([CG.watches.mine(), CG.phone.mine()]);
+      watching = (mine || []).some((w) => w.photographer_id === p.id && !w.notified_at);
+      phoneOk = !!(ph && ph.verified);
+    }
+    if (!$('mWatch')) return;
+    el.hidden = false;
+    const title = off ? `${firstName(p.name)} isn't taking bookings right now` : 'Fully booked for the next 2 weeks';   // escaped once, below
+    if (watching) {
+      el.innerHTML = `<div><strong>🔔 We'll tell you</strong><p class="muted small">You'll get one message when ${first} has a free day again or posts a last-minute deal.</p></div>
+        <button type="button" class="link-btn" id="mWatchStop">Stop notifying me</button>`;
+      $('mWatchStop').addEventListener('click', async (e) => {
+        e.currentTarget.disabled = true;
+        const { error } = await CG.watches.remove(p.id);
+        if (error) { e.currentTarget.disabled = false; showToast('Could not change it. Please try again.', 'error'); return; }
+        showToast('Done — no more alerts about this creator.', 'info');
+        renderWatch(p);
+      });
+      return;
+    }
+    el.innerHTML = `<div><strong>📅 ${esc(title)}</strong><p class="muted small">Get one message when ${first} has a free day again or posts a last-minute deal.</p>
+        ${phoneOk ? '<label class="watch-text"><input type="checkbox" id="mWatchText" /> Also send me a text message</label>' : ''}</div>
+      <button type="button" class="primary-btn" id="mWatchBtn">🔔 Notify me</button>`;
+    $('mWatchBtn').addEventListener('click', () => watchCreator(p, $('mWatchText')?.checked === true, $('mWatchBtn')));
+  }
+  async function watchCreator(p, byText, btn) {
+    if (!currentUser) {
+      pendingWatch = { p, at: Date.now() };
+      openAuth('signin');
+      showToast(`Sign in and we'll tell you when ${firstName(p.name)} has a free day.`, 'info', 5000);
+      return;
+    }
+    if (btn) btn.disabled = true;
+    const { error } = await CG.watches.add(p.id, byText);
+    if (error) { if (btn) btn.disabled = false; showToast(error.message || 'Could not save it. Please try again.', 'error', 6000); return; }
+    showToast(`Done — we'll tell you once when ${firstName(p.name)} has a free day or a deal.`, 'success', 5000);
+    if ($('mWatch')) renderWatch(p);
+  }
+  function continuePendingWatch() {
+    const w = pendingWatch; pendingWatch = null;
+    if (w && currentUser && Date.now() - w.at < 15 * 60000 && w.p.user_id !== currentUser.id) watchCreator(w.p, false, null);
   }
 
   /* ── MESSAGE A CREATOR (private chat in the dashboard and the app) ── */
@@ -1201,7 +1270,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           dayLabel: (iso) => { const t = tripOn(trips, iso), d = dealFor(iso); return [t ? `in ${tripCity(t)}` : '', d && !busy.has(iso) ? `last-minute −${d.pct}%` : ''].filter(Boolean).join(', '); } });
         if (dealsOf(p).length && !remote) box.insertAdjacentHTML('beforeend', `<p class="form-note deal-cal-note">⚡ ${dealsOf(p).map((d) => { const w = dealDay(d.day); return `${esc(w.charAt(0).toUpperCase() + w.slice(1))}: −${d.pct}% last-minute price`; }).join(' · ')}</p>`);
       }
-      showCal();
+      // Opened from a deal / "a day opened up" link: that day is already chosen (if it's still free)
+      const want = wantDay && wantDay.id === String(p.id).toLowerCase() ? wantDay.day : '';
+      wantDay = null;
+      if (want && want >= tomorrow && want <= maxDate && !busy.has(want)) { date = want; showSummary(); }
+      else showCal();
       $('bkSlots').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
         slot = slot === b.dataset.slot ? '' : b.dataset.slot;
         $('bkSlots').querySelectorAll('button').forEach(x => { x.classList.toggle('on', x.dataset.slot === slot); x.setAttribute('aria-pressed', x.dataset.slot === slot ? 'true' : 'false'); });
@@ -1252,6 +1325,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       payNow();
     });
     $('bkGift').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); $('bkGiftApply').click(); } });
+    if (date) repriced();   // a day was chosen up front (deal link) → its price, fee and total
+    // Came from the gift card page ("Use it on a last-minute deal"): the code is filled in and checked
+    let carried = '';
+    try { carried = giftCodeNorm(sessionStorage.getItem('cg_gift_code') || '') || ''; } catch { carried = ''; }
+    if (carried) { $('bkGift').value = carried; $('bkGiftBox').open = true; $('bkGiftApply').click(); }
     $('bkSplit')?.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       if (gift) { showToast("Remove the gift card first — it can't be combined with splitting the cost.", 'info'); return; }
       split = Number(b.dataset.n);
@@ -1289,6 +1367,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       track('begin_checkout', { value: totalCents / 100, id: String(pkg.id) });
+      if (gift) { try { sessionStorage.removeItem('cg_gift_code'); } catch {} }
       window.location.href = data.url;
     });
   }
@@ -1406,7 +1485,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   })();
   await loadCreators();
   if (deepLink) $('portfolio-section').scrollIntoView({ behavior: 'smooth' });
-  if (/^[0-9a-f-]{36}$/i.test(qp.get('creator') || '')) openDetail(qp.get('creator'));
+  if (/^[0-9a-f-]{36}$/i.test(qp.get('creator') || '')) {
+    // From a deal / "a day opened up" link: ?creator=<id>&day=YYYY-MM-DD → the booking calendar opens on that day
+    const day = String(qp.get('day') || '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(day) && day >= localIso(addDays(new Date(), 1))) { tripRange = { from: day, to: day }; wantDay = { id: qp.get('creator').toLowerCase(), day }; }
+    openDetail(qp.get('creator'));
+  }
   // Sent by a partner (hotel / hostel QR card): capturago.com/?p=CODE → lower service fee for 30 days
   if (qp.get('p')) {
     const { data: pi } = await CG.partners.info(qp.get('p'));

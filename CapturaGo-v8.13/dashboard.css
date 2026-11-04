@@ -794,3 +794,17 @@
 .phone-channel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
 .chip-btn.on{background:var(--amber);color:#FFFBF5;border-color:var(--amber)}
 .phone-line{margin:0 0 6px}
+
+/* ── v8.15: tax details (EU DAC7) ── */
+.tax-reminder{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 18px;border:1px dashed rgba(176,71,34,.4);background:var(--amber-dim)}
+.tax-reminder p{margin:2px 0 0}
+.tax-card{margin-top:18px}
+.tax-form{max-width:620px;margin-top:10px}
+.tax-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 14px}
+.tax-kind{display:flex;flex-direction:column;gap:6px;margin:4px 0 14px}
+.tax-kind label,.tax-check{display:flex;gap:8px;align-items:flex-start;font-size:.9rem;cursor:pointer;line-height:1.4}
+.tax-check{margin:4px 0 14px}
+.tax-kind input,.tax-check input{margin-top:3px}
+.tax-hold{color:var(--err)}
+.tax-missing td{background:var(--err-dim)}
+@media(max-width:560px){.tax-two{grid-template-columns:1fr}}
