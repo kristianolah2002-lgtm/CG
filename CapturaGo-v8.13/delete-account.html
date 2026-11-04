@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/i18n.js"></script>
+  <title>Delete your account – CapturaGo</title>
+  <meta name="description" content="How to delete your CapturaGo account and what happens to your data." />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="page-simple">
+<script src="/consent.js"></script>
+<nav class="simple-nav">
+  <a href="/" class="logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</a>
+  <a href="/" class="back">← Back to CapturaGo</a>
+</nav>
+<main class="legal">
+  <h1>Delete your account</h1>
+  <p class="updated">CapturaGo website and the CapturaGo app for iPhone and Android</p>
+  <p>You can delete your CapturaGo account at any time — here, or in the app under <strong>Account → Delete account</strong>.</p>
+  <h2>What is deleted</h2>
+  <ul>
+    <li>Your login (email and password)</li>
+    <li>Your creator listing, its photos, packages and local spots</li>
+    <li>Inquiries sent to your listing, your favourites, and the reviews you wrote</li>
+    <li>Your private conversations (they disappear for the other person too)</li>
+  </ul>
+  <h2>What we keep</h2>
+  <ul>
+    <li>Records of paid bookings (amounts, dates, names) — accounting and tax law requires us to keep them, in Slovakia generally for 10 years. They are no longer linked to an account.</li>
+    <li>Inquiries you sent with the contact form (by email) stay with the creators who received them.</li>
+  </ul>
+  <p>If you have an active booking (paid, confirmed, delivered or under review), finish or cancel it first.</p>
+
+  <div class="narrow-card" id="deleteBox" style="margin-top:28px">
+    <p class="muted" id="deleteStatus">Checking whether you're signed in…</p>
+    <div id="deleteForm" hidden>
+      <div class="form-row"><label for="deleteConfirm">Type <strong>DELETE</strong> to confirm</label>
+        <input id="deleteConfirm" autocomplete="off" autocapitalize="characters" /></div>
+      <button type="button" class="danger-btn" id="deleteBtn" style="width:100%">Permanently delete my account</button>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:20px">Can't sign in any more? Email <a href="mailto:hello@capturago.com?subject=Delete%20my%20account">hello@capturago.com</a> from the address you registered with and we'll delete it within 30 days.</p>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="/vendor/supabase.umd.js"></script>
+<script src="/supabase.js"></script>
+<script src="/site.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const $ = (id) => document.getElementById(id);
+  const user = await CG.auth.getUser();
+  if (!user) {
+    $('deleteStatus').innerHTML = 'Please <a href="/">sign in on the homepage</a> first, then come back to this page.';
+    return;
+  }
+  $('deleteStatus').innerHTML = 'Signed in as <strong>' + esc(user.email) + '</strong>.';
+  $('deleteForm').hidden = false;
+  $('deleteBtn').addEventListener('click', async () => {
+    if ($('deleteConfirm').value.trim() !== 'DELETE') { showToast('Type DELETE to confirm.', 'error'); return; }
+    const btn = $('deleteBtn'); btn.disabled = true; btn.textContent = 'Deleting…';
+    const { error } = await CG.account.remove();
+    if (error) { btn.disabled = false; btn.textContent = 'Permanently delete my account'; showToast(error.message, 'error', 8000); return; }
+    await CG.auth.signOut();
+    $('deleteBox').innerHTML = '<p><strong>Your account has been deleted.</strong> Thank you for using CapturaGo.</p>';
+  });
+});
+</script>
+</body>
+</html>

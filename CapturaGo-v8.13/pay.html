@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/i18n.js"></script>
+  <title>Pay your share – CapturaGo</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="page-simple">
+<script src="/consent.js"></script>
+<nav class="simple-nav">
+  <a href="/" class="logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</a>
+  <a href="/" class="back">← Home</a>
+</nav>
+<main class="center-page">
+  <div class="narrow-card pay-card" id="payBox" aria-live="polite">
+    <h1>One moment…</h1>
+    <p class="muted">Opening your payment link.</p>
+  </div>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="/vendor/supabase.umd.js"></script>
+<script src="/supabase.js"></script>
+<script src="/site.js"></script>
+<script>
+window.addEventListener('hashchange', () => location.reload());
+document.addEventListener('DOMContentLoaded', async () => {
+  const box = document.getElementById('payBox');
+  const token = (location.hash.match(/^#t=([0-9a-f-]{36})$/i) || [])[1] || '';
+  const ok = new URLSearchParams(location.search).get('s') === 'ok';
+  const money = (c) => `€${(Number(c) / 100).toFixed(2)}`;
+  const home = `<div class="result-actions"><a class="secondary-btn" href="/" style="text-decoration:none">Discover CapturaGo</a></div>`;
+  const show = (html) => { box.innerHTML = html; };
+  if (!token) { show(`<h1>Link incomplete</h1><p class="muted">This payment link looks incomplete. Ask your friend to send it again.</p>${home}`); return; }
+
+  const load = async () => { const { data } = await CG.split.info(token); return data || null; };
+  let s = await load();
+  if (!s) { show(`<h1>Link not found</h1><p class="muted">We couldn't find this payment link. Ask your friend to send it again.</p>${home}`); return; }
+
+  // Just paid: the confirmation from Stripe can take a few seconds
+  for (let i = 0; ok && s.status === 'pending' && s.booking_status === 'pending_payment' && i < 10; i++) {
+    show(`<h1>Confirming your payment…</h1><p class="muted">This takes a few seconds.</p>`);
+    await new Promise((r) => setTimeout(r, 2000));
+    s = (await load()) || s;
+  }
+
+  const nice = new Date(`${s.shoot_date}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const head = `<p class="eyebrow">${s.organiser ? `${esc(s.organiser)} invited you` : 'You were invited'} to share a photo shoot</p>
+    <h1>${esc(s.package_name)} with ${esc(s.creator)}</h1>
+    <ul class="pay-facts"><li><span>📅</span><span>${esc(nice)}</span></li>${s.city ? `<li><span>📍</span><span>${esc(String(s.city).split(',')[0])}</span></li>` : ''}</ul>`;
+  const progress = `<div class="pay-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${s.count}" aria-valuenow="${s.paid_count}" aria-label="Shares paid"><span style="width:${Math.round(100 * s.paid_count / s.count)}%"></span></div>
+    <p class="muted small">${s.paid_count} of ${s.count} paid</p>`;
+
+  if (s.status === 'paid' || s.status === 'refunded') {
+    const booked = ['paid', 'confirmed', 'completed'].includes(s.booking_status);
+    show(`${head}<h2 style="margin-top:8px">${s.status === 'refunded' ? 'This share was refunded' : booked ? 'Everyone has paid — the shoot is booked! 🎉' : 'Your share is paid — thank you! 🎉'}</h2>
+      ${s.status === 'paid' && !booked && s.booking_status === 'pending_payment' ? `${progress}<p class="muted">When everyone has paid, the booking goes to ${esc(s.creator)}. If not everyone pays in time, you're refunded automatically.</p>` : ''}
+      ${s.status === 'refunded' ? '<p class="muted">Not everyone paid in time or the booking was cancelled, so your payment was refunded in full. It can take 5–10 days to appear.</p>' : ''}${home}`);
+    return;
+  }
+  if (s.booking_status !== 'pending_payment') {
+    show(`${head}<h2 style="margin-top:8px">This booking is no longer collecting payments</h2><p class="muted">${['paid', 'confirmed', 'completed'].includes(s.booking_status) ? 'It\'s already paid.' : 'It was cancelled or the time to pay ran out — nothing was taken from you.'}</p>${home}`);
+    return;
+  }
+  const left = s.deadline ? Date.parse(s.deadline) - Date.now() : 0;
+  const mins = Math.max(0, Math.round(left / 60000));
+  const leftText = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;   // never "60 min"
+  const payPart = `<div class="pay-amount">${money(s.amount_cents)}</div><p class="muted">Your share (${s.share_no} of ${s.count})</p>
+    ${progress}
+    <ul class="pay-facts"><li><span>⏳</span><span>Pay within <strong>${esc(leftText)}</strong>. If not everyone pays in time, everyone is refunded automatically.</span></li>
+      <li><span>🔒</span><span>The money is held safely by CapturaGo until the shoot is done.</span></li></ul>`;
+  const user = await CG.auth.getUser();
+  if (!user) {
+    show(`${head}${payPart}<div id="payAuth"></div>`);
+    inlineAuth(document.getElementById('payAuth'), { lead: 'Create a free account (or sign in) to pay — so you get the receipt and can find the booking later.', returnTo: `/pay.html#t=${token}`, onDone: () => location.reload() });
+    return;
+  }
+  show(`${head}${payPart}<button type="button" class="primary-btn" id="payBtn">Pay my share — ${money(s.amount_cents)}</button>
+    <p class="muted small" style="text-align:center;margin-top:10px">Payments are processed by Stripe. <a href="/terms.html#split" target="_blank">How splitting works</a></p>`);
+  document.getElementById('payBtn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Opening secure payment…';
+    const { data, error } = await CG.split.pay(token);
+    if (error || !data?.url) { btn.disabled = false; btn.textContent = `Pay my share — ${money(s.amount_cents)}`; showToast(error?.message || 'Could not start the payment. Please try again.', 'error', 7000); return; }
+    location.href = data.url;
+  });
+});
+</script>
+</body>
+</html>

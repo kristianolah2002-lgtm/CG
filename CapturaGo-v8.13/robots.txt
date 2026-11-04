@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard.html
+Disallow: /reset-password.html
+Disallow: /app-return.html
+
+Sitemap: https://capturago.com/sitemap.xml
+Disallow: /admin.html

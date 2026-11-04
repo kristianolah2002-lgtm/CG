@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/i18n.js"></script>
+  <title>Back to the app – CapturaGo</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<!-- Shown inside the app's in-app browser after Stripe (payment or payout setup). No trackers on this page. -->
+<body class="page-simple">
+<main class="center-page">
+  <div>
+    <h1 id="title">All done <em>✓</em></h1>
+    <p id="text">You can close this window to return to the CapturaGo app.</p>
+    <p class="muted small" style="margin-top:18px">Tap <strong>Done</strong> or <strong>✕</strong> at the top of the screen.</p>
+  </div>
+</main>
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var to = q.get('to'), s = q.get('s');
+    var T = {
+      'booking:ok': ['Payment received <em>✓</em>', 'Your booking is in the app under Bookings. If the creator doesn\u2019t confirm in time, you\u2019re refunded automatically.'],
+      'booking:cancel': ['Payment cancelled', 'Nothing was charged. You can try again from the creator’s profile in the app.'],
+      'payouts:ok': ['Thanks <em>✓</em>', 'Return to the app — we’ll check your payout status there.'],
+      'payouts:refresh': ['This link expired', 'Return to the app and tap “Continue setup” again.']
+    }[to + ':' + s];
+    if (T) { document.getElementById('title').innerHTML = T[0]; document.getElementById('text').textContent = T[1]; }
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+# v8.13: last-minute deals and text reminders (website + app): English	German	Spanish	French
+tomorrow	morgen	mañana	demain
+Tomorrow	Morgen	Mañana	Demain
+Last-minute deals	Last-Minute-Angebote	Ofertas de última hora	Offres de dernière minute
+Free tomorrow or the day after? Lower your in-person prices for that day. Travellers who are in your city then get one email, and the deal shows on your profile.	Morgen oder übermorgen frei? Senke deine Preise für Shootings vor Ort an diesem Tag. Reisende, die dann in deiner Stadt sind, bekommen eine E-Mail, und das Angebot erscheint auf deinem Profil.	¿Libre mañana o pasado mañana? Baja tus precios de sesiones en persona para ese día. Los viajeros que estén entonces en tu ciudad reciben un correo, y la oferta aparece en tu perfil.	Libre demain ou après-demain ? Baisse tes prix sur place pour ce jour-là. Les voyageurs présents dans ta ville reçoivent un e-mail, et l'offre apparaît sur ton profil.
+Take back	Zurücknehmen	Retirar	Retirer
+Not free — a day off, busy in your calendar or fully booked.	Nicht frei — freier Tag, belegt in deinem Kalender oder ausgebucht.	No está libre: día libre, ocupado en tu calendario o completo.	Pas libre — jour off, occupé dans ton agenda ou complet.
+Discount	Rabatt	Descuento	Réduction
+Offer this price	Diesen Preis anbieten	Ofrecer este precio	Proposer ce prix
+You need payouts set up — deals are for online bookings.	Du brauchst eingerichtete Auszahlungen — Angebote gelten für Online-Buchungen.	Necesitas tener los cobros configurados: las ofertas son para reservas online.	Il te faut des versements configurés — les offres sont pour les réservations en ligne.
+Deal taken back.	Angebot zurückgenommen.	Oferta retirada.	Offre retirée.
+Could not take the deal back.	Das Angebot konnte nicht zurückgenommen werden.	No se pudo retirar la oferta.	Impossible de retirer l'offre.
+Could not set the deal.	Das Angebot konnte nicht gesetzt werden.	No se pudo crear la oferta.	Impossible de créer l'offre.
+Last-minute deals need the latest database update (database.sql).	Last-Minute-Angebote brauchen das neueste Datenbank-Update (database.sql).	Las ofertas de última hora necesitan la última actualización de la base de datos (database.sql).	Les offres de dernière minute nécessitent la dernière mise à jour de la base de données (database.sql).
+Last-minute deals need the latest database update.	Last-Minute-Angebote brauchen das neueste Update.	Las ofertas de última hora necesitan la última actualización.	Les offres de dernière minute nécessitent la dernière mise à jour.
+Could not load your deals. Please refresh.	Deine Angebote konnten nicht geladen werden. Bitte lade die Seite neu.	No se pudieron cargar tus ofertas. Actualiza la página.	Impossible de charger tes offres. Actualise la page.
+Could not load your deals. Please try again.	Deine Angebote konnten nicht geladen werden. Bitte versuch es noch einmal.	No se pudieron cargar tus ofertas. Inténtalo de nuevo.	Impossible de charger tes offres. Réessaie.
+Show your listing as available first.	Zeig dein Profil zuerst als verfügbar.	Primero muestra tu perfil como disponible.	Affiche d'abord ton profil comme disponible.
+Set up payouts first — last-minute deals are for online bookings.	Richte zuerst Auszahlungen ein — Last-Minute-Angebote gelten für Online-Buchungen.	Configura primero los cobros: las ofertas de última hora son para reservas online.	Configure d'abord les versements — les offres de dernière minute sont pour les réservations en ligne.
+Last-minute deals are for tomorrow and the day after.	Last-Minute-Angebote gelten für morgen und übermorgen.	Las ofertas de última hora son para mañana y pasado mañana.	Les offres de dernière minute sont pour demain et après-demain.
+Choose a discount from 10 to 50 %.	Wähle einen Rabatt von 10 bis 50 %.	Elige un descuento del 10 al 50 %.	Choisis une réduction de 10 à 50 %.
+Add an in-person package with a price first.	Füge zuerst ein Vor-Ort-Paket mit Preis hinzu.	Primero añade un paquete en persona con precio.	Ajoute d'abord un forfait sur place avec un prix.
+That day isn't free — it's a day off, busy in your calendar or fully booked.	Dieser Tag ist nicht frei — freier Tag, belegt in deinem Kalender oder ausgebucht.	Ese día no está libre: es un día libre, está ocupado en tu calendario o completo.	Ce jour n'est pas libre — c'est un jour off, il est occupé dans ton agenda ou complet.
+Last-minute prices need the latest database update. Please try again later.	Last-Minute-Preise brauchen das neueste Datenbank-Update. Bitte versuch es später noch einmal.	Los precios de última hora necesitan la última actualización de la base de datos. Inténtalo más tarde.	Les prix de dernière minute nécessitent la dernière mise à jour de la base de données. Réessaie plus tard.
+Text reminders on the shoot day	SMS-Erinnerungen am Shooting-Tag	Recordatorios por SMS el día de la sesión	Rappels par SMS le jour du shooting
+Text reminders	SMS-Erinnerungen	Recordatorios por SMS	Rappels par SMS
+The meeting point and time by SMS or WhatsApp on the day of your shoot — so nobody misses it.	Treffpunkt und Uhrzeit per SMS oder WhatsApp am Tag deines Shootings — damit niemand es verpasst.	El punto de encuentro y la hora por SMS o WhatsApp el día de tu sesión, para que nadie se la pierda.	Le point de rendez-vous et l'heure par SMS ou WhatsApp le jour de ton shooting — pour que personne ne le manque.
+confirmed	bestätigt	confirmado	confirmé
+Text me on the day of my shoots	Schreib mir am Tag meiner Shootings	Escríbeme el día de mis sesiones	Écris-moi le jour de mes shootings
+Meeting point and time, about 7:00 on the day (or the evening before an early start).	Treffpunkt und Uhrzeit, gegen 7:00 am Tag selbst (oder am Vorabend bei frühem Start).	Punto de encuentro y hora, hacia las 7:00 del mismo día (o la tarde anterior si se empieza temprano).	Point de rendez-vous et heure, vers 7 h le jour même (ou la veille au soir pour un départ matinal).
+Send by	Senden per	Enviar por	Envoyer par
+SMS	SMS	SMS	SMS
+WhatsApp	WhatsApp	WhatsApp	WhatsApp
+Remove my number	Meine Nummer entfernen	Eliminar mi número	Supprimer mon numéro
+Text reminders on ✓	SMS-Erinnerungen an ✓	Recordatorios por SMS activados ✓	Rappels par SMS activés ✓
+Text reminders off.	SMS-Erinnerungen aus.	Recordatorios por SMS desactivados.	Rappels par SMS désactivés.
+Remove your number? You won't get text reminders any more.	Deine Nummer entfernen? Du bekommst dann keine SMS-Erinnerungen mehr.	¿Eliminar tu número? Ya no recibirás recordatorios por SMS.	Supprimer ton numéro ? Tu ne recevras plus de rappels par SMS.
+Remove your number?	Deine Nummer entfernen?	¿Eliminar tu número?	Supprimer ton numéro ?
+You won't get text reminders any more.	Du bekommst dann keine SMS-Erinnerungen mehr.	Ya no recibirás recordatorios por SMS.	Tu ne recevras plus de rappels par SMS.
+Number removed.	Nummer entfernt.	Número eliminado.	Numéro supprimé.
+Mobile number (with country code)	Handynummer (mit Ländervorwahl)	Número de móvil (con prefijo del país)	Numéro de mobile (avec indicatif pays)
+Text me reminders about my CapturaGo shoots on the shoot day. I can turn this off any time. Standard message rates may apply.	Schick mir am Shooting-Tag Erinnerungen zu meinen CapturaGo-Shootings. Ich kann das jederzeit abschalten. Es können übliche SMS-Gebühren anfallen.	Envíame recordatorios de mis sesiones de CapturaGo el día de la sesión. Puedo desactivarlo cuando quiera. Pueden aplicarse tarifas estándar de mensajes.	Envoie-moi des rappels de mes shootings CapturaGo le jour du shooting. Je peux désactiver cela à tout moment. Des frais de messagerie standard peuvent s'appliquer.
+Send me a code	Code senden	Envíame un código	Envoie-moi un code
+6-digit code from the text	6-stelliger Code aus der SMS	Código de 6 dígitos del SMS	Code à 6 chiffres reçu par SMS
+Confirm my number	Meine Nummer bestätigen	Confirmar mi número	Confirmer mon numéro
+Enter your mobile number with the country code, e.g. +421 900 123 456.	Gib deine Handynummer mit Ländervorwahl ein, z. B. +421 900 123 456.	Introduce tu número de móvil con el prefijo del país, p. ej., +421 900 123 456.	Saisis ton numéro de mobile avec l'indicatif pays, p. ex. +421 900 123 456.
+Please agree to receive text reminders.	Bitte stimme den SMS-Erinnerungen zu.	Acepta recibir recordatorios por SMS.	Accepte de recevoir des rappels par SMS.
+Could not send the code.	Der Code konnte nicht gesendet werden.	No se pudo enviar el código.	Impossible d'envoyer le code.
+your phone	dein Handy	tu móvil	ton téléphone
+Enter the 6-digit code from the text.	Gib den 6-stelligen Code aus der SMS ein.	Introduce el código de 6 dígitos del SMS.	Saisis le code à 6 chiffres reçu par SMS.
+Could not check the code.	Der Code konnte nicht geprüft werden.	No se pudo comprobar el código.	Impossible de vérifier le code.
+Number confirmed ✓ — we'll text you on your shoot days.	Nummer bestätigt ✓ — wir schreiben dir an deinen Shooting-Tagen.	Número confirmado ✓: te escribiremos los días de tus sesiones.	Numéro confirmé ✓ — on t'écrira les jours de tes shootings.
+Please wait a minute before asking for a new code.	Bitte warte eine Minute, bevor du einen neuen Code anforderst.	Espera un minuto antes de pedir un código nuevo.	Attends une minute avant de demander un nouveau code.
+Too many codes today. Please try again tomorrow.	Heute zu viele Codes. Bitte versuch es morgen noch einmal.	Demasiados códigos hoy. Inténtalo mañana.	Trop de codes aujourd'hui. Réessaie demain.
+Text reminders aren't available yet.	SMS-Erinnerungen sind noch nicht verfügbar.	Los recordatorios por SMS aún no están disponibles.	Les rappels par SMS ne sont pas encore disponibles.
+We couldn't send a text to this number. Please check it and try again.	Wir konnten keine SMS an diese Nummer senden. Bitte prüfe sie und versuch es noch einmal.	No pudimos enviar un SMS a este número. Compruébalo e inténtalo de nuevo.	Nous n'avons pas pu envoyer de SMS à ce numéro. Vérifie-le et réessaie.
+That code isn't right. Please check the text and try again.	Dieser Code stimmt nicht. Bitte prüfe die SMS und versuch es noch einmal.	Ese código no es correcto. Revisa el SMS e inténtalo de nuevo.	Ce code n'est pas bon. Vérifie le SMS et réessaie.
+The code has expired. Ask for a new one.	Der Code ist abgelaufen. Fordere einen neuen an.	El código ha caducado. Pide uno nuevo.	Le code a expiré. Demandes-en un nouveau.
+Too many wrong codes. Ask for a new one.	Zu viele falsche Codes. Fordere einen neuen an.	Demasiados códigos incorrectos. Pide uno nuevo.	Trop de codes erronés. Demandes-en un nouveau.
+Ask for a code first.	Fordere zuerst einen Code an.	Primero pide un código.	Demande d'abord un code.
+Add and confirm your number first.	Füge zuerst deine Nummer hinzu und bestätige sie.	Primero añade y confirma tu número.	Ajoute et confirme d'abord ton numéro.
+Choose SMS or WhatsApp.	Wähle SMS oder WhatsApp.	Elige SMS o WhatsApp.	Choisis SMS ou WhatsApp.
+Text reminders need the latest update. Please try again later.	SMS-Erinnerungen brauchen das neueste Update. Bitte versuch es später noch einmal.	Los recordatorios por SMS necesitan la última actualización. Inténtalo más tarde.	Les rappels par SMS nécessitent la dernière mise à jour. Réessaie plus tard.
+Text reminders are for your bookings.	SMS-Erinnerungen sind für deine Buchungen.	Los recordatorios por SMS son para tus reservas.	Les rappels par SMS concernent tes réservations.
+Not available yet	Noch nicht verfügbar	Aún no disponible	Pas encore disponible
+The day after	Übermorgen	Pasado mañana	Après-demain

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="/i18n.js"></script>
+  <title>Shared photos – CapturaGo</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="description" content="Holiday photos shot by a local creator, shared through CapturaGo." />
+  <meta property="og:title" content="Our photos, shot with CapturaGo" />
+  <meta property="og:description" content="Holiday photos by a local photographer. Find one wherever you travel." />
+  <meta property="og:image" content="https://capturago.com/images/og-cover.jpg" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="page-simple">
+<script src="/consent.js"></script>
+<nav class="simple-nav">
+  <a href="/" class="logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</a>
+  <a href="/" class="back">Find a photographer →</a>
+</nav>
+<main class="share-page">
+  <div id="shareBox" class="share-inner" aria-live="polite">
+    <p class="muted">Opening the photos…</p>
+  </div>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="/vendor/supabase.umd.js"></script>
+<script src="/supabase.js"></script>
+<script src="/site.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const box = document.getElementById('shareBox');
+  // The key is in the #fragment, so it never reaches server logs or other websites
+  const token = (new URLSearchParams(location.hash.slice(1)).get('t') || '').toLowerCase();
+  const fail = (title, text) => {
+    box.innerHTML = `<div class="narrow-card share-empty"><h1>${title}</h1><p class="muted">${text}</p>
+      <div class="result-actions"><a class="primary-btn" href="/" style="text-decoration:none">Discover CapturaGo</a></div></div>`;
+  };
+  if (!/^[0-9a-f]{64}$/.test(token)) { fail('This link is incomplete', 'Please copy the whole link again, or ask for a new one.'); return; }
+  const { data, error } = await CG.shares.open(token);
+  if (error || !data || !Array.isArray(data.photos) || !data.photos.length) {
+    fail('These photos are no longer shared', (error && error.message) || 'The link has expired or was turned off. Ask the person who sent it for a new one.');
+    return;
+  }
+  const photos = data.photos.filter((p) => safeUrl(p.full));
+  const when = data.date ? new Date(`${data.date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '';
+  const c = data.creator;
+  const firstOf = (n) => String(n || '').trim().split(/\s+/)[0] || 'the creator';
+  const cityName = c && c.city ? String(c.city).split(',')[0].trim().slice(0, 60) : '';
+  const bookLink = c && c.link ? safeUrl(c.link) : '';
+  CG.logEvent('share_view', cityName, '', photos.length);
+  const until = new Date(data.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+  document.title = `${data.title} – shared photos – CapturaGo`;
+  box.innerHTML = `
+    <header class="share-head">
+      <p class="section-eyebrow">${data.favorites_only ? 'Favourite photos' : 'Shared photos'}</p>
+      <h1>${esc(data.title)}</h1>
+      <p class="muted">${c ? `Photographed by <strong>${esc(c.name)}</strong>${c.city ? ` in ${esc(String(c.city).split(',')[0])}` : ''}` : ''}${when ? ` · ${esc(when)}` : ''} · ${photos.length} photo${photos.length > 1 ? 's' : ''}</p>
+      <div class="share-actions">
+        ${photos.length > 1 ? '<button type="button" class="primary-btn" id="sharePlay">▶ Play slideshow</button>' : ''}
+        ${bookLink ? `<a class="secondary-btn share-cta" data-cta="creator-top" href="${esc(bookLink)}" style="text-decoration:none">Book ${esc(firstOf(c.name))} for your trip</a>` : ''}
+      </div>
+    </header>
+    <div class="share-grid">${photos.map((p, i) => `<button type="button" data-i="${i}" aria-label="Open photo ${i + 1}"><img src="${esc(safeUrl(p.thumb) || safeUrl(p.full))}" alt="" loading="lazy" /></button>`).join('')}</div>
+    ${c ? `<aside class="share-ad" aria-label="Book your own shoot">
+      <div>
+        <p class="section-eyebrow">Like these photos?</p>
+        <h2>${c.city ? `${esc(firstOf(c.name))} shoots in ${esc(cityName)}` : `Book ${esc(firstOf(c.name))} for your own trip`}</h2>
+        <p class="muted">Local photographers for travellers — pay securely, get your photos in a private gallery like this one.</p>
+      </div>
+      <div class="share-ad-actions">
+        ${bookLink ? `<a class="primary-btn share-cta" data-cta="creator" href="${esc(bookLink)}" style="text-decoration:none">Book ${esc(firstOf(c.name))}</a>` : ''}
+        ${cityName ? `<a class="secondary-btn share-cta" data-cta="city" href="/in/${esc(citySlug(cityName))}" style="text-decoration:none">All creators in ${esc(cityName)}</a>` : ''}
+        <a class="link-btn share-cta" data-cta="home" href="/">Going somewhere else? Find a local creator →</a>
+      </div>
+    </aside>` : ''}
+    <p class="muted small share-foot">This private link works until ${esc(until)}. Shared through <a href="/">CapturaGo</a> — local photographers for travellers, with secure payment and a private photo gallery.</p>`;
+  box.querySelectorAll('.share-cta').forEach((a) => a.addEventListener('click', () => CG.logEvent('share_click', cityName, '', null)));
+  const items = photos.map((p) => ({ src: safeUrl(p.full) }));
+  box.querySelectorAll('.share-grid button').forEach((b) => b.addEventListener('click', () => openLightbox(items, Number(b.dataset.i), { slideshow: true })));
+  document.getElementById('sharePlay')?.addEventListener('click', () => openLightbox(items, 0, { slideshow: true, autoplay: true }));
+});
+</script>
+</body>
+</html>

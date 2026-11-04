@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin – CapturaGo</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/dashboard.css" />
+</head>
+<body>
+<div class="dash-body" id="adminBody">
+  <aside class="dash-sidebar" id="adminSidebar" hidden>
+    <a href="/" class="dash-logo"><svg class="logo-icon" viewBox="-110 -110 220 220" width="0.9em" height="0.9em" aria-hidden="true" style="display:inline;vertical-align:-0.08em"><path d="M 0.00 -100.00 Q 3.18 -25.68 14.14 -14.14 Q 25.68 -3.18 100.00 0.00 Q 25.68 3.18 14.14 14.14 Q 3.18 25.68 0.00 100.00 Q -3.18 25.68 -14.14 14.14 Q -25.68 3.18 -100.00 0.00 Q -25.68 -3.18 -14.14 -14.14 Q -3.18 -25.68 0.00 -100.00 Z" fill="currentColor"/></svg> CapturaGo</a>
+    <p class="admin-tag">Admin</p>
+    <nav class="dash-nav">
+      <button class="dash-nav-item active" data-panel="overview">📊 Overview</button>
+      <button class="dash-nav-item" data-panel="bookings">📅 Bookings</button>
+      <button class="dash-nav-item" data-panel="creators">📷 Creators</button>
+      <button class="dash-nav-item" data-panel="reviews">⭐ Reviews</button>
+      <button class="dash-nav-item" data-panel="insights">🔎 Search insights</button>
+      <button class="dash-nav-item" data-panel="founding">🏅 Founding creators</button>
+      <button class="dash-nav-item" data-panel="partners">🏨 Partners</button>
+      <button class="dash-nav-item" data-panel="gifts">🎁 Gift cards</button>
+      <button class="dash-nav-item" data-panel="reports">🚩 Reported chats</button>
+      <button class="dash-nav-item" data-panel="profiles">⚑ Reported profiles</button>
+    </nav>
+    <div class="dash-sidebar-footer"><a href="/dashboard.html" class="dash-back">← My dashboard</a></div>
+  </aside>
+  <main class="dash-main">
+    <div id="adminGate" class="empty-state" style="margin-top:60px">Checking access…</div>
+
+    <section class="dash-panel" data-panel-id="overview" hidden>
+      <h1 class="dash-title">Overview</h1>
+      <div id="ovStats" class="admin-stats"></div>
+      <div class="dash-card" style="margin-top:20px">
+        <div class="admin-row"><h3 style="margin:0">Automatic jobs</h3><button class="primary-btn" id="runJobs">Run jobs now</button></div>
+        <div id="ovJobs"></div>
+      </div>
+      <div class="dash-card" style="margin-top:20px"><h3 style="margin:0 0 10px">Top cities</h3><div id="ovCities"></div></div>
+    </section>
+
+    <section class="dash-panel" data-panel-id="bookings" hidden>
+      <h1 class="dash-title">Bookings</h1>
+      <div class="admin-row"><select id="bkStatus" aria-label="Filter by status">
+        <option value="">All statuses</option><option value="disputed">Disputed</option><option value="paid">Paid (awaiting creator)</option>
+        <option value="confirmed">Confirmed</option><option value="delivered">Delivered</option><option value="completed">Completed</option>
+        <option value="refunded">Refunded</option><option value="declined">Declined</option><option value="cancelled">Cancelled</option>
+        <option value="expired">Expired</option><option value="pending_payment">Awaiting payment</option></select></div>
+      <div id="bkList" class="admin-table-wrap"></div>
+    </section>
+
+    <section class="dash-panel" data-panel-id="creators" hidden>
+      <h1 class="dash-title">Creators</h1>
+      <div class="admin-row"><input id="crSearch" type="search" placeholder="Search name, city or email…" maxlength="60" /></div>
+      <div id="crList" class="admin-table-wrap"></div>
+    </section>
+
+    <section class="dash-panel" data-panel-id="reports" hidden>
+      <h1 class="dash-title">Reported conversations</h1>
+      <p class="muted" style="margin:-6px 0 14px">Private messages are visible here only after one of the two people reports them.
+        To stop someone completely, hide their listing under Creators.</p>
+      <div class="admin-row"><select id="rpStatus" aria-label="Filter reports"><option value="open">Open</option><option value="resolved">Resolved</option></select></div>
+      <div id="rpList" class="admin-table-wrap"></div>
+      <div id="rpView" class="dash-card" style="margin-top:20px" hidden></div>
+    </section>
+
+    <section class="dash-panel" data-panel-id="insights" hidden>
+      <h1 class="dash-title">Search insights</h1>
+      <p class="muted" style="margin:-6px 0 14px">What travellers look for — anonymous (no names, emails or IP addresses). Use it to decide where to recruit creators.</p>
+      <div class="admin-row"><select id="inDays" aria-label="Period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option></select></div>
+      <div id="inFunnel" class="admin-stats"></div>
+      <div class="dash-card" style="margin-top:20px"><h3 style="margin:0 0 4px">Searches with no results</h3><p class="muted small" style="margin:0 0 10px">Your recruitment list: travellers wanted these and found nobody.</p><div id="inUnmet" class="admin-table-wrap"></div></div>
+      <div class="dash-card" style="margin-top:20px"><h3 style="margin:0 0 4px">Supply vs. demand per city</h3><p class="muted small" style="margin:0 0 10px">“Waiting” = people who asked to be emailed when a creator joins.</p><div id="inCities" class="admin-table-wrap"></div></div>
+    </section>
+
+    <section class="dash-panel" data-panel-id="partners" hidden>
+      <h1 class="dash-title">Partners</h1>
+      <p class="muted" style="margin:-6px 0 14px">Hotels, hostels and tour desks that send guests. Their guests pay a lower service fee; they get a 3% thank-you of the package price for each completed booking — pay it by bank transfer, then mark it paid here.</p>
+      <div id="ptList"><p class="muted">Loading…</p></div>
+    </section>
+    <section class="dash-panel" data-panel-id="gifts" hidden>
+      <h1 class="dash-title">Gift cards</h1>
+      <form class="admin-row" id="gcSearch" style="gap:10px;margin-bottom:14px"><input id="gcQ" type="text" maxlength="24" placeholder="Find by code" style="max-width:260px" /><button class="secondary-btn" type="submit">Search</button></form>
+      <div id="gcList"><p class="muted">Loading…</p></div>
+    </section>
+    <section class="dash-panel" data-panel-id="founding" hidden>
+      <h1 class="dash-title">Founding creators</h1>
+      <p class="muted" style="margin:-6px 0 14px">Open a city where travellers search but find nobody. The first creators there who finish their listing can claim a spot:
+        a 🏅 badge and a free boost (shown as “Sponsored”). One spot per person; the database checks every rule.</p>
+      <form class="dash-card" id="fdForm" style="margin-bottom:20px">
+        <h3 style="margin:0 0 10px">Open or change a city</h3>
+        <div class="admin-row" style="flex-wrap:wrap;gap:10px;align-items:flex-end">
+          <label class="small">City<br /><input id="fdCity" type="text" maxlength="80" placeholder="e.g. Lisbon" required /></label>
+          <label class="small">Spots<br /><input id="fdSlots" type="number" min="1" max="100" value="10" style="width:90px" /></label>
+          <label class="small">Free boost (days)<br /><input id="fdDays" type="number" min="0" max="365" value="90" style="width:110px" /></label>
+          <label class="small" style="display:flex;gap:6px;align-items:center"><input id="fdActive" type="checkbox" checked /> Open</label>
+          <button type="submit" class="primary-btn" id="fdSave">Save city</button>
+        </div>
+      </form>
+      <div class="dash-card"><h3 style="margin:0 0 10px">Cities</h3><div id="fdCities" class="admin-table-wrap"></div></div>
+      <div class="dash-card" style="margin-top:20px"><h3 style="margin:0 0 4px">Founders</h3><p class="muted small" style="margin:0 0 10px">Email new founders to welcome them and help them with their first booking.</p><div id="fdClaims" class="admin-table-wrap"></div></div>
+    </section>
+
+    <section class="dash-panel" data-panel-id="profiles" hidden>
+      <h1 class="dash-title">Reported profiles &amp; photos</h1>
+      <p class="muted" style="margin:-6px 0 14px">Check the profile, then remove a single photo, hide the whole listing (Creators), or mark the report resolved. The creator is never told who reported them.</p>
+      <div class="admin-row"><select id="lrStatus" aria-label="Filter reports"><option value="open">Open</option><option value="resolved">Resolved</option></select></div>
+      <div id="lrList" class="admin-table-wrap"></div>
+    </section>
+
+    <section class="dash-panel" data-panel-id="reviews" hidden>
+      <h1 class="dash-title">Reviews</h1>
+      <div id="rvList" class="admin-table-wrap"></div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="/vendor/supabase.umd.js"></script>
+<script src="/supabase.js"></script>
+<script src="/site.js"></script>
+<script src="/admin.js"></script>
+</body>
+</html>

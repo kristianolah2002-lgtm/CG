@@ -1,0 +1,12 @@
+# Internal files that must never be served publicly (the "!" forces it even though the file exists)
+/CEO-STRATEGY.md            /404.html  404!
+/LAUNCH-CHECKLIST.md        /404.html  404!
+/SETUP-PAYMENTS-AND-AI.md   /404.html  404!
+/.ux-profile.md             /404.html  404!
+/database.sql               /404.html  404!
+/supabase/*                 /404.html  404!
+/tools/*                    /404.html  404!
+# Creators' personal booking links: capturago.com/c/<name>
+/c/:handle                  /?handle=:handle  302
+# City pages: /in/<city> — cities without their own page are filled in live by /city.html
+/in/:city                   /city.html  200
