@@ -102,8 +102,11 @@ All three use your **real database** — what you do there is real (no payments 
 5. After 14 days: *Production* → *Apply for production* → submit.
 
 ## F. Updating the app later
-Change the code → raise `"version"` in `app.json` (1.6.0 → 1.6.1) → run the production builds again → submit.
+Change the code → raise `"version"` in `app.json` (1.7.0 → 1.7.1) → run the production builds again → submit.
 
+> **Version 1.7.0** (💶 **extra photos for sale** — creators set a price per photo and mark extras in Photos; travellers
+> see previews with 🔒 €… in their gallery and buy some or all through Stripe; the photos unlock right after paying)
+> adds no new native modules. Do the website's SETUP-PAYMENTS-AND-AI.md **Part 24** first, then build and submit as usual.
 > **Version 1.6.0** (↩ **answer your reviews** — on your own profile, every review gets a ↩ Reply button; edit or
 > remove it any time; travellers see "↩ Reply from …" under the review; a notification for every new review · 🌅 sunrise,
 > sunset and golden hour in the shoot plan, with a meeting-time tip for creators · 📅 "Book … again" on completed

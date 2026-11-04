@@ -606,6 +606,20 @@
 .pm-heart{font-size:1.05rem;color:var(--err)}
 .pm-heart.on{background:var(--err);color:#fff}
 .pm-fav{position:absolute;left:6px;top:6px;background:var(--err);color:#fff;border-radius:999px;font-size:.75rem;padding:2px 7px}
+/* Extra photos for sale (PART 24) */
+.pm-lock,.pm-bought{position:absolute;left:6px;bottom:6px;border:0;border-radius:999px;font-size:.75rem;padding:4px 9px;background:rgba(255,251,245,.94);color:#211911;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.pm-lock.on{background:#211911;color:#FFFBF5}
+.pm-bought{cursor:default;background:var(--ok,#2E7D4F);color:#fff}
+.pm-sell{margin:10px 0 14px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-card);display:flex;flex-direction:column;gap:8px}
+.pm-sell p{margin:0}
+.pm-sell-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pm-sell-row input{width:110px}
+.cg-extras{margin:10px 0 14px;padding:14px 16px;border-radius:var(--radius-md);background:var(--bg-deep);display:flex;flex-direction:column;gap:10px}
+.cg-extras .muted{display:block}
+.cg-extras-btns{display:flex;gap:10px;flex-wrap:wrap}
+.cg-locked .pm-open img{filter:saturate(.85)}
+.cg-pick{position:absolute;left:6px;bottom:6px;display:flex;align-items:center;gap:6px;background:rgba(33,25,17,.82);color:#FFFBF5;border-radius:999px;font-size:.78rem;padding:4px 10px 4px 6px;cursor:pointer}
+.cg-pick input{margin:0;width:16px;height:16px;accent-color:var(--amber)}
 .pm-foot{margin-top:16px;display:flex;flex-direction:column;gap:8px}
 .pm-foot input{width:100%}
 .pm-foot p{margin:0}

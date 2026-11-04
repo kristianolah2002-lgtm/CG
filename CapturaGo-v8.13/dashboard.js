@@ -1425,6 +1425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let bookingMap = new Map();
   let photoCounts = {};
   let pendingBooking = null;   // ?b=<id> from an email → open that booking's photos
+  let pendingBought = false;   // &bought=1: back from paying for extra photos → wait for them to unlock
   let pendingReview = null;    // ?review=<id> from the review reminder email → open the review form
   let pendingMove = null;      // ?move=<id> from a heavy-rain email or text → "Propose a new date" (bad weather)
   // The client sees the gallery once the creator sends it (session) or delivers (remote order)
@@ -2428,6 +2429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </label>` : ''}
       <div class="pm-progress" id="pmProgress" hidden><div class="pm-bar"><i id="pmBar"></i></div><span id="pmProgText" class="small"></span></div>
       <div class="pm-head"><strong id="pmCount">Loading…</strong></div>
+      <div class="pm-sell" id="pmSell" hidden></div>
       <div class="pm-grid" id="pmGrid"></div>
       <div class="pm-foot" id="pmFoot"></div>`, {
       beforeClose: () => !st.busy || confirm('Photos are still uploading. Stop uploading and close?'),
@@ -2442,10 +2444,61 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="pm-item${st.seen.has(p.id) ? '' : ' pm-new'}">
           <button type="button" class="pm-open" data-i="${i}" aria-label="View photo ${i + 1}">${st.thumbs[p.path] ? `<img src="${esc(st.thumbs[p.path])}" alt="" loading="lazy" />` : '<span class="pm-ph"></span>'}</button>
           ${p.favorite ? '<span class="pm-fav" title="Client favourite">♥</span>' : ''}
-          ${removable ? `<button type="button" class="pm-del" data-id="${esc(p.id)}" aria-label="Remove photo ${i + 1}">✕</button>` : ''}
+          ${p.unlocked_at ? '<span class="pm-bought" title="Bought by the client">💶 Bought</span>'
+            : st.canSell ? `<button type="button" class="pm-lock${p.extra ? ' on' : ''}" data-id="${esc(p.id)}" aria-pressed="${p.extra ? 'true' : 'false'}" aria-label="${p.extra ? `Photo ${i + 1} is for sale — make it included` : `Sell photo ${i + 1} as an extra`}">${p.extra ? '🔒 Extra' : '🔓'}</button>` : ''}
+          ${removable && !p.unlocked_at ? `<button type="button" class="pm-del" data-id="${esc(p.id)}" aria-label="Remove photo ${i + 1}">✕</button>` : ''}
         </div>`).join('');
       st.photos.forEach(p => { if (st.thumbs[p.path]) st.seen.add(p.id); });
+      paintSell();
       paintFoot();
+    }
+    /* ── Extra photos for sale (PART 24): price per photo, what's included, what's for sale, what was bought ── */
+    const promised = Number(b.package_details && b.package_details.photos) || 0;
+    function paintSell() {
+      const box = $('pmSell'); if (!box) return;
+      box.hidden = !st.canSell || !st.photos.length;
+      if (box.hidden) return;
+      const extra = st.photos.filter(p => p.extra && !p.unlocked_at).length, bought = st.photos.filter(p => p.unlocked_at).length;
+      const included = st.photos.length - extra - bought;
+      const price = b.extra_photo_cents ? (b.extra_photo_cents / 100).toFixed(b.extra_photo_cents % 100 ? 2 : 0) : '';
+      const beyond = promised > 0 ? st.photos.slice(promised).filter(p => !p.unlocked_at && !p.extra).length : 0;   // still to put on sale
+      box.innerHTML = `
+        <strong>💶 Sell extra photos</strong>
+        <p class="muted small">Upload more than the package includes and ${esc(firstName(b.client_name))} can buy the extras in the gallery — they see a small preview until they buy. You get the full price per photo, paid out right away.</p>
+        <div class="pm-sell-row">
+          <label class="small" for="pmPrice">Price per photo (€)</label>
+          <input type="number" id="pmPrice" min="1" max="100" step="0.5" inputmode="decimal" value="${esc(price)}" placeholder="e.g. 5" />
+          <button type="button" class="secondary-btn" id="pmPriceSave">${b.extra_photo_cents ? 'Update price' : 'Start selling'}</button>
+          ${b.extra_photo_cents ? '<button type="button" class="link-btn" id="pmPriceOff">Stop selling</button>' : ''}
+        </div>
+        <p class="small pm-sell-sum" id="pmSellSum">${promised ? `Package: ${promised} photos · ` : ''}${included} included · ${extra} for sale${bought ? ` · ${bought} bought` : ''}</p>
+        ${b.extra_photo_cents && beyond ? `<button type="button" class="link-btn" id="pmBeyond">🔒 Sell the ${beyond} photo${beyond > 1 ? 's' : ''} beyond the ${promised} promised</button>` : ''}
+        ${b.extra_photo_cents ? '<p class="muted small">Tap 🔓 on a photo to sell it as an extra, or 🔒 to include it again.</p>' : ''}`;
+      $('pmPriceSave').addEventListener('click', async () => {
+        const v = Number(String($('pmPrice').value).replace(',', '.'));
+        if (!(v >= 1 && v <= 100)) { showToast('Choose a price from €1 to €100 per photo.', 'error'); $('pmPrice').focus(); return; }
+        await saveExtras([], false, Math.round(v * 100), b.extra_photo_cents ? 'Price saved ✓' : 'Selling is on ✓ — now mark the photos to sell with 🔓.');
+      });
+      $('pmPriceOff')?.addEventListener('click', async () => {
+        if (!confirm(`Stop selling? The extra photos become part of ${firstName(b.client_name)}'s gallery for free.`)) return;
+        await saveExtras(st.photos.filter(p => p.extra && !p.unlocked_at).map(p => p.id), false, null, 'Selling stopped — all photos are included.');
+      });
+      $('pmBeyond')?.addEventListener('click', async () => {
+        const ids = st.photos.slice(promised).filter(p => !p.unlocked_at && !p.extra).map(p => p.id);
+        await saveExtras(ids, true, b.extra_photo_cents, `${ids.length} photo${ids.length > 1 ? 's' : ''} for sale ✓`);
+      });
+    }
+    async function saveExtras(ids, extra, priceCents, okText) {
+      if (st.busy) return false;
+      const { data, error } = await CG.deliveries.setExtras(b.id, ids, extra, priceCents);
+      if (error) { showToast(error.message || 'Could not save it.', 'error', 7000); return false; }
+      b.extra_photo_cents = data && data.price_cents != null ? data.price_cents : priceCents;
+      const set = new Set(ids);
+      st.photos.forEach(p => { if (set.has(p.id) && !p.unlocked_at) p.extra = !!extra; });
+      if (priceCents == null) st.photos.forEach(p => { if (!p.unlocked_at) p.extra = false; });
+      if (okText) showToast(okText, 'success');
+      paintGrid();
+      return true;
     }
     function paintFoot() {
       const foot = $('pmFoot'); if (!foot) return;
@@ -2546,6 +2599,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       drop.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); });
     }
     grid.addEventListener('click', async (e) => {
+      const lock = e.target.closest('.pm-lock');
+      if (lock) {
+        const p = st.photos.find(x => x.id === lock.dataset.id);
+        if (!p) return;
+        if (!b.extra_photo_cents) { showToast('Set a price per photo first (above the photos).', 'info'); $('pmPrice')?.focus(); return; }
+        lock.disabled = true;
+        await saveExtras([p.id], !p.extra, b.extra_photo_cents, '');
+        return;
+      }
       const del = e.target.closest('.pm-del');
       if (del) {
         const p = st.photos.find(x => x.id === del.dataset.id);
@@ -2571,6 +2633,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (st.closed) return;
     if (error) { $('pmCount').textContent = 'Could not load the photos. Please try again.'; return; }
     st.photos = [...(data || []), ...st.photos.filter(p => !(data || []).some(d => d.id === p.id))];
+    st.canSell = 'extra_photo_cents' in b && ['confirmed', 'delivered', 'completed'].includes(b.status);   // the database has PART 24
     const thumbs = await CG.deliveries.signedUrls(st.photos.map(p => CG.deliveries.thumbPath(p.path)), 3600);
     st.photos.forEach(p => { if (!st.thumbs[p.path]) st.thumbs[p.path] = thumbs[CG.deliveries.thumbPath(p.path)] || null; });
     const missing = st.photos.filter(p => !st.thumbs[p.path]).map(p => p.path);
@@ -2580,8 +2643,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── PHOTO DELIVERY: client gallery ───────────────── */
   async function openClientGallery(b) {
-    const st = { photos: [], thumbs: {}, fulls: {}, filter: 'all', busy: false, closed: false, seen: new Set() };
+    const st = { photos: [], thumbs: {}, fulls: {}, filter: 'all', busy: false, closed: false, seen: new Set(), pick: new Set() };
     const creator = b.photographers?.name || 'your creator';
+    // Extra photos for sale (PART 24): a preview until bought; the full size can't be opened before that
+    const locked = (p) => !!(p.extra && !p.unlocked_at && b.extra_photo_cents);
+    const clientPct = Number(window.CG_CONFIG?.clientFeePercent ?? 10);
+    const withFee = (cents) => cents + Math.round((cents * clientPct) / 100);
     const baseName = slugify(`${b.package_name || 'capturago'}-${b.shoot_date || ''}`) || 'capturago-photos';
     openDashModal(`
       <h2 id="dashModalTitle" class="pm-title">📸 Your photos</h2>
@@ -2599,6 +2666,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
       <div class="cg-share" id="cgShareBox" hidden></div>
       <div class="pm-progress" id="cgProgress" hidden><div class="pm-bar"><i id="cgBar"></i></div><span id="cgProgText" class="small"></span></div>
+      <div class="cg-extras" id="cgExtras" hidden></div>
       ${b.delivery_url && safeUrl(b.delivery_url) ? `<p class="small">📁 More files from ${esc(creator)}: <a href="${esc(safeUrl(b.delivery_url))}" target="_blank" rel="noopener nofollow">${esc(b.delivery_url)}</a></p>` : ''}
       <div class="pm-grid" id="cgGrid"><p class="muted">Loading your photos…</p></div>
       <p class="muted small" id="cgNote" style="margin-top:14px"></p>`, {
@@ -2606,6 +2674,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       onClose: () => { st.closed = true; }
     });
     const view = () => st.filter === 'fav' ? st.photos.filter(p => p.favorite) : st.photos;
+    const mine = (list) => list.filter(p => !locked(p));   // what can be downloaded
     const fileName = (p) => `${baseName}-${String(st.photos.indexOf(p) + 1).padStart(3, '0')}.jpg`;
     function paint() {
       if (st.closed) return;
@@ -2614,14 +2683,44 @@ document.addEventListener('DOMContentLoaded', async () => {
       const segs = $('dashModalBody').querySelectorAll('.cg-seg button');
       segs[0].textContent = `All (${st.photos.length})`;
       segs[1].textContent = `♥ Favourites (${favs})`;
-      $('cgZip').disabled = st.busy || !list.length;
-      if (!st.busy) $('cgZip').textContent = st.filter === 'fav' ? `⬇ Download favourites (${list.length})` : `⬇ Download all (${list.length})`;
+      const own = mine(list);
+      $('cgZip').disabled = st.busy || !own.length;
+      if (!st.busy) $('cgZip').textContent = st.filter === 'fav' ? `⬇ Download favourites (${own.length})` : `⬇ Download all (${own.length})`;
       $('cgGrid').innerHTML = list.length ? list.map((p, i) => `
-        <div class="pm-item${st.seen.has(p.id) ? '' : ' pm-new'}">
-          <button type="button" class="pm-open" data-i="${i}" aria-label="View photo ${st.photos.indexOf(p) + 1}">${st.thumbs[p.path] ? `<img src="${esc(st.thumbs[p.path])}" alt="" loading="lazy" />` : '<span class="pm-ph"></span>'}</button>
+        <div class="pm-item${st.seen.has(p.id) ? '' : ' pm-new'}${locked(p) ? ' cg-locked' : ''}">
+          <button type="button" class="pm-open" data-i="${i}" aria-label="${locked(p) ? `Preview of extra photo ${st.photos.indexOf(p) + 1}` : `View photo ${st.photos.indexOf(p) + 1}`}">${st.thumbs[p.path] ? `<img src="${esc(st.thumbs[p.path])}" alt="" loading="lazy" />` : '<span class="pm-ph"></span>'}</button>
+          ${locked(p) ? `<label class="cg-pick"><input type="checkbox" data-id="${esc(p.id)}" ${st.pick.has(p.id) ? 'checked' : ''} aria-label="Choose extra photo ${st.photos.indexOf(p) + 1}" /> 🔒 ${esc(euro(b.extra_photo_cents))}</label>` : ''}
           <button type="button" class="pm-heart ${p.favorite ? 'on' : ''}" data-id="${esc(p.id)}" aria-pressed="${p.favorite ? 'true' : 'false'}" aria-label="Favourite">${p.favorite ? '♥' : '♡'}</button>
         </div>`).join('') : `<p class="muted">${st.filter === 'fav' ? 'Tap ♡ on the photos you love — they appear here.' : 'No photos yet.'}</p>`;
       list.forEach(p => st.seen.add(p.id));
+      paintExtras();
+    }
+    function paintExtras() {
+      const box = $('cgExtras'); if (!box) return;
+      const forSale = st.photos.filter(locked);
+      st.pick.forEach(id => { if (!forSale.some(p => p.id === id)) st.pick.delete(id); });
+      box.hidden = !forSale.length;
+      if (!forSale.length) return;
+      const n = st.pick.size, unit = b.extra_photo_cents;
+      box.innerHTML = `
+        <div><strong>🔓 ${forSale.length} more photo${forSale.length > 1 ? 's' : ''} from <span translate="no">${esc(firstName(creator))}</span></strong>
+          <span class="muted small">${esc(euro(unit))} each · you see a small preview until you buy · plus ${clientPct}% service fee</span></div>
+        <div class="cg-extras-btns">
+          <button type="button" class="secondary-btn" id="cgBuySel" ${n ? '' : 'disabled'}>Buy selected${n ? ` (${n}) — ${esc(euro(withFee(n * unit)))}` : ''}</button>
+          <button type="button" class="primary-btn" id="cgBuyAll">Buy all ${forSale.length} — ${esc(euro(withFee(forSale.length * unit)))}</button>
+        </div>
+        <p class="muted small cg-extras-legal">By buying, you agree that the photos are unlocked right away — so the right of withdrawal ends once they are. <a href="/terms.html#extra-photos" target="_blank" rel="noopener">Terms</a></p>`;
+      $('cgBuySel').addEventListener('click', () => buy([...st.pick]));
+      $('cgBuyAll').addEventListener('click', () => buy('all'));
+    }
+    async function buy(ids) {
+      if (st.busy) return;
+      st.busy = true;
+      ['cgBuySel', 'cgBuyAll'].forEach(id => { if ($(id)) $(id).disabled = true; });
+      const { data, error } = await CG.deliveries.buy(b.id, ids);
+      st.busy = false;
+      if (error || !data?.url) { showToast(error?.message || 'Could not start the payment. Please try again.', 'error', 6000); paintExtras(); return; }
+      location.href = data.url;   // Stripe's secure payment page; back here afterwards
     }
     async function setFavorite(p, on) {
       const prev = p.favorite;
@@ -2650,7 +2749,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       $('dashModalBody').querySelectorAll('.cg-seg button').forEach(x => { x.classList.toggle('on', x === btn); x.setAttribute('aria-selected', x === btn ? 'true' : 'false'); });
       paint();
     }));
+    $('cgGrid').addEventListener('change', (e) => {
+      const box = e.target.closest('.cg-pick input'); if (!box) return;
+      if (box.checked) st.pick.add(box.dataset.id); else st.pick.delete(box.dataset.id);
+      paintExtras();
+    });
     $('cgGrid').addEventListener('click', (e) => {
+      if (e.target.closest('.cg-pick')) return;
       const heart = e.target.closest('.pm-heart');
       if (heart) { const p = st.photos.find(x => x.id === heart.dataset.id); if (p) setFavorite(p, !p.favorite); return; }
       const open = e.target.closest('.pm-open');
@@ -2660,11 +2765,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       openViewer(list, Number(open.dataset.i), false);
     });
     function openViewer(list, start, autoplay) {
-      const items = list.map(p => ({ src: st.fulls[p.path] || st.thumbs[p.path], favorite: !!p.favorite, caption: `${st.photos.indexOf(p) + 1} of ${st.photos.length}` }));
+      const items = list.map(p => ({ src: (locked(p) ? null : st.fulls[p.path]) || st.thumbs[p.path], favorite: !!p.favorite,
+        caption: `${st.photos.indexOf(p) + 1} of ${st.photos.length}${locked(p) ? ` · 🔒 Preview — buy it for ${euro(b.extra_photo_cents)} to get the full size` : ''}` }));
       openLightbox(items, start, {
         slideshow: true, autoplay,
         onFavorite: async (i, on) => { const p = list[i]; return p ? setFavorite(p, on) : false; },
-        onDownload: (i) => { const p = list[i]; if (p) downloadOne(p); },
+        onDownload: (i) => { const p = list[i]; if (!p) return; if (locked(p)) { showToast('Buy this photo to download it in full size.', 'info'); return; } downloadOne(p); },
         onClose: () => paint()
       });
     }
@@ -2719,7 +2825,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!box.hidden) { box.innerHTML = '<p class="muted small">Loading…</p>'; paintShares(); }
     });
     $('cgZip').addEventListener('click', async () => {
-      const list = view();
+      const list = mine(view());
       if (!list.length || st.busy) return;
       if (!window.fflate || !window.fflate.zipSync) { showToast('Download is not available in this browser.', 'error'); return; }
       st.busy = true; $('cgZip').disabled = true; $('cgZip').textContent = 'Preparing…';
@@ -2767,6 +2873,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       ? `🔒 Private gallery — only you, ${creator} and anyone you send a share link to can see it. Available until ${fmtDate(until.toISOString())}; please download your photos before then.`
       : `🔒 Private gallery — only you, ${creator} and anyone you send a share link to can see it. It's kept for 90 days after the booking is completed.`;
     paint();
+    const justBought = pendingBought; pendingBought = false;   // (the address was already cleaned up at start)
+    if (justBought && st.photos.some(locked)) {   // back from paying: the photos unlock in a moment
+      showToast('Thank you! Your photos are being unlocked…', 'success', 5000);
+      const before = st.photos.filter(locked).length;
+      for (let i = 0; i < 6 && !st.closed; i++) {
+        await new Promise(res => setTimeout(res, 2500));
+        const again = await CG.deliveries.list(b.id);
+        if (st.closed || again.error) break;
+        if ((again.data || []).filter(locked).length < before) {
+          st.photos = again.data || [];
+          const fresh = await CG.deliveries.signedUrls(st.photos.filter(p => !locked(p)).map(p => p.path), 10800);
+          st.photos.forEach(p => { if (fresh[p.path]) st.fulls[p.path] = fresh[p.path]; });
+          paint(); showToast('Your photos are unlocked ✓', 'success'); break;
+        }
+      }
+    }
     $('cgPlay').disabled = st.photos.length < 2;
     $('cgShare').disabled = !st.photos.length;
     // The first time the photos open, they're revealed as a slideshow
@@ -3020,7 +3142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function handleReturnParams() {
     const q = new URLSearchParams(location.search);
     if (q.get('c')) { showPanel('messages'); openConversation(q.get('c')); }
-    else if (q.get('b') && /^[0-9a-f-]{36}$/i.test(q.get('b'))) { pendingBooking = q.get('b').toLowerCase(); showPanel('bookings'); }
+    else if (q.get('b') && /^[0-9a-f-]{36}$/i.test(q.get('b'))) { pendingBooking = q.get('b').toLowerCase(); pendingBought = q.get('bought') === '1'; showPanel('bookings'); }
     else if (q.get('review') && /^[0-9a-f-]{36}$/i.test(q.get('review'))) { pendingReview = q.get('review').toLowerCase(); showPanel('bookings'); }
     else if (q.get('move') && /^[0-9a-f-]{36}$/i.test(q.get('move'))) { pendingMove = q.get('move').toLowerCase(); showPanel('bookings'); }
     else if (q.get('stripe')) { showPanel('payments'); if (q.get('stripe') === 'return') showToast('Welcome back — checking your payout status…', 'info'); }

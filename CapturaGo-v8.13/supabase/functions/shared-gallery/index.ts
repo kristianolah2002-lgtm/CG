@@ -349,6 +349,21 @@ const MAIL_TEXT = {
   '🌅 Sunrise {sunrise} · golden light until {until}': { de: '🌅 Sonnenaufgang {sunrise} · goldenes Licht bis {until}', es: '🌅 Amanecer {sunrise} · luz dorada hasta las {until}', fr: '🌅 Lever du soleil {sunrise} · lumière dorée jusqu\'à {until}' },
   '🌇 Golden hour {from}–{sunset} · sunset {sunset}': { de: '🌇 Goldene Stunde {from}–{sunset} · Sonnenuntergang {sunset}', es: '🌇 Hora dorada {from}–{sunset} · puesta de sol {sunset}', fr: '🌇 Heure dorée {from}–{sunset} · coucher du soleil {sunset}' },
   '🌅 Sunrise {sunrise} · 🌇 Sunset {sunset} (golden hour from {from})': { de: '🌅 Sonnenaufgang {sunrise} · 🌇 Sonnenuntergang {sunset} (goldene Stunde ab {from})', es: '🌅 Amanecer {sunrise} · 🌇 Puesta de sol {sunset} (hora dorada desde las {from})', fr: '🌅 Lever du soleil {sunrise} · 🌇 Coucher du soleil {sunset} (heure dorée dès {from})' },
+  // finish your booking (abandoned checkout)
+  'Your booking with {name} isn\'t finished': { de: 'Deine Buchung bei {name} ist noch nicht abgeschlossen', es: 'Tu reserva con {name} no está terminada', fr: 'Ta réservation avec {name} n\'est pas terminée' },
+  'for {date}': { de: 'für {date}', es: 'para el {date}', fr: 'pour le {date}' },
+  'You started booking {pkg} with {name} {when}, but the payment wasn\'t completed — so nothing was charged.': { de: 'Du hast angefangen, {pkg} bei {name} {when} zu buchen, aber die Zahlung wurde nicht abgeschlossen — es wurde also nichts abgebucht.', es: 'Empezaste a reservar {pkg} con {name} {when}, pero el pago no se completó, así que no se te ha cobrado nada.', fr: 'Tu as commencé à réserver {pkg} avec {name} {when}, mais le paiement n\'a pas été finalisé — rien n\'a donc été débité.' },
+  'Good news: that day is still free right now.': { de: 'Gute Nachricht: Der Tag ist gerade noch frei.', es: 'Buena noticia: ese día sigue libre ahora mismo.', fr: 'Bonne nouvelle : ce jour est encore libre pour le moment.' },
+  'That day has been taken since — {name} has other free days.': { de: 'Der Tag ist inzwischen vergeben — {name} hat andere freie Tage.', es: 'Ese día ya se ha reservado, pero {name} tiene otros días libres.', fr: 'Ce jour a été pris entre-temps — {name} a d\'autres jours libres.' },
+  '{name} can still take your order.': { de: '{name} kann deinen Auftrag weiterhin annehmen.', es: '{name} todavía puede aceptar tu pedido.', fr: '{name} peut toujours accepter ta commande.' },
+  'Finish my booking': { de: 'Buchung abschließen', es: 'Terminar mi reserva', fr: 'Finaliser ma réservation' },
+  'Something went wrong with the payment, or a question first? Just reply to this email, or message {name} on CapturaGo.': { de: 'Gab es ein Problem mit der Zahlung, oder hast du vorher eine Frage? Antworte einfach auf diese E-Mail oder schreib {name} auf CapturaGo.', es: '¿Hubo algún problema con el pago o tienes una pregunta antes? Responde a este correo o escribe a {name} en CapturaGo.', fr: 'Un souci avec le paiement, ou une question d\'abord ? Réponds simplement à cet e-mail ou écris à {name} sur CapturaGo.' },
+  // extra photos bought from a gallery
+  'Your extra photos are unlocked 📸': { de: 'Deine zusätzlichen Fotos sind freigeschaltet 📸', es: 'Tus fotos extra están desbloqueadas 📸', fr: 'Tes photos supplémentaires sont débloquées 📸' },
+  'Thank you! {n} more photos from {pkg} are now yours in full size — {total} paid.': { de: 'Danke! {n} weitere Fotos von {pkg} gehören jetzt in voller Größe dir — {total} bezahlt.', es: '¡Gracias! {n} fotos más de {pkg} ya son tuyas en tamaño completo: {total} pagados.', fr: 'Merci ! {n} photos de plus de {pkg} sont maintenant à toi en taille réelle — {total} payés.' },
+  'Open your photos': { de: 'Deine Fotos öffnen', es: 'Abrir tus fotos', fr: 'Ouvrir tes photos' },
+  '💶 {name} bought {n} extra photos': { de: '💶 {name} hat {n} zusätzliche Fotos gekauft', es: '💶 {name} ha comprado {n} fotos extra', fr: '💶 {name} a acheté {n} photos supplémentaires' },
+  '{name} bought {n} more photos from {pkg}. {amount} is on its way to your payout account.': { de: '{name} hat {n} weitere Fotos von {pkg} gekauft. {amount} ist unterwegs auf dein Auszahlungskonto.', es: '{name} ha comprado {n} fotos más de {pkg}. {amount} va de camino a tu cuenta de cobro.', fr: '{name} a acheté {n} photos de plus de {pkg}. {amount} est en route vers ton compte de versement.' },
 };
 
 // ── CapturaGo server helpers (inlined into every function by build.py) ──
@@ -1242,7 +1257,17 @@ function createHandler(deps) {
       ? (b.status === 'delivered' || b.status === 'completed' || (b.revisions_used || 0) > 0)
       : (!!b.photos_ready_at || b.status === 'completed');
     if (!visible) throw gone;
-    const rows = await ctx.db(`booking_photos?booking_id=eq.${b.id}${share.favorites_only ? '&favorite=is.true' : ''}&select=path,width,height&order=created_at.asc&limit=300`);
+    const fav = share.favorites_only ? '&favorite=is.true' : '';
+    let rows;
+    try {
+      // Extra photos that are for sale and not bought yet are not shown to friends (PART 24)
+      const [sale] = await ctx.db(`bookings?id=eq.${b.id}&select=extra_photo_cents`);
+      const all = await ctx.db(`booking_photos?booking_id=eq.${b.id}${fav}&select=path,width,height,extra,unlocked_at&order=created_at.asc&limit=300`);
+      rows = (all || []).filter((p) => !(sale && sale.extra_photo_cents && p.extra && !p.unlocked_at));
+    } catch (e) {
+      if (!/extra|unlocked_at|42703/.test(String(e && e.message))) throw e;   // database update not run yet
+      rows = await ctx.db(`booking_photos?booking_id=eq.${b.id}${fav}&select=path,width,height&order=created_at.asc&limit=300`);
+    }
     if (!rows || !rows.length) throw gone;
     const paths = rows.flatMap((p) => { const [dir, file] = p.path.split('/'); return [p.path, `${dir}/t_${file}`]; });
     const urls = await signDeliveryUrls(ctx, deps, paths, 3600);

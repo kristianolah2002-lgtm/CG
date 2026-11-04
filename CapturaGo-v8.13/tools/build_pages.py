@@ -148,7 +148,9 @@ page('city.html', 'Photographers & creators near you', 'Book a local photographe
      [('They know the spots', 'Creators list their favourite local shooting spots on their profile.'), ('For every occasion', 'Proposals, couples, solo travel, headshots, family trips and more.'), PROTECT],
      '/#portfolio-section', 'See all creators', city_links[:8] + occ_links[:4], dynamic=True)
 
-urls = ['', 'gift.html', 'partners.html', 'privacy.html', 'terms.html'] + pages
+# creator pages (/p/<handle>) come from tools/build_creator_pages.py — kept as they are
+creator_urls = sorted(f'p/{os.path.splitext(f)[0]}' for f in os.listdir(os.path.join(ROOT, 'p')) if f.endswith('.html')) if os.path.isdir(os.path.join(ROOT, 'p')) else []
+urls = ['', 'gift.html', 'partners.html', 'privacy.html', 'terms.html'] + pages + creator_urls
 sm = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + \
      ''.join(f'  <url><loc>{SITE}/{u}</loc></url>\n' for u in urls) + '</urlset>\n'
 open(os.path.join(ROOT, 'sitemap.xml'), 'w').write(sm)

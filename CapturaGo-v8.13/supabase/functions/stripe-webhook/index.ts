@@ -349,6 +349,21 @@ const MAIL_TEXT = {
   '🌅 Sunrise {sunrise} · golden light until {until}': { de: '🌅 Sonnenaufgang {sunrise} · goldenes Licht bis {until}', es: '🌅 Amanecer {sunrise} · luz dorada hasta las {until}', fr: '🌅 Lever du soleil {sunrise} · lumière dorée jusqu\'à {until}' },
   '🌇 Golden hour {from}–{sunset} · sunset {sunset}': { de: '🌇 Goldene Stunde {from}–{sunset} · Sonnenuntergang {sunset}', es: '🌇 Hora dorada {from}–{sunset} · puesta de sol {sunset}', fr: '🌇 Heure dorée {from}–{sunset} · coucher du soleil {sunset}' },
   '🌅 Sunrise {sunrise} · 🌇 Sunset {sunset} (golden hour from {from})': { de: '🌅 Sonnenaufgang {sunrise} · 🌇 Sonnenuntergang {sunset} (goldene Stunde ab {from})', es: '🌅 Amanecer {sunrise} · 🌇 Puesta de sol {sunset} (hora dorada desde las {from})', fr: '🌅 Lever du soleil {sunrise} · 🌇 Coucher du soleil {sunset} (heure dorée dès {from})' },
+  // finish your booking (abandoned checkout)
+  'Your booking with {name} isn\'t finished': { de: 'Deine Buchung bei {name} ist noch nicht abgeschlossen', es: 'Tu reserva con {name} no está terminada', fr: 'Ta réservation avec {name} n\'est pas terminée' },
+  'for {date}': { de: 'für {date}', es: 'para el {date}', fr: 'pour le {date}' },
+  'You started booking {pkg} with {name} {when}, but the payment wasn\'t completed — so nothing was charged.': { de: 'Du hast angefangen, {pkg} bei {name} {when} zu buchen, aber die Zahlung wurde nicht abgeschlossen — es wurde also nichts abgebucht.', es: 'Empezaste a reservar {pkg} con {name} {when}, pero el pago no se completó, así que no se te ha cobrado nada.', fr: 'Tu as commencé à réserver {pkg} avec {name} {when}, mais le paiement n\'a pas été finalisé — rien n\'a donc été débité.' },
+  'Good news: that day is still free right now.': { de: 'Gute Nachricht: Der Tag ist gerade noch frei.', es: 'Buena noticia: ese día sigue libre ahora mismo.', fr: 'Bonne nouvelle : ce jour est encore libre pour le moment.' },
+  'That day has been taken since — {name} has other free days.': { de: 'Der Tag ist inzwischen vergeben — {name} hat andere freie Tage.', es: 'Ese día ya se ha reservado, pero {name} tiene otros días libres.', fr: 'Ce jour a été pris entre-temps — {name} a d\'autres jours libres.' },
+  '{name} can still take your order.': { de: '{name} kann deinen Auftrag weiterhin annehmen.', es: '{name} todavía puede aceptar tu pedido.', fr: '{name} peut toujours accepter ta commande.' },
+  'Finish my booking': { de: 'Buchung abschließen', es: 'Terminar mi reserva', fr: 'Finaliser ma réservation' },
+  'Something went wrong with the payment, or a question first? Just reply to this email, or message {name} on CapturaGo.': { de: 'Gab es ein Problem mit der Zahlung, oder hast du vorher eine Frage? Antworte einfach auf diese E-Mail oder schreib {name} auf CapturaGo.', es: '¿Hubo algún problema con el pago o tienes una pregunta antes? Responde a este correo o escribe a {name} en CapturaGo.', fr: 'Un souci avec le paiement, ou une question d\'abord ? Réponds simplement à cet e-mail ou écris à {name} sur CapturaGo.' },
+  // extra photos bought from a gallery
+  'Your extra photos are unlocked 📸': { de: 'Deine zusätzlichen Fotos sind freigeschaltet 📸', es: 'Tus fotos extra están desbloqueadas 📸', fr: 'Tes photos supplémentaires sont débloquées 📸' },
+  'Thank you! {n} more photos from {pkg} are now yours in full size — {total} paid.': { de: 'Danke! {n} weitere Fotos von {pkg} gehören jetzt in voller Größe dir — {total} bezahlt.', es: '¡Gracias! {n} fotos más de {pkg} ya son tuyas en tamaño completo: {total} pagados.', fr: 'Merci ! {n} photos de plus de {pkg} sont maintenant à toi en taille réelle — {total} payés.' },
+  'Open your photos': { de: 'Deine Fotos öffnen', es: 'Abrir tus fotos', fr: 'Ouvrir tes photos' },
+  '💶 {name} bought {n} extra photos': { de: '💶 {name} hat {n} zusätzliche Fotos gekauft', es: '💶 {name} ha comprado {n} fotos extra', fr: '💶 {name} a acheté {n} photos supplémentaires' },
+  '{name} bought {n} more photos from {pkg}. {amount} is on its way to your payout account.': { de: '{name} hat {n} weitere Fotos von {pkg} gekauft. {amount} ist unterwegs auf dein Auszahlungskonto.', es: '{name} ha comprado {n} fotos más de {pkg}. {amount} va de camino a tu cuenta de cobro.', fr: '{name} a acheté {n} photos de plus de {pkg}. {amount} est en route vers ton compte de versement.' },
 };
 
 // ── CapturaGo server helpers (inlined into every function by build.py) ──
@@ -1247,6 +1262,60 @@ function payoutsReady(acct) {
   return !!(acct && acct.details_submitted && acct.capabilities && acct.capabilities.transfers === 'active');
 }
 
+/** Extra photos paid: mark the order paid (once), unlock the photos, transfer the creator's share, email both. */
+async function photosPaid(ctx, deps, orderId, paymentIntent) {
+  const nowIso = new Date(ctx.nowMs()).toISOString();
+  const rows = await ctx.db(`photo_orders?id=eq.${orderId}&status=eq.pending_payment`, { method: 'PATCH', body: { status: 'paid', paid_at: nowIso, stripe_payment_intent_id: paymentIntent } });
+  const o = rows && rows[0];
+  if (!o) {
+    // Paid after the order had expired (or a repeated event): refund an expired one; a paid one is already done
+    const [old] = await ctx.db(`photo_orders?id=eq.${orderId}&select=id,status`);
+    if (old && old.status === 'expired' && paymentIntent) {
+      const refund = await ctx.stripe('refunds', { payment_intent: paymentIntent, metadata: { photo_order_id: old.id } }, { idempotencyKey: `photos-late-refund-${old.id}` });
+      await ctx.db(`photo_orders?id=eq.${old.id}`, { method: 'PATCH', body: { status: 'refunded', stripe_payment_intent_id: paymentIntent }, prefer: 'return=minimal' });
+      console.error('[photos] late payment refunded', old.id, refund && refund.id);
+    }
+    return;
+  }
+  const ids = (o.photo_ids || []).filter((x) => UUID_RE.test(String(x)));
+  if (ids.length && o.booking_id) {
+    await ctx.db(`booking_photos?booking_id=eq.${o.booking_id}&id=in.(${ids.join(',')})&unlocked_at=is.null`, { method: 'PATCH', body: { unlocked_at: nowIso }, prefer: 'return=minimal' });
+  }
+  // The creator's share now (the photos are already delivered). A failed transfer is logged and retried by hand.
+  try {
+    let charge = null;
+    if (paymentIntent) {
+      const pi = await ctx.stripe(`payment_intents/${paymentIntent}`, null, { method: 'GET' });
+      charge = typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge && pi.latest_charge.id);
+    }
+    if (o.creator_stripe_account_id && o.price_cents - o.creator_fee_cents > 0) {
+      const t = await ctx.stripe('transfers', {
+        amount: o.price_cents - o.creator_fee_cents, currency: 'eur', destination: o.creator_stripe_account_id,
+        ...(charge ? { source_transaction: charge } : {}), transfer_group: o.booking_id || o.id, metadata: { photo_order_id: o.id, booking_id: o.booking_id || '' },
+      }, { idempotencyKey: `photos-transfer-${o.id}` });
+      await ctx.db(`photo_orders?id=eq.${o.id}`, { method: 'PATCH', body: { stripe_transfer_id: t.id }, prefer: 'return=minimal' });
+    }
+  } catch (e) { console.error('[photos] transfer failed — release it by hand in Stripe', o.id, e && e.message); }
+  // Emails (and a push to the creator)
+  try {
+    const [b] = o.booking_id ? await ctx.db(`bookings?id=eq.${o.booking_id}&select=id,client_name,client_email,package_name,photographer_id`) : [];
+    if (!b) return;
+    const n = ids.length;
+    const lt = await mailLang(ctx, o.client_user_id, b.client_email);
+    await sendEmail(ctx, deps, b.client_email, L(lt, 'Your extra photos are unlocked 📸'),
+      hiP(lt, escHtml(String(b.client_name || '').split(' ')[0]))
+      + `<p>${L(lt, 'Thank you! {n} more photos from {pkg} are now yours in full size — {total} paid.', { n, pkg: `<strong>${escHtml(b.package_name)}</strong>`, total: euro(o.total_cents) })}</p>`
+      + `<p><a href="${ctx.siteUrl}/dashboard.html?b=${b.id}#bookings"><strong>${L(lt, 'Open your photos')}</strong></a></p>`);
+    const c = await creatorContact(ctx, b);
+    if (c) {
+      const subject = L(c.lang, '💶 {name} bought {n} extra photos', { name: String(b.client_name || L(c.lang, 'A traveller')).split(' ')[0], n });
+      const text = L(c.lang, '{name} bought {n} more photos from {pkg}. {amount} is on its way to your payout account.', { name: escHtml(String(b.client_name || '').split(' ')[0] || L(c.lang, 'A traveller')), n, pkg: `<strong>${escHtml(b.package_name)}</strong>`, amount: euro(o.price_cents - o.creator_fee_cents) });
+      if (c.email) await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${text}</p>`);
+      await sendPush(ctx, deps, c.user_id, subject, text, { url: '/bookings', booking_id: b.id });
+    }
+  } catch (e) { console.error('[photos] emails', e && e.message); }
+}
+
 async function handleEvent(ctx, deps, event) {
   const obj = (event.data && event.data.object) || {};
   const meta = obj.metadata || {};
@@ -1269,6 +1338,12 @@ async function handleEvent(ctx, deps, event) {
         return;
       }
       await afterBookingPaid(ctx, deps, updated[0]);
+      return;
+    }
+
+    // Extra photos bought from a gallery → unlock them, pay the creator right away, tell both (PART 24)
+    if (meta.kind === 'photos' && UUID_RE.test(meta.photo_order_id || '')) {
+      await photosPaid(ctx, deps, meta.photo_order_id, obj.payment_intent || null);
       return;
     }
 
@@ -1372,6 +1447,9 @@ async function handleEvent(ctx, deps, event) {
     }
     if (meta.kind === 'gift' && UUID_RE.test(meta.gift_id || '')) {
       await ctx.db(`gift_cards?id=eq.${meta.gift_id}&status=eq.pending_payment`, { method: 'PATCH', body: { status: 'expired_checkout' }, prefer: 'return=minimal' });
+    }
+    if (meta.kind === 'photos' && UUID_RE.test(meta.photo_order_id || '')) {
+      await ctx.db(`photo_orders?id=eq.${meta.photo_order_id}&status=eq.pending_payment`, { method: 'PATCH', body: { status: 'expired' }, prefer: 'return=minimal' });
     }
     return;
   }

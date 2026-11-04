@@ -18,7 +18,17 @@ function createHandler(deps) {
       ? (b.status === 'delivered' || b.status === 'completed' || (b.revisions_used || 0) > 0)
       : (!!b.photos_ready_at || b.status === 'completed');
     if (!visible) throw gone;
-    const rows = await ctx.db(`booking_photos?booking_id=eq.${b.id}${share.favorites_only ? '&favorite=is.true' : ''}&select=path,width,height&order=created_at.asc&limit=300`);
+    const fav = share.favorites_only ? '&favorite=is.true' : '';
+    let rows;
+    try {
+      // Extra photos that are for sale and not bought yet are not shown to friends (PART 24)
+      const [sale] = await ctx.db(`bookings?id=eq.${b.id}&select=extra_photo_cents`);
+      const all = await ctx.db(`booking_photos?booking_id=eq.${b.id}${fav}&select=path,width,height,extra,unlocked_at&order=created_at.asc&limit=300`);
+      rows = (all || []).filter((p) => !(sale && sale.extra_photo_cents && p.extra && !p.unlocked_at));
+    } catch (e) {
+      if (!/extra|unlocked_at|42703/.test(String(e && e.message))) throw e;   // database update not run yet
+      rows = await ctx.db(`booking_photos?booking_id=eq.${b.id}${fav}&select=path,width,height&order=created_at.asc&limit=300`);
+    }
     if (!rows || !rows.length) throw gone;
     const paths = rows.flatMap((p) => { const [dir, file] = p.path.split('/'); return [p.path, `${dir}/t_${file}`]; });
     const urls = await signDeliveryUrls(ctx, deps, paths, 3600);

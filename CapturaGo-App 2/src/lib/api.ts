@@ -88,7 +88,7 @@ export interface FoundingStatus {
 export interface CityAlert { id: string; city_label: string; service: string | null; created_at: string; notified_at: string | null }
 export interface SharedGallery { title: string; date: string; creator: { name: string; city: string; link: string }; expires_at: string; favorites_only: boolean; photos: { full: string; thumb: string; w: number | null; h: number | null }[] }
 const forecastCache = new Map<string, { at: number; v: Forecast | null }>();
-export interface BookingPhoto { id: string; booking_id: string; path: string; width: number | null; height: number | null; favorite: boolean; created_at: string }
+export interface BookingPhoto { id: string; booking_id: string; path: string; width: number | null; height: number | null; favorite: boolean; created_at: string; extra?: boolean; unlocked_at?: string | null }
 export interface Inquiry { id: string; photographer_id: string; sender_name: string; sender_email: string; shoot_type: string | null; shoot_date: string | null; message: string; read: boolean; created_at: string }
 
 export interface Deal { photographer_id: string; day: string; pct: number }
@@ -179,8 +179,8 @@ export const api = {
       const q = (cols: string) => run<Booking[]>(() => supabase.from('bookings').select(cols).order('created_at', { ascending: false }));
       const latest = (base + extra + v9 + v10).replace('photographers(name,city)', 'photographers(name,city,coords)');
       const v12 = ',package_details,photos_promised,photos_delivered_at,shoot_city,shoot_coords';
-      let res = await q(latest + v12 + ',gift_cents,split_count,split_deadline,deal_pct');
-      for (const cols of [latest + v12 + ',gift_cents,split_count,split_deadline', latest + v12, latest + ',package_details', latest, base + extra + v9, base + extra, base]) {
+      let res = await q(latest + v12 + ',gift_cents,split_count,split_deadline,deal_pct,extra_photo_cents');
+      for (const cols of [latest + v12 + ',gift_cents,split_count,split_deadline,deal_pct', latest + v12 + ',gift_cents,split_count,split_deadline', latest + v12, latest + ',package_details', latest, base + extra + v9, base + extra, base]) {
         if (!(res.error?.code && COLUMN_ERRORS.includes(res.error.code))) break;
         res = await q(cols);
       }
@@ -266,7 +266,16 @@ export const api = {
   },
   /* Private photo delivery: bucket "deliveries", <booking id>/<file> plus a small preview t_<file> */
   photos: {
-    list: (bookingId: string) => run<BookingPhoto[]>(() => supabase.from('booking_photos').select(PHOTO_COLS).eq('booking_id', bookingId).order('created_at', { ascending: true }).limit(300)),
+    list: async (bookingId: string) => {
+      const q = (cols: string) => run<BookingPhoto[]>(() => supabase.from('booking_photos').select(cols).eq('booking_id', bookingId).order('created_at', { ascending: true }).limit(300));
+      const res = await q(PHOTO_COLS + ',extra,unlocked_at');   // extra photos for sale (website v8.18 database)
+      return res.error?.code && COLUMN_ERRORS.includes(res.error.code) ? q(PHOTO_COLS) : res;
+    },
+    /** Creator: photos for sale (extra) or included, and the price per photo in cents (null = stop selling). */
+    setExtras: (bookingId: string, ids: string[], extra: boolean, priceCents: number | null) =>
+      run<{ price_cents: number | null; extra: number; included: number; promised: number }>(() => supabase.rpc('set_photo_extras', { p_booking: bookingId, p_ids: ids, p_extra: extra, p_price_cents: priceCents })),
+    /** Traveller: buy extra photos (ids or 'all') → the secure payment page. */
+    buy: (bookingId: string, ids: string[] | 'all') => fn<{ url: string; order_id: string; count: number; total_cents: number }>('buy-photos', { booking_id: bookingId, photo_ids: ids, from: 'app' }),
     counts: async (bookingIds: string[]): Promise<Record<string, number>> => {
       if (!bookingIds.length) return {};
       const r = await run<{ booking_id: string }[]>(() => supabase.from('booking_photos').select('booking_id').in('booking_id', bookingIds).limit(5000));

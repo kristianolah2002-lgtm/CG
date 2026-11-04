@@ -349,6 +349,19 @@ export const privacy: LegalBlock[] = [
  {
   "t": "row",
   "cells": [
+   "Extra photos bought from a gallery: which photos, the price per photo, the service fee, the payment and payout references, and when they were bought",
+   "To unlock the photos you bought, pay the creator and keep the accounting and platform tax records",
+   "Contract (6(1)(b)); legal obligations for accounting and platform tax reporting (6(1)(c))"
+  ],
+  "heads": [
+   "Data",
+   "Why",
+   "Legal basis (GDPR Art. 6)"
+  ]
+ },
+ {
+  "t": "row",
+  "cells": [
    "Gift cards: the code, amount and remaining balance, the buyer's account and email, the recipient's name and email and your message (only if you enter them), payment references, when it was paid and when it expires, which bookings used it, and failed code checks (account and time, for 1 hour)",
    "To sell gift cards, send the code to the buyer and — if you ask — to the recipient, let the holder pay with it, and stop people from guessing codes",
    "Contract (6(1)(b)); legitimate interest in preventing fraud (6(1)(f)) for failed checks; legal obligation for accounting records (6(1)(c))"
@@ -1448,6 +1461,18 @@ export const terms: LegalBlock[] = [
  {
   "t": "li",
   "text": "An alert doesn't reserve the day: other travellers may book it first."
+ },
+ {
+  "t": "h2",
+  "text": "6o. Extra photos"
+ },
+ {
+  "t": "p",
+  "text": "A creator can upload more photos than the package includes and offer the extra ones in the client's private gallery, at a price per photo that the creator sets (€1–€100) and that is shown before you buy. At least as many photos as the package promises always stay included. Until you buy an extra photo you see a small preview only. You pay the price per photo plus our service fee; the payment goes to the creator right away, and the photos you bought are yours to keep like the rest of the gallery."
+ },
+ {
+  "t": "p",
+  "text": "Right of withdrawal: extra photos are digital content delivered immediately. By buying them you ask us to unlock them straight away and you acknowledge that you therefore lose your 14-day right of withdrawal once they are unlocked. If something is wrong with a photo you bought (for example it doesn't open, or it isn't from your shoot), contact us and we'll fix it or refund it."
  },
  {
   "t": "h2",

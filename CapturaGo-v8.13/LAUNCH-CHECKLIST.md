@@ -1,5 +1,11 @@
 # CapturaGo — Launch checklist
 
+> **v8.18 + app v1.7 — more money per booking:** 💶 creators sell **extra photos** from the gallery (price per photo,
+> previews until bought, full files locked in storage, creator paid instantly, your service fee on top, in the DAC7 report);
+> 🔎 **creator pages** for Google (`/p/<name>`, in the sitemap) and rich link previews (`/c/<name>`) — run
+> `python3 tools/build_creator_pages.py` before each upload; 📩 one **"finish your booking"** email after an unpaid
+> checkout. Run `database.sql`, deploy `buy-photos` (Verify JWT on), re-deploy `stripe-webhook`, `shared-gallery`,
+> `scheduled-jobs`: SETUP-PAYMENTS-AND-AI.md **Part 24**. Terms (6o, right of withdrawal) and Privacy Policy updated.
 > **v8.17 + app v1.6 — creators answer their reviews:** one public reply under each review (Dashboard → ⭐ Reviews, or
 > the app on your own profile), shown on the profile; creators are told about every new review (email + push) and the
 > traveller once about the reply (admin panel → Reviews → Remove reply for abusive ones). Also: 🌅 sunrise / sunset /

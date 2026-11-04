@@ -23,6 +23,60 @@ function payoutsReady(acct) {
   return !!(acct && acct.details_submitted && acct.capabilities && acct.capabilities.transfers === 'active');
 }
 
+/** Extra photos paid: mark the order paid (once), unlock the photos, transfer the creator's share, email both. */
+async function photosPaid(ctx, deps, orderId, paymentIntent) {
+  const nowIso = new Date(ctx.nowMs()).toISOString();
+  const rows = await ctx.db(`photo_orders?id=eq.${orderId}&status=eq.pending_payment`, { method: 'PATCH', body: { status: 'paid', paid_at: nowIso, stripe_payment_intent_id: paymentIntent } });
+  const o = rows && rows[0];
+  if (!o) {
+    // Paid after the order had expired (or a repeated event): refund an expired one; a paid one is already done
+    const [old] = await ctx.db(`photo_orders?id=eq.${orderId}&select=id,status`);
+    if (old && old.status === 'expired' && paymentIntent) {
+      const refund = await ctx.stripe('refunds', { payment_intent: paymentIntent, metadata: { photo_order_id: old.id } }, { idempotencyKey: `photos-late-refund-${old.id}` });
+      await ctx.db(`photo_orders?id=eq.${old.id}`, { method: 'PATCH', body: { status: 'refunded', stripe_payment_intent_id: paymentIntent }, prefer: 'return=minimal' });
+      console.error('[photos] late payment refunded', old.id, refund && refund.id);
+    }
+    return;
+  }
+  const ids = (o.photo_ids || []).filter((x) => UUID_RE.test(String(x)));
+  if (ids.length && o.booking_id) {
+    await ctx.db(`booking_photos?booking_id=eq.${o.booking_id}&id=in.(${ids.join(',')})&unlocked_at=is.null`, { method: 'PATCH', body: { unlocked_at: nowIso }, prefer: 'return=minimal' });
+  }
+  // The creator's share now (the photos are already delivered). A failed transfer is logged and retried by hand.
+  try {
+    let charge = null;
+    if (paymentIntent) {
+      const pi = await ctx.stripe(`payment_intents/${paymentIntent}`, null, { method: 'GET' });
+      charge = typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge && pi.latest_charge.id);
+    }
+    if (o.creator_stripe_account_id && o.price_cents - o.creator_fee_cents > 0) {
+      const t = await ctx.stripe('transfers', {
+        amount: o.price_cents - o.creator_fee_cents, currency: 'eur', destination: o.creator_stripe_account_id,
+        ...(charge ? { source_transaction: charge } : {}), transfer_group: o.booking_id || o.id, metadata: { photo_order_id: o.id, booking_id: o.booking_id || '' },
+      }, { idempotencyKey: `photos-transfer-${o.id}` });
+      await ctx.db(`photo_orders?id=eq.${o.id}`, { method: 'PATCH', body: { stripe_transfer_id: t.id }, prefer: 'return=minimal' });
+    }
+  } catch (e) { console.error('[photos] transfer failed — release it by hand in Stripe', o.id, e && e.message); }
+  // Emails (and a push to the creator)
+  try {
+    const [b] = o.booking_id ? await ctx.db(`bookings?id=eq.${o.booking_id}&select=id,client_name,client_email,package_name,photographer_id`) : [];
+    if (!b) return;
+    const n = ids.length;
+    const lt = await mailLang(ctx, o.client_user_id, b.client_email);
+    await sendEmail(ctx, deps, b.client_email, L(lt, 'Your extra photos are unlocked 📸'),
+      hiP(lt, escHtml(String(b.client_name || '').split(' ')[0]))
+      + `<p>${L(lt, 'Thank you! {n} more photos from {pkg} are now yours in full size — {total} paid.', { n, pkg: `<strong>${escHtml(b.package_name)}</strong>`, total: euro(o.total_cents) })}</p>`
+      + `<p><a href="${ctx.siteUrl}/dashboard.html?b=${b.id}#bookings"><strong>${L(lt, 'Open your photos')}</strong></a></p>`);
+    const c = await creatorContact(ctx, b);
+    if (c) {
+      const subject = L(c.lang, '💶 {name} bought {n} extra photos', { name: String(b.client_name || L(c.lang, 'A traveller')).split(' ')[0], n });
+      const text = L(c.lang, '{name} bought {n} more photos from {pkg}. {amount} is on its way to your payout account.', { name: escHtml(String(b.client_name || '').split(' ')[0] || L(c.lang, 'A traveller')), n, pkg: `<strong>${escHtml(b.package_name)}</strong>`, amount: euro(o.price_cents - o.creator_fee_cents) });
+      if (c.email) await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${text}</p>`);
+      await sendPush(ctx, deps, c.user_id, subject, text, { url: '/bookings', booking_id: b.id });
+    }
+  } catch (e) { console.error('[photos] emails', e && e.message); }
+}
+
 async function handleEvent(ctx, deps, event) {
   const obj = (event.data && event.data.object) || {};
   const meta = obj.metadata || {};
@@ -45,6 +99,12 @@ async function handleEvent(ctx, deps, event) {
         return;
       }
       await afterBookingPaid(ctx, deps, updated[0]);
+      return;
+    }
+
+    // Extra photos bought from a gallery → unlock them, pay the creator right away, tell both (PART 24)
+    if (meta.kind === 'photos' && UUID_RE.test(meta.photo_order_id || '')) {
+      await photosPaid(ctx, deps, meta.photo_order_id, obj.payment_intent || null);
       return;
     }
 
@@ -148,6 +208,9 @@ async function handleEvent(ctx, deps, event) {
     }
     if (meta.kind === 'gift' && UUID_RE.test(meta.gift_id || '')) {
       await ctx.db(`gift_cards?id=eq.${meta.gift_id}&status=eq.pending_payment`, { method: 'PATCH', body: { status: 'expired_checkout' }, prefer: 'return=minimal' });
+    }
+    if (meta.kind === 'photos' && UUID_RE.test(meta.photo_order_id || '')) {
+      await ctx.db(`photo_orders?id=eq.${meta.photo_order_id}&status=eq.pending_payment`, { method: 'PATCH', body: { status: 'expired' }, prefer: 'return=minimal' });
     }
     return;
   }

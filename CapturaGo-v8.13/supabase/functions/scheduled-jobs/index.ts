@@ -349,6 +349,21 @@ const MAIL_TEXT = {
   '🌅 Sunrise {sunrise} · golden light until {until}': { de: '🌅 Sonnenaufgang {sunrise} · goldenes Licht bis {until}', es: '🌅 Amanecer {sunrise} · luz dorada hasta las {until}', fr: '🌅 Lever du soleil {sunrise} · lumière dorée jusqu\'à {until}' },
   '🌇 Golden hour {from}–{sunset} · sunset {sunset}': { de: '🌇 Goldene Stunde {from}–{sunset} · Sonnenuntergang {sunset}', es: '🌇 Hora dorada {from}–{sunset} · puesta de sol {sunset}', fr: '🌇 Heure dorée {from}–{sunset} · coucher du soleil {sunset}' },
   '🌅 Sunrise {sunrise} · 🌇 Sunset {sunset} (golden hour from {from})': { de: '🌅 Sonnenaufgang {sunrise} · 🌇 Sonnenuntergang {sunset} (goldene Stunde ab {from})', es: '🌅 Amanecer {sunrise} · 🌇 Puesta de sol {sunset} (hora dorada desde las {from})', fr: '🌅 Lever du soleil {sunrise} · 🌇 Coucher du soleil {sunset} (heure dorée dès {from})' },
+  // finish your booking (abandoned checkout)
+  'Your booking with {name} isn\'t finished': { de: 'Deine Buchung bei {name} ist noch nicht abgeschlossen', es: 'Tu reserva con {name} no está terminada', fr: 'Ta réservation avec {name} n\'est pas terminée' },
+  'for {date}': { de: 'für {date}', es: 'para el {date}', fr: 'pour le {date}' },
+  'You started booking {pkg} with {name} {when}, but the payment wasn\'t completed — so nothing was charged.': { de: 'Du hast angefangen, {pkg} bei {name} {when} zu buchen, aber die Zahlung wurde nicht abgeschlossen — es wurde also nichts abgebucht.', es: 'Empezaste a reservar {pkg} con {name} {when}, pero el pago no se completó, así que no se te ha cobrado nada.', fr: 'Tu as commencé à réserver {pkg} avec {name} {when}, mais le paiement n\'a pas été finalisé — rien n\'a donc été débité.' },
+  'Good news: that day is still free right now.': { de: 'Gute Nachricht: Der Tag ist gerade noch frei.', es: 'Buena noticia: ese día sigue libre ahora mismo.', fr: 'Bonne nouvelle : ce jour est encore libre pour le moment.' },
+  'That day has been taken since — {name} has other free days.': { de: 'Der Tag ist inzwischen vergeben — {name} hat andere freie Tage.', es: 'Ese día ya se ha reservado, pero {name} tiene otros días libres.', fr: 'Ce jour a été pris entre-temps — {name} a d\'autres jours libres.' },
+  '{name} can still take your order.': { de: '{name} kann deinen Auftrag weiterhin annehmen.', es: '{name} todavía puede aceptar tu pedido.', fr: '{name} peut toujours accepter ta commande.' },
+  'Finish my booking': { de: 'Buchung abschließen', es: 'Terminar mi reserva', fr: 'Finaliser ma réservation' },
+  'Something went wrong with the payment, or a question first? Just reply to this email, or message {name} on CapturaGo.': { de: 'Gab es ein Problem mit der Zahlung, oder hast du vorher eine Frage? Antworte einfach auf diese E-Mail oder schreib {name} auf CapturaGo.', es: '¿Hubo algún problema con el pago o tienes una pregunta antes? Responde a este correo o escribe a {name} en CapturaGo.', fr: 'Un souci avec le paiement, ou une question d\'abord ? Réponds simplement à cet e-mail ou écris à {name} sur CapturaGo.' },
+  // extra photos bought from a gallery
+  'Your extra photos are unlocked 📸': { de: 'Deine zusätzlichen Fotos sind freigeschaltet 📸', es: 'Tus fotos extra están desbloqueadas 📸', fr: 'Tes photos supplémentaires sont débloquées 📸' },
+  'Thank you! {n} more photos from {pkg} are now yours in full size — {total} paid.': { de: 'Danke! {n} weitere Fotos von {pkg} gehören jetzt in voller Größe dir — {total} bezahlt.', es: '¡Gracias! {n} fotos más de {pkg} ya son tuyas en tamaño completo: {total} pagados.', fr: 'Merci ! {n} photos de plus de {pkg} sont maintenant à toi en taille réelle — {total} payés.' },
+  'Open your photos': { de: 'Deine Fotos öffnen', es: 'Abrir tus fotos', fr: 'Ouvrir tes photos' },
+  '💶 {name} bought {n} extra photos': { de: '💶 {name} hat {n} zusätzliche Fotos gekauft', es: '💶 {name} ha comprado {n} fotos extra', fr: '💶 {name} a acheté {n} photos supplémentaires' },
+  '{name} bought {n} more photos from {pkg}. {amount} is on its way to your payout account.': { de: '{name} hat {n} weitere Fotos von {pkg} gekauft. {amount} ist unterwegs auf dein Auszahlungskonto.', es: '{name} ha comprado {n} fotos más de {pkg}. {amount} va de camino a tu cuenta de cobro.', fr: '{name} a acheté {n} photos de plus de {pkg}. {amount} est en route vers ton compte de versement.' },
 };
 
 // ── CapturaGo server helpers (inlined into every function by build.py) ──
@@ -1254,6 +1269,7 @@ function buildIcsFeed(bookings, userId, siteUrl, nowMs) {
 //  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
 // 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
 // 23. (v8.17) A new review → the creator (email + push, link to reply); the creator replied → the traveller, once.
+// 24. A checkout left unpaid → one "finish your booking" email (tips & reminders on; once a week at most).
 // (v1.5 app) Booking emails, "Notify me" alerts and the new-booking email also go to the user's phones as a push (lib.js sendPush).
 // 22. (v8.15) EU DAC7: creators who can be paid online are asked for their tax details (then 2 reminders: day 14 and 45).
 //     With the secret TAX_INFO_HOLD=on, payouts wait for creators still without details 60 days after the first request.
@@ -1272,7 +1288,7 @@ async function runJobs(ctx, deps) {
   const now = ctx.nowMs();
   const nowIso = new Date(now).toISOString();
   const summary = { expired: 0, nudged: 0, auto_refunded: 0, released: 0, reminders: 0, late_notices: 0, message_emails: 0, photo_reminders: 0, photos_deleted: 0, city_alerts: 0,
-    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, review_alerts: 0, reply_alerts: 0, errors: 0 };
+    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, review_alerts: 0, reply_alerts: 0, recovery_emails: 0, errors: 0 };
   const errors = [];
   const fail = (what, id, e) => { summary.errors++; errors.push(`${what} ${id}: ${e && e.message ? e.message : e}`); console.error('[jobs]', what, id, e); };
   const mark = (b, key) => ctx.db(`bookings?id=eq.${b.id}`, { method: 'PATCH', body: { notices: { ...(b.notices || {}), [key]: nowIso } }, prefer: 'return=minimal' });
@@ -1929,6 +1945,56 @@ async function runJobs(ctx, deps) {
       } catch (e) { fail('reply-alert', r.id, e); }
     }
   } catch (e) { if (!notYet(e)) fail('reply-alerts', '-', e); }
+
+  // 24. A booking left unpaid (the checkout expired) → one friendly "finish your booking" email: nothing was charged,
+  //     the day is still free (or: other days are), one tap back. Only for people who get tips & reminders, at most
+  //     once a week per person, and never when they booked anyway, the creator is no longer bookable or the day passed.
+  try {
+    const from = encodeURIComponent(new Date(now - 48 * HOUR).toISOString());
+    const left = await ctx.db(`bookings?status=eq.expired&split_count=lte.1&created_at=gte.${from}&client_user_id=not.is.null&select=id,photographer_id,client_user_id,client_name,client_email,package_id,package_name,booking_type,shoot_date,created_at,notices,photographers(name,handle,available,payouts_enabled,hidden)&order=created_at.desc&limit=${BATCH}`);
+    const done = new Set();
+    for (const b of left || []) {
+      try {
+        if (b.notices && (b.notices.recovery || b.notices.recovery_skip)) continue;
+        const ph = b.photographers || {};
+        const skip = () => mark(b, 'recovery_skip');
+        if (done.has(b.client_user_id)) { await skip(); continue; }   // several tries in a row → one email
+        done.add(b.client_user_id);
+        if (!ph.name || ph.hidden || ph.available === false || !ph.payouts_enabled) { await skip(); continue; }
+        const session = b.booking_type !== 'delivery';
+        if (session && !(b.shoot_date && b.shoot_date >= ctx.isoInDays(1))) { await skip(); continue; }
+        // booked anyway (any paid booking since), or already reminded about another one this week
+        const since = encodeURIComponent(b.created_at);
+        const later = await ctx.db(`bookings?client_user_id=eq.${b.client_user_id}&created_at=gte.${since}&status=in.(paid,confirmed,delivered,completed)&select=id&limit=1`);
+        if ((later || []).length) { await skip(); continue; }
+        const week = encodeURIComponent(new Date(now - 7 * 86400000).toISOString());
+        const recent = await ctx.db(`bookings?client_user_id=eq.${b.client_user_id}&id=neq.${b.id}&created_at=gte.${week}&notices->>recovery=not.is.null&select=id&limit=1`);
+        if ((recent || []).length) { await skip(); continue; }
+        const token = await tipsToken(b.client_user_id);
+        if (!token) { await skip(); continue; }   // turned tips & reminders off
+        let free = !session;
+        if (session) {
+          const busy = await ctx.db('rpc/creator_busy_dates', { method: 'POST', body: { p_photographer_id: b.photographer_id } }).catch(() => null);
+          const days = (busy || []).map((x) => (typeof x === 'string' ? x : x && x.creator_busy_dates));
+          free = Array.isArray(busy) && !days.includes(b.shoot_date);
+        }
+        const l = await mailLang(ctx, b.client_user_id, b.client_email);
+        const first = escHtml(String(ph.name).split(' ')[0]);
+        const back = `${ctx.siteUrl}/?creator=${encodeURIComponent(b.photographer_id)}${session && free ? `&day=${encodeURIComponent(b.shoot_date)}` : ''}`;
+        const when = session ? L(l, 'for {date}', { date: `<strong>${escHtml(b.shoot_date)}</strong>` }) : '';
+        const sent = await sendEmail(ctx, deps, b.client_email, L(l, 'Your booking with {name} isn\'t finished', { name: String(ph.name).split(' ')[0] }),
+          hiP(l, escHtml(String(b.client_name || '').split(' ')[0]))
+          + `<p>${L(l, 'You started booking {pkg} with {name} {when}, but the payment wasn\'t completed — so nothing was charged.', { pkg: pkgOf(b), name: `<strong>${first}</strong>`, when })}</p>`
+          + `<p>${session ? (free ? L(l, 'Good news: that day is still free right now.') : L(l, 'That day has been taken since — {name} has other free days.', { name: first })) : L(l, '{name} can still take your order.', { name: first })}</p>`
+          + `<p><a href="${back}"><strong>${L(l, 'Finish my booking')}</strong></a></p>`
+          + `<p style="color:#7D6A53;font-size:13px">${L(l, 'Something went wrong with the payment, or a question first? Just reply to this email, or message {name} on CapturaGo.', { name: first })}</p>`
+          + optionalFooter(token, l));
+        if (!sent) { done.delete(b.client_user_id); continue; }   // try again next hour
+        await mark(b, 'recovery');
+        summary.recovery_emails++;
+      } catch (e) { fail('recovery', b.id, e); }
+    }
+  } catch (e) { fail('recoveries', '-', e); }
 
   // 6. + 10. housekeeping
   await ctx.db(`ai_requests?created_at=lt.${encodeURIComponent(new Date(now - HOUR).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});

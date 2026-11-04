@@ -244,7 +244,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     /* Photo delivery: private bucket "deliveries", <booking id>/<file> + a small preview t_<file> */
     deliveries: {
-      list: (bookingId) => run(d => d.from('booking_photos').select('id,booking_id,path,width,height,favorite,created_at').eq('booking_id', bookingId).order('created_at', { ascending: true }).limit(300)),
+      list: async (bookingId) => {
+        const q = (cols) => run(d => d.from('booking_photos').select(cols).eq('booking_id', bookingId).order('created_at', { ascending: true }).limit(300));
+        const res = await q('id,booking_id,path,width,height,favorite,created_at,extra,unlocked_at');   // PART 24: extra photos for sale
+        return res.error && COLUMN_ERRORS.includes(res.error.code) ? q('id,booking_id,path,width,height,favorite,created_at') : res;
+      },
+      /** Creator: mark photos as extra (for sale) or included, and the price per photo in cents (null = not selling). */
+      setExtras: (bookingId, ids, extra, priceCents) => run(d => d.rpc('set_photo_extras', { p_booking: bookingId, p_ids: ids, p_extra: extra, p_price_cents: priceCents })),
+      /** Traveller: buy extra photos (ids or 'all') → { url } of the secure payment page. */
+      buy: (bookingId, ids) => fn('buy-photos', { booking_id: bookingId, photo_ids: ids }),
       counts: async (bookingIds) => {
         if (!bookingIds.length) return {};
         const { data } = await run(d => d.from('booking_photos').select('booking_id').in('booking_id', bookingIds).limit(5000));
@@ -488,7 +496,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         const v12 = ',package_details,photos_promised,photos_delivered_at,shoot_city,shoot_coords';
         const v13 = ',gift_cents,split_count,split_deadline';
         const v14 = ',deal_pct';
-        for (const cols of [latest + v12 + v13 + v14, latest + v12 + v13, latest + v12, latest + ',package_details', latest, base + extra + v9, base + extra, base]) {
+        const v24 = ',extra_photo_cents';
+        for (const cols of [latest + v12 + v13 + v14 + v24, latest + v12 + v13 + v14, latest + v12 + v13, latest + v12, latest + ',package_details', latest, base + extra + v9, base + extra, base]) {
           const res = await q(cols);
           if (!(res.error && COLUMN_ERRORS.includes(res.error.code))) return res;
         }

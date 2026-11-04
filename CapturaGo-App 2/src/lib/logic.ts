@@ -96,6 +96,7 @@ export interface Booking {
   revisions_used?: number;
   last_revision_note?: string | null;
   time_slot?: string | null;
+  extra_photo_cents?: number | null;   // price per extra photo for sale (website v8.18)
   via_link?: boolean | null;
   photos_ready_at?: string | null;
   completed_at?: string | null;

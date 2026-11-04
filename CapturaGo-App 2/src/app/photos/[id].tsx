@@ -13,6 +13,8 @@ import { useAuth } from '../../lib/auth';
 import { creatorCanRemovePhotos, firstName, fmtDate, httpsUrl, isDelivery, MAX_BOOKING_PHOTOS, PHOTO_STATUSES, thumbPath, type Booking } from '../../lib/logic';
 import { pickPhotos, prepareUpload } from '../../lib/photo-io';
 import { tr as trx } from '../../lib/i18n';
+import { beyondPromised, priceToCents, saleCounts } from '../../lib/photo-sale-logic';
+import { euroCents } from '../../lib/logic';
 
 export default function PhotosScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,6 +29,8 @@ export default function PhotosScreen() {
   const [linkError, setLinkError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [viewer, setViewer] = useState<{ items: { key: string; uri: string }[]; start: number } | null>(null);
+  const [price, setPrice] = useState('');
+  const [priceError, setPriceError] = useState<string | null>(null);
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
 
@@ -35,6 +39,7 @@ export default function PhotosScreen() {
     const found = (bk.data ?? []).find((x) => x.id === id) ?? null;
     setB(found);
     if (found?.delivery_url) setLink(found.delivery_url);
+    if (found?.extra_photo_cents) setPrice(String(found.extra_photo_cents / 100));
     const list = ph.data ?? [];
     setPhotos(list);
     const signed = await api.photos.signedUrls(list.map((p) => thumbPath(p.path)));
@@ -83,6 +88,33 @@ export default function PhotosScreen() {
     setTimeout(() => { if (alive.current) setProgress(null); }, 1500);
   }
 
+  /* Extra photos for sale: the price per photo, and which photos are extras (the database checks the package's promise) */
+  const canSell = !!b && 'extra_photo_cents' in b;
+  const unit = b.extra_photo_cents ?? null;
+  const promised = Number((b.package_details as { photos?: number } | null | undefined)?.photos) || 0;
+  async function saveExtras(ids: string[], extra: boolean, cents: number | null, ok: string) {
+    const { data, error } = await api.photos.setExtras(b!.id, ids, extra, cents);
+    if (error) { toast(error.message || 'Could not save it.', 'error'); return; }
+    const set = new Set(ids);
+    setB({ ...b!, extra_photo_cents: data?.price_cents ?? cents });
+    setPhotos((cur) => cur.map((x) => (x.unlocked_at ? x : cents === null ? { ...x, extra: false } : set.has(x.id) ? { ...x, extra } : x)));
+    if (ok) toast(ok, 'success');
+  }
+  async function savePrice() {
+    const cents = priceToCents(price);
+    if (cents === null) { setPriceError('Choose a price from €1 to €100 per photo.'); return; }
+    setPriceError(null);
+    await saveExtras([], false, cents, unit ? 'Price saved ✓' : 'Selling is on ✓ — now tap 🔓 on the photos to sell.');
+  }
+  async function stopSelling() {
+    if (!(await confirmAsync('Stop selling?', `The extra photos become part of ${who}'s gallery for free.`, 'Stop selling', true))) return;
+    await saveExtras(photos.filter((p) => p.extra && !p.unlocked_at).map((p) => p.id), false, null, 'Selling stopped — all photos are included.');
+  }
+  function toggleExtra(p: BookingPhoto) {
+    if (!unit) { setPriceError('Set a price per photo first.'); return; }
+    saveExtras([p.id], !p.extra, unit, '');
+  }
+
   async function remove(p: BookingPhoto) {
     if (!(await confirmAsync('Remove this photo?', 'The client will no longer see it.', 'Remove', true))) return;
     const err = await api.photos.remove(p);
@@ -128,6 +160,22 @@ export default function PhotosScreen() {
         <TText style={s.dropSub}>From your library · up to {MAX_BOOKING_PHOTOS}</TText>
       </Pressable>
       {progress && <View style={s.bar}><View style={[s.barFill, { width: `${Math.round((progress.done / progress.total) * 100)}%` }]} /></View>}
+      {canSell && photos.length > 0 ? (
+        <Card style={{ marginTop: space.lg }} testID="sell-box">
+          <Txt v="h3">💶 Sell extra photos</Txt>
+          <Txt v="small" style={{ marginTop: 2 }}>{`Upload more than the package includes and ${who} can buy the extras in the gallery — they see a small preview until they buy. You get the full price per photo, paid out right away.`}</Txt>
+          <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start', marginTop: space.md }}>
+            <Field testID="sell-price" label="Price per photo (€)" value={price} onChangeText={(v) => { setPrice(v); setPriceError(null); }} keyboardType="decimal-pad" placeholder="5" maxLength={6} error={priceError} style={{ flex: 1, marginBottom: 0 }} />
+            <Button testID="sell-save" title={unit ? 'Update' : 'Start selling'} small kind="secondary" onPress={savePrice} style={{ marginTop: 26 }} />
+          </View>
+          {(() => { const c = saleCounts(photos, unit); return <Txt v="small" testID="sell-sum" style={{ marginTop: space.sm }}>{`${promised ? `Package: ${promised} photos · ` : ''}${c.included} included · ${c.extra} for sale${c.bought ? ` · ${c.bought} bought` : ''}`}</Txt>; })()}
+          {unit && beyondPromised(photos, promised).length ? (
+            <Button testID="sell-beyond" title={`🔒 Sell the ${beyondPromised(photos, promised).length} beyond the ${promised} promised`} kind="ghost" small
+              onPress={() => { const ids = beyondPromised(photos, promised).map((p) => p.id); saveExtras(ids, true, unit, `${ids.length} photo${ids.length > 1 ? 's' : ''} for sale ✓`); }} style={{ alignSelf: 'flex-start', paddingHorizontal: 0 }} />
+          ) : null}
+          {unit ? <Button testID="sell-stop" title="Stop selling" kind="ghost" small onPress={stopSelling} style={{ alignSelf: 'flex-start', paddingHorizontal: 0 }} /> : null}
+        </Card>
+      ) : null}
       <Txt v="h3" style={{ marginTop: space.lg }} testID="photos-count">{photos.length ? `${photos.length} photo${photos.length > 1 ? 's' : ''}` : 'No photos yet'}</Txt>
     </View>
   );
@@ -171,7 +219,14 @@ export default function PhotosScreen() {
               {thumbs[item.path] ? <Image source={{ uri: thumbs[item.path] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} recyclingKey={item.id} accessibilityIgnoresInvertColors /> : null}
             </Pressable>
             {item.favorite ? <View style={s.fav}><Text style={s.favText}>♥</Text></View> : null}
-            {removable && (
+            {item.unlocked_at ? <View style={[s.lock, s.bought]}><TText style={s.lockText}>💶 Bought</TText></View>
+              : canSell && unit ? (
+                <Pressable testID={`photo-lock-${index}`} onPress={() => toggleExtra(item)} style={[s.lock, item.extra && s.lockOn]} accessibilityRole="button" accessibilityState={{ selected: !!item.extra }}
+                  accessibilityLabel={trx(item.extra ? `Photo ${index + 1} is for sale — make it included` : `Sell photo ${index + 1} as an extra`)}>
+                  <TText style={[s.lockText, !item.extra && { color: color.text }]}>{item.extra ? `🔒 ${euroCents(unit)}` : '🔓'}</TText>
+                </Pressable>
+              ) : null}
+            {removable && !item.unlocked_at && (
               <Pressable testID={`photo-del-${index}`} onPress={() => remove(item)} hitSlop={6} style={s.del} accessibilityRole="button" accessibilityLabel={trx(`Remove photo ${index + 1}`)}>
                 <Ionicons name="close" size={16} color={color.text} />
               </Pressable>
@@ -194,4 +249,8 @@ const s = StyleSheet.create({
   del: { position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,251,245,0.94)', alignItems: 'center', justifyContent: 'center' },
   fav: { position: 'absolute', top: 6, left: 6, backgroundColor: color.err, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
   favText: { color: '#fff', fontSize: 11, fontFamily: font.bold },
+  lock: { position: 'absolute', left: 6, bottom: 6, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(255,251,245,0.94)' },
+  lockOn: { backgroundColor: color.ink },
+  bought: { backgroundColor: color.ok },
+  lockText: { fontFamily: font.bold, fontSize: 11, color: '#FFFBF5' },
 });

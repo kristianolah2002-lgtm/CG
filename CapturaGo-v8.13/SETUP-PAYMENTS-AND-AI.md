@@ -577,6 +577,41 @@ To remove an abusive reply as admin: admin panel → **Reviews** → **Remove re
   plan/photos screen titles and a few texts are now translated; in the app's web version, typing right after picking from
   a list (e.g. a country) works.
 
+## Part 24 — Sell extra photos, creator pages for Google, "finish your booking" email, app v1.7 (15 min) — v8.18
+**What's new:**
+- 💶 **Extra photos for sale:** in the photo manager (website and app) a creator sets a price per photo (€1–€100) and
+  marks photos as extras (one tap: "sell the photos beyond the N the package promised" — at least that many always stay
+  included). The traveller sees a small preview with 🔒 €5 in their gallery and buys some or all (price + your usual
+  service fee). The full-size files stay locked in storage until bought — not only hidden on the page. The creator is
+  paid the moment the purchase goes through; both get an email (the creator also a push). Friends' share links don't
+  show unsold extras. Extra-photo sales are in the DAC7 tax report (quarter they were paid).
+- 🔎 **Creator pages:** `tools/build_creator_pages.py` writes a real page for every creator with a link name —
+  `/p/<name>` for Google (title, description, photo, stars, prices, reviews; in sitemap.xml) and `/c/<name>`, the link
+  creators share (same page with a rich WhatsApp/Instagram preview; "noindex"; keeps the lower link fee). Booking from
+  `/p/` uses the normal fee, so search traffic doesn't get the creator-link discount.
+- 📩 **"Finish your booking" email:** when a checkout is left unpaid, the traveller gets one friendly email ~2–3 hours
+  later (nothing was charged, the day is still free / other free days, one tap back). Only if they get tips &
+  reminders, once a week at most, never if they booked anyway.
+
+1. **Database:** run the whole `database.sql` again (safe to re-run).
+2. **New function `buy-photos`:** Edge Functions → Deploy a new function → name `buy-photos` → paste
+   `supabase/functions/buy-photos/index.ts` → **Verify JWT: ON**.
+3. **Re-deploy** `stripe-webhook`, `shared-gallery` and `scheduled-jobs` (keep their Verify JWT settings). Other
+   `index.ts` files were rebuilt too (shared code) but work as before. No new Stripe webhook events are needed
+   (it uses `checkout.session.completed` and `checkout.session.expired`, which you already send).
+4. **Creator pages — before every website upload** (needs internet; reads only public data):
+   `python3 tools/build_creator_pages.py` → then deploy the whole website folder. New creators get their page the next
+   time you run it (until then their `/c/<name>` link works as before). If your site deploys from GitHub, add it as the
+   build command in Netlify: `python3 tools/build_creator_pages.py`.
+5. **Google:** in Google Search Console, submit `https://capturago.com/sitemap.xml` once.
+6. **App 1.7.0:** no new native modules — build and submit as usual.
+
+**Test (test mode):** as a creator with a completed test booking whose package promises e.g. 2 photos, upload 4 →
+💶 Sell extra photos → price 5 → "Sell the 2 beyond the 2 promised". As the traveller: open the gallery → 2 previews
+with 🔒 €5.00 → Buy all → Stripe test card 4242… → back in the gallery the photos unlock within a few seconds →
+download them. The creator gets "💶 … bought 2 extra photos" and the Stripe dashboard shows the transfer. Abandoned
+checkout: start a booking, close the Stripe page, wait 2–3 hours → "Your booking with … isn't finished".
+
 ## Going live (only when the site is ready AND these are done)
 1. **Register your business** (živnosť or s.r.o.). Stripe needs real business details to pay you.
 2. Stripe → switch Test mode OFF → **Activate account** → enter business and bank details.

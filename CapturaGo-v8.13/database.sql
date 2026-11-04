@@ -3677,7 +3677,13 @@ BEGIN
            extract(quarter FROM b.completed_at AT TIME ZONE 'UTC')::INT AS q, b.price_cents, b.creator_fee_cents
     FROM bookings b
     WHERE b.status = 'completed' AND b.completed_at >= f AND b.completed_at < f + INTERVAL '1 year'
-      AND (b.creator_user_id IS NOT NULL OR b.creator_stripe_account_id IS NOT NULL)),
+      AND (b.creator_user_id IS NOT NULL OR b.creator_stripe_account_id IS NOT NULL)
+    UNION ALL   -- extra photos bought from a gallery (PART 24): paid out to the creator when bought
+    SELECT coalesce(o.creator_user_id::TEXT, 'acct:' || o.creator_stripe_account_id), o.creator_user_id, o.creator_stripe_account_id, o.photographer_id,
+           extract(quarter FROM o.paid_at AT TIME ZONE 'UTC')::INT, o.price_cents, o.creator_fee_cents
+    FROM photo_orders o
+    WHERE o.status = 'paid' AND o.paid_at >= f AND o.paid_at < f + INTERVAL '1 year'
+      AND (o.creator_user_id IS NOT NULL OR o.creator_stripe_account_id IS NOT NULL)),
   per AS (
     SELECT seller, max(creator_user_id::TEXT)::UUID AS user_id, max(creator_stripe_account_id) AS stripe_account_id, max(photographer_id::TEXT)::UUID AS photographer_id,
       jsonb_build_array(
@@ -3809,6 +3815,122 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION reply_to_review(UUID, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION reply_to_review(UUID, TEXT) TO authenticated;
+
+-- ================================================================
+-- PART 24 — Extra photos for sale in the gallery. The creator marks
+-- photos beyond what the package promised as "extra" and sets a price
+-- per photo; the traveller sees a small preview and can buy any of them
+-- (price + the usual service fee). Until bought, the full-size file of an
+-- extra photo can't be opened — the storage rule below checks it. The
+-- creator is paid as soon as the purchase goes through. Re-runnable.
+-- ================================================================
+ALTER TABLE booking_photos ADD COLUMN IF NOT EXISTS extra       BOOLEAN NOT NULL DEFAULT FALSE;   -- for sale
+ALTER TABLE booking_photos ADD COLUMN IF NOT EXISTS unlocked_at TIMESTAMPTZ;                       -- bought
+ALTER TABLE bookings       ADD COLUMN IF NOT EXISTS extra_photo_cents INTEGER;                       -- price per extra photo
+ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_extra_photo_price;
+ALTER TABLE bookings ADD  CONSTRAINT bookings_extra_photo_price CHECK (extra_photo_cents IS NULL OR extra_photo_cents BETWEEN 100 AND 10000);
+
+CREATE TABLE IF NOT EXISTS photo_orders (
+  id                         UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id                 UUID        REFERENCES bookings(id) ON DELETE SET NULL,
+  photographer_id            UUID        REFERENCES photographers(id) ON DELETE SET NULL,
+  client_user_id             UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  creator_user_id            UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  creator_stripe_account_id  TEXT,
+  photo_ids                  UUID[]      NOT NULL CHECK (cardinality(photo_ids) BETWEEN 1 AND 300),
+  unit_cents                 INTEGER     NOT NULL CHECK (unit_cents BETWEEN 100 AND 10000),
+  price_cents                INTEGER     NOT NULL CHECK (price_cents > 0),
+  fee_cents                  INTEGER     NOT NULL DEFAULT 0 CHECK (fee_cents >= 0),
+  creator_fee_cents          INTEGER     NOT NULL DEFAULT 0 CHECK (creator_fee_cents >= 0),
+  total_cents                INTEGER     NOT NULL CHECK (total_cents = price_cents + fee_cents),
+  status                     TEXT        NOT NULL DEFAULT 'pending_payment' CHECK (status IN ('pending_payment', 'paid', 'expired', 'refunded')),
+  stripe_checkout_session_id TEXT,
+  stripe_payment_intent_id   TEXT,
+  stripe_transfer_id         TEXT,
+  created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  paid_at                    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_photo_orders_booking ON photo_orders (booking_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_photo_orders_paid    ON photo_orders (paid_at) WHERE status = 'paid';
+ALTER TABLE photo_orders ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON photo_orders FROM anon, authenticated;
+GRANT SELECT ON photo_orders TO authenticated;   -- the two people of the booking see its orders; only the server writes
+DROP POLICY IF EXISTS "parties_read_photo_orders" ON photo_orders;
+CREATE POLICY "parties_read_photo_orders" ON photo_orders FOR SELECT
+  USING (auth.uid() IS NOT NULL AND (client_user_id = auth.uid() OR creator_user_id = auth.uid()));
+
+-- Is this file of a booking's gallery open to the person asking? The creator sees everything; the traveller sees
+-- everything except the full-size file of an extra photo that isn't bought yet (its small preview t_<file> is fine).
+-- Selling stops (price removed) → the extra photos are simply part of the gallery.
+CREATE OR REPLACE FUNCTION delivery_visible(p_name TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE bid UUID := uuid_or_null(split_part(coalesce(p_name, ''), '/', 1)); role TEXT;
+BEGIN
+  role := booking_role(bid);
+  IF role IS NULL THEN RETURN FALSE; END IF;
+  IF role = 'creator' THEN RETURN TRUE; END IF;
+  RETURN NOT EXISTS (SELECT 1 FROM booking_photos ph JOIN bookings b ON b.id = ph.booking_id
+                      WHERE ph.path = p_name AND ph.extra AND ph.unlocked_at IS NULL AND b.extra_photo_cents IS NOT NULL);
+END $$;
+REVOKE ALL ON FUNCTION delivery_visible(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION delivery_visible(TEXT) TO authenticated;
+DROP POLICY IF EXISTS "deliveries_read" ON storage.objects;
+CREATE POLICY "deliveries_read" ON storage.objects FOR SELECT
+  USING (bucket_id = 'deliveries' AND delivery_visible(name));
+
+-- The creator: which photos are extra, and the price per photo (NULL price = not selling; extras then open for free).
+-- At least as many photos as the package promised always stay free; bought photos stay unlocked.
+CREATE OR REPLACE FUNCTION set_photo_extras(p_booking UUID, p_ids UUID[], p_extra BOOLEAN, p_price_cents INTEGER)
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE me UUID := auth.uid(); b bookings; promised INTEGER; free_after INTEGER;
+BEGIN
+  IF me IS NULL THEN RAISE EXCEPTION 'Please sign in.' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO b FROM bookings WHERE id = p_booking FOR UPDATE;
+  IF b.id IS NULL OR b.creator_user_id IS DISTINCT FROM me THEN RAISE EXCEPTION 'Booking not found.' USING ERRCODE = 'P0001'; END IF;
+  IF b.status NOT IN ('confirmed', 'delivered', 'completed') THEN RAISE EXCEPTION 'Extra photos can be offered once the booking is confirmed.' USING ERRCODE = 'P0001'; END IF;
+  IF p_price_cents IS NOT NULL AND (p_price_cents < 100 OR p_price_cents > 10000) THEN
+    RAISE EXCEPTION 'Choose a price from €1 to €100 per photo.' USING ERRCODE = 'P0001';
+  END IF;
+  IF p_extra AND p_price_cents IS NULL THEN RAISE EXCEPTION 'Set a price per photo first.' USING ERRCODE = 'P0001'; END IF;
+  IF p_ids IS NOT NULL AND cardinality(p_ids) > 0 THEN
+    UPDATE booking_photos SET extra = coalesce(p_extra, extra)
+     WHERE booking_id = b.id AND id = ANY(p_ids) AND unlocked_at IS NULL;   -- bought photos stay as they are
+  END IF;
+  promised := coalesce(NULLIF(b.package_details->>'photos', '')::INTEGER, 0);
+  SELECT count(*) INTO free_after FROM booking_photos WHERE booking_id = b.id AND (NOT extra OR unlocked_at IS NOT NULL);
+  IF EXISTS (SELECT 1 FROM booking_photos WHERE booking_id = b.id AND extra AND unlocked_at IS NULL) AND free_after < promised THEN
+    RAISE EXCEPTION 'Your package promises % photos — at least that many must stay included. Upload more photos, or mark fewer as extra.', promised USING ERRCODE = 'P0001';
+  END IF;
+  UPDATE bookings SET extra_photo_cents = p_price_cents WHERE id = b.id;
+  RETURN jsonb_build_object('price_cents', p_price_cents,
+    'extra', (SELECT count(*) FROM booking_photos WHERE booking_id = b.id AND extra AND unlocked_at IS NULL),
+    'included', free_after, 'promised', promised);
+END $$;
+REVOKE ALL ON FUNCTION set_photo_extras(UUID, UUID[], BOOLEAN, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION set_photo_extras(UUID, UUID[], BOOLEAN, INTEGER) TO authenticated;
+
+-- A photo the traveller bought can't be deleted any more (neither its row nor its files)
+DROP POLICY IF EXISTS "creator_remove_photos" ON booking_photos;
+CREATE POLICY "creator_remove_photos" ON booking_photos FOR DELETE
+  USING (booking_role(booking_id) = 'creator' AND booking_photos_removable(booking_id) AND unlocked_at IS NULL);
+CREATE OR REPLACE FUNCTION delivery_file_bought(p_name TEXT)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM booking_photos
+                  WHERE unlocked_at IS NOT NULL
+                    AND (path = p_name OR path = split_part(p_name, '/', 1) || '/' || regexp_replace(split_part(p_name, '/', 2), '^t_', '')));
+$$;
+REVOKE ALL ON FUNCTION delivery_file_bought(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION delivery_file_bought(TEXT) TO authenticated;
+DROP POLICY IF EXISTS "deliveries_delete" ON storage.objects;
+CREATE POLICY "deliveries_delete" ON storage.objects FOR DELETE
+  USING (bucket_id = 'deliveries'
+         AND booking_role(uuid_or_null((storage.foldername(name))[1])) = 'creator'
+         AND booking_photos_removable(uuid_or_null((storage.foldername(name))[1]))
+         AND NOT delivery_file_bought(name));
+
+-- The gallery reads these columns too (bookings are readable column by column)
+GRANT SELECT (extra, unlocked_at) ON booking_photos TO authenticated;
+GRANT SELECT (extra_photo_cents) ON bookings TO authenticated;
 
 -- ================================================================
 -- Done. You should see "Success. No rows returned."
