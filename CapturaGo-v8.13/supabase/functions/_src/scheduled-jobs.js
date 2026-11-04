@@ -73,6 +73,13 @@ async function runJobs(ctx, deps) {
   const moveLink = (b) => `${ctx.siteUrl}/dashboard.html?move=${b.id}#bookings`;
   const canMove = (b) => b.booking_type !== 'delivery' && ['paid', 'confirmed'].includes(b.status) && !b.proposed_date && (Number(b.reschedules) || 0) < 3;
   const shootCoords = (b) => (b.shoot_city ? b.shoot_coords : (b.photographers && b.photographers.coords)) || null;   // a trip: the trip city
+  /** Sunrise / sunset for an in-person shoot (same forecast request, cached) — or null. */
+  async function sunFor(b) {
+    if (b.booking_type === 'delivery') return null;
+    const w = await rainForecast(ctx, deps, shootCoords(b), b.shoot_date);
+    return w && w.sunrise && w.sunset ? w : null;
+  }
+  const sunHtml = (w, b, l) => { const t = w ? sunText(w, b.time_slot, l) : ''; return t ? `<p>${escHtml(t)}</p>` : ''; };
   async function heavyRainFor(b) {
     if (!canMove(b)) return null;
     const w = await rainForecast(ctx, deps, shootCoords(b), b.shoot_date);
@@ -184,12 +191,13 @@ async function runJobs(ctx, deps) {
     if (b.notices && b.notices.reminder) continue;
     try {
       const rain = b.booking_type === 'delivery' ? null : await heavyRainFor(b);
+      const sun = await sunFor(b);
       if (rain) summary.rain_warnings++;
       if (b.booking_type === 'delivery') {
         await mailCreator(b, (l) => [L(l, 'Due tomorrow: {pkg}', { pkg: b.package_name }), L(l, 'Delivery for {pkg} is due tomorrow ({date}). Deliver the files from your dashboard.', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })]);
       } else {
-        await mailClient(b, (l) => [rain ? L(l, 'Your shoot is tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Your shoot is tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Just a reminder — your shoot {pkg} is tomorrow ({date}).', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${planHtml(b, false, l) || `<p>${L(l, 'Your creator hasn\'t shared a meeting point yet — message them on CapturaGo.')}`}<p>${L(l, 'Enjoy it!')}`]);
-        await mailCreator(b, (l) => [rain ? L(l, 'Shoot tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Shoot tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Reminder: you\'re shooting {pkg} with {name} tomorrow ({date}).', { pkg: pkgOf(b), name: escHtml(b.client_name), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${planHtml(b, true, l) || `<p>${L(l, 'Tip: share a meeting point and time from your bookings so the traveller knows where to go.')}`}<p>`]);
+        await mailClient(b, (l) => [rain ? L(l, 'Your shoot is tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Your shoot is tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Just a reminder — your shoot {pkg} is tomorrow ({date}).', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${sunHtml(sun, b, l)}${planHtml(b, false, l) || `<p>${L(l, 'Your creator hasn\'t shared a meeting point yet — message them on CapturaGo.')}`}<p>${L(l, 'Enjoy it!')}`]);
+        await mailCreator(b, (l) => [rain ? L(l, 'Shoot tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Shoot tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Reminder: you\'re shooting {pkg} with {name} tomorrow ({date}).', { pkg: pkgOf(b), name: escHtml(b.client_name), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${sunHtml(sun, b, l)}${planHtml(b, true, l) || `<p>${L(l, 'Tip: share a meeting point and time from your bookings so the traveller knows where to go.')}`}<p>`]);
       }
       await mark(b, 'reminder');
       summary.reminders++;

@@ -1,6 +1,9 @@
 # Text built by the scripts (numbers, names, dates inside). (regex, de, es, fr)
 # $1… = the matched part as it is; {1}… = the matched part, translated too.
 P = [
+  # specific patterns first (the first match wins)
+  (r"For the best light, meet at (\d\d:\d\d)\.", "Für das beste Licht trefft euch um $1.", "Para la mejor luz, quedad a las $1.", "Pour la meilleure lumière, retrouvez-vous à $1."),
+  (r"Book (.+?) again", "$1 erneut buchen", "Reservar de nuevo con $1", "Réserver $1 à nouveau"),
   (r"Message (\p{Lu}[\p{L}.'’ -]{0,40})", "$1 schreiben", "Escribir a $1", "Écrire à $1"),
   (r"Watch (.+?)’s intro", "Vorstellung von $1 ansehen", "Ver la presentación de $1", "Voir la présentation de $1"),
   (r"Your payment is held by CapturaGo and only released to (.+?) after your shoot — or, for remote work, once you approve the delivery\.", "Deine Zahlung wird von CapturaGo verwahrt und erst nach dem Shooting an $1 ausgezahlt — bei Online-Aufträgen, sobald du die Lieferung freigibst.", "CapturaGo guarda tu pago y solo se lo entrega a $1 después de la sesión o, en trabajos en remoto, cuando apruebes la entrega.", "Ton paiement est conservé par CapturaGo et versé à $1 seulement après le shooting — ou, pour le travail à distance, quand tu valides la livraison."),
@@ -284,4 +287,8 @@ P = [
   (r"Thank (.+?) — and if something went wrong, explain briefly and politely\.", "Bedanke dich bei $1 — und wenn etwas schiefging, erkläre es kurz und höflich.", "Da las gracias a $1 y, si algo salió mal, explícalo breve y amablemente.", "Remercie $1 — et si quelque chose s'est mal passé, explique-le brièvement et poliment."),
   (r"Public, under the review on your profile\. (.+?) gets an email once\.", "Öffentlich, unter der Bewertung auf deinem Profil. $1 bekommt einmal eine E-Mail.", "Pública, bajo la reseña en tu perfil. $1 recibe un correo una vez.", "Publique, sous l'avis sur ton profil. $1 reçoit un e-mail une fois."),
   (r"Your reply \((\d+)/1000\)", "Deine Antwort ($1/1000)", "Tu respuesta ($1/1000)", "Ta réponse ($1/1000)"),
+  # light on the shoot day
+  (r"Sunrise (\d\d:\d\d) · golden light until (\d\d:\d\d)", "Sonnenaufgang $1 · goldenes Licht bis $2", "Amanecer $1 · luz dorada hasta las $2", "Lever du soleil $1 · lumière dorée jusqu'à $2"),
+  (r"Golden hour (\d\d:\d\d)–(\d\d:\d\d) · sunset (\d\d:\d\d)", "Goldene Stunde $1–$2 · Sonnenuntergang $3", "Hora dorada $1–$2 · puesta de sol $3", "Heure dorée $1–$2 · coucher du soleil $3"),
+  (r"Sunrise (\d\d:\d\d) · 🌇 Sunset (\d\d:\d\d) \(golden hour from (\d\d:\d\d)\)", "Sonnenaufgang $1 · 🌇 Sonnenuntergang $2 (goldene Stunde ab $3)", "Amanecer $1 · 🌇 Puesta de sol $2 (hora dorada desde las $3)", "Lever du soleil $1 · 🌇 Coucher du soleil $2 (heure dorée dès $3)"),
 ]

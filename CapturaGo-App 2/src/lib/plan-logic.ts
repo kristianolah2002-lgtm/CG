@@ -71,7 +71,7 @@ export function disputeReasons(b: Booking, now = Date.now()): [('photos_late' | 
 export const disputeProblem = (reason: string, msg: string) => (reason !== 'no_show' && reason !== 'photos_late' && msg.trim().length < 10 ? 'Please describe the problem in a sentence or two.' : '');
 
 /* ── weather (Open-Meteo, free, no key) ── */
-export interface Forecast { icon: string; text: string; max: number; min: number; rain: number | null; bad: boolean }
+export interface Forecast { icon: string; text: string; max: number; min: number; rain: number | null; bad: boolean; sunrise?: string | null; sunset?: string | null }
 const WEATHER: [number, string, string][] = [[0, '☀️', 'Clear'], [1, '🌤️', 'Mostly clear'], [2, '⛅', 'Partly cloudy'], [3, '☁️', 'Cloudy'], [45, '🌫️', 'Fog'], [48, '🌫️', 'Fog'],
   [51, '🌦️', 'Drizzle'], [53, '🌦️', 'Drizzle'], [55, '🌦️', 'Drizzle'], [56, '🌧️', 'Freezing drizzle'], [57, '🌧️', 'Freezing drizzle'],
   [61, '🌧️', 'Rain'], [63, '🌧️', 'Rain'], [65, '🌧️', 'Heavy rain'], [66, '🌧️', 'Freezing rain'], [67, '🌧️', 'Freezing rain'],
@@ -83,7 +83,7 @@ export function forecastUrl(coords: { lat: number; lon: number } | null | undefi
   if (!coords || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || !isIsoDate(iso)) return null;
   const d = daysUntil(iso, now);
   if (d < 0 || d > 15) return null;
-  return `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${iso}&end_date=${iso}`;
+  return `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone=auto&start_date=${iso}&end_date=${iso}`;
 }
 export function parseForecast(j: unknown): Forecast | null {
   const d = (j as { daily?: Record<string, unknown[]> } | null)?.daily;
@@ -94,7 +94,40 @@ export function parseForecast(j: unknown): Forecast | null {
   const w = WEATHER.find(([c]) => c === code) ?? [code, '🌡️', 'Forecast'];
   const rainRaw = d.precipitation_probability_max?.[0];
   const rain = rainRaw === null || rainRaw === undefined || !Number.isFinite(Number(rainRaw)) ? null : Number(rainRaw);
-  return { icon: w[1], text: w[2], max: Math.round(max), min: Math.round(min), rain, bad: code >= 61 || (rain !== null && rain >= 70) };
+  return { icon: w[1], text: w[2], max: Math.round(max), min: Math.round(min), rain, bad: code >= 61 || (rain !== null && rain >= 70),
+    sunrise: hhmm(d.sunrise?.[0]), sunset: hhmm(d.sunset?.[0]) };
+}
+
+/* ── light on the shoot day: sunrise, sunset, golden hour (the same rules on the website and in the reminder email).
+   Times are the shoot city's own local time (Open-Meteo, timezone=auto). Golden hour = the hour after sunrise and the
+   hour before sunset. No line near the poles, where the sun doesn't rise or set. */
+/** "2026-11-06T06:58" → "06:58" (null for anything else). */
+export function hhmm(v: unknown): string | null {
+  const m = String(v ?? '').match(/(?:^|T)([01]\d|2[0-3]):([0-5]\d)(?::\d\d)?$/);
+  return m ? `${m[1]}:${m[2]}` : null;
+}
+/** "15:31" + n minutes, kept inside the same day. */
+export function addMinutes(t: string, n: number): string {
+  const [h, m] = t.split(':').map(Number);
+  const x = Math.min(23 * 60 + 59, Math.max(0, h * 60 + m + n));
+  return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`;
+}
+const EVENING = ['golden_hour', 'evening'];
+/** One line about the light, fitted to the booked time of day. */
+export function sunLine(w: Pick<Forecast, 'sunrise' | 'sunset'> | null | undefined, slot?: string | null): string {
+  const sr = w?.sunrise ?? null, ss = w?.sunset ?? null;
+  if (!sr || !ss || sr >= ss) return '';
+  if (slot === 'sunrise') return `🌅 Sunrise ${sr} · golden light until ${addMinutes(sr, 60)}`;
+  if (EVENING.includes(String(slot))) return `🌇 Golden hour ${addMinutes(ss, -60)}–${ss} · sunset ${ss}`;
+  return `🌅 Sunrise ${sr} · 🌇 Sunset ${ss} (golden hour from ${addMinutes(ss, -60)})`;
+}
+/** For the creator: a meeting time that catches the best light (only for sunrise / golden-hour / evening shoots). */
+export function bestMeetTime(w: Pick<Forecast, 'sunrise' | 'sunset'> | null | undefined, slot?: string | null): string | null {
+  const sr = w?.sunrise ?? null, ss = w?.sunset ?? null;
+  if (!sr || !ss || sr >= ss) return null;
+  if (slot === 'sunrise') return addMinutes(sr, -20);        // set up before the light
+  if (EVENING.includes(String(slot))) return addMinutes(ss, -75);   // 15 minutes before golden hour starts
+  return null;
 }
 export const forecastLine = (w: Forecast) => `${w.icon} ${w.text} · ${w.min}–${w.max}°C${w.rain !== null ? ` · ${w.rain}% chance of rain` : ''}`;
 /** Offer "Propose a new date" under a bad forecast (not on the shoot day itself). */

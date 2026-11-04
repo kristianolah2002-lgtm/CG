@@ -162,7 +162,7 @@ export default function PlanScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: color.canvas }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Stack.Screen options={{ title: TITLES[mode] }} />
+      <Stack.Screen options={{ title: trx(TITLES[mode]) }} />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: 64 }} keyboardShouldPersistTaps="handled" testID={`plan-${mode}`}>
         {body}
       </ScrollView>

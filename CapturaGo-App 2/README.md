@@ -105,7 +105,9 @@ All three use your **real database** — what you do there is real (no payments 
 Change the code → raise `"version"` in `app.json` (1.6.0 → 1.6.1) → run the production builds again → submit.
 
 > **Version 1.6.0** (↩ **answer your reviews** — on your own profile, every review gets a ↩ Reply button; edit or
-> remove it any time; travellers see "↩ Reply from …" under the review; a notification for every new review) adds no
+> remove it any time; travellers see "↩ Reply from …" under the review; a notification for every new review · 🌅 sunrise,
+> sunset and golden hour in the shoot plan, with a meeting-time tip for creators · 📅 "Book … again" on completed
+> bookings · more translated screens) adds no
 > new native modules. Do the website's SETUP-PAYMENTS-AND-AI.md **Part 23** first, then build and submit as usual.
 > **Version 1.5.0** (🔔 **push notifications** — new bookings and booking news, "Notify me" alerts, "New message from
 > …"; off under Account → Notifications on this phone · ⚡ **Last-minute deals** screen with 🎲 Surprise me and your

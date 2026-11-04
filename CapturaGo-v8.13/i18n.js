@@ -143,7 +143,7 @@
     if (t !== v) n.nodeValue = t;
     done.set(n, t);
   }
-  const ATTRS = ['placeholder', 'aria-label', 'title', 'alt'];
+  const ATTRS = ['placeholder', 'aria-label', 'title', 'alt', 'data-label'];   // data-label: table column names shown on phones
   const doneAttr = new WeakMap();
   const SKIP_ATTR = 'script,style,[translate="no"],[contenteditable="true"],.notranslate';   // a text box's own placeholder is translated
   function doAttrs(el) {

@@ -1552,6 +1552,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!asCreator && b.status === 'completed' && b.photographer_id) {
         if (reviewedSet.has(b.id)) extraBtns.push(['', '✓ Reviewed', 'reviewed-tag']);
         else extraBtns.push(['review', '⭐ Leave a review', 'secondary-btn']);
+        // Book the same creator again (their profile shows today's packages, prices and free days)
+        if (b.photographers) extraBtns.push(['again', `📅 Book ${String(b.photographers.name || '').split(' ')[0] || 'them'} again`, 'secondary-btn']);
         extraBtns.push(['next', '🧭 Where to next?', 'secondary-btn']);
       }
       if (canPlan(b)) {
@@ -1604,6 +1606,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       else if (btn.dataset.x === 'meeting') openMeeting(b);
       else if (btn.dataset.x === 'brief') openBrief(b);
       else if (btn.dataset.x === 'next') location.href = '/#tripPlanner';
+      else if (btn.dataset.x === 'again') location.href = `/?creator=${encodeURIComponent(b.photographer_id)}`;
       else if (btn.dataset.x === 'shares') openShares(b);
     }));
     if (pendingReview) {
@@ -1751,6 +1754,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const b = bookingMap.get(el.dataset.id);
       const offer = w.bad && b && canPlan(b) && daysUntil(b.shoot_date) >= 1 && !b.proposed_date && (b.reschedules || 0) < 3;
       el.innerHTML = `<span>${w.icon} <strong>${esc(w.text)}</strong> · ${w.min}–${w.max}°C${w.rain != null ? ` · ${w.rain}% chance of rain` : ''}</span>`
+        + (sunLine(w, b && b.time_slot) ? `<span class="bk-sun">${esc(sunLine(w, b.time_slot))}</span>` : '')
+        + (b && b.creator_user_id === user.id && !b.meeting_time && bestMeetTime(w, b.time_slot) ? `<span class="bk-sun-tip">💡 For the best light, meet at ${esc(bestMeetTime(w, b.time_slot))}.</span>` : '')
         + (offer ? `<span class="bk-wx-tip">Bad weather? <button class="link-btn bk-wx-move" data-id="${esc(el.dataset.id)}">Propose a new date</button> — free, if you both agree.</span>` : '');
       el.classList.toggle('bad', !!w.bad);
       el.querySelector('.bk-wx-move')?.addEventListener('click', () => { const bk = bookingMap.get(el.dataset.id); if (bk) openReschedule(bk, true); });

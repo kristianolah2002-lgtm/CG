@@ -7,7 +7,7 @@ import { color, font, radius, space } from '../theme';
 import { Button, Txt, TText } from './ui';
 import { api } from '../lib/api';
 import { daysUntil, httpsUrl, type Booking } from '../lib/logic';
-import { canPlan, forecastLine, isoNice, mapsLink, offerWeatherMove, otherName, planTitle, proposalOf, type Forecast } from '../lib/plan-logic';
+import { bestMeetTime, canPlan, forecastLine, isoNice, mapsLink, offerWeatherMove, otherName, planTitle, proposalOf, sunLine, type Forecast } from '../lib/plan-logic';
 import { tr as trx } from '../lib/i18n';
 
 export function ProposalBox({ b, userId, asCreator, busy, onAnswer }: {
@@ -80,6 +80,10 @@ export function PlanBox({ b, userId, asCreator, onWeatherMove }: { b: Booking; u
       {w ? (
         <View style={[s.wx, w.bad && s.wxBad]} testID={`plan-weather-${b.id}`}>
           <Txt v="body" style={{ fontFamily: font.bold }}>{forecastLine(w)}</Txt>
+          {sunLine(w, b.time_slot) ? <Txt v="small" testID={`plan-sun-${b.id}`} style={{ marginTop: 2, color: color.text }}>{sunLine(w, b.time_slot)}</Txt> : null}
+          {asCreator && !b.meeting_time && bestMeetTime(w, b.time_slot) ? (
+            <Txt v="small" testID={`plan-meet-tip-${b.id}`} style={{ marginTop: 2 }}>{`💡 For the best light, meet at ${bestMeetTime(w, b.time_slot)}.`}</Txt>
+          ) : null}
           {offerWeatherMove(b, userId, w) ? (
             <Txt v="small" style={{ marginTop: 2 }}>
               {trx('Bad weather?')} <Text testID={`wx-move-${b.id}`} style={[s.link, { fontSize: 13 }]} onPress={onWeatherMove} accessibilityRole="button">{trx('Propose a new date')}</Text>{trx(' — free, if you both agree.')}

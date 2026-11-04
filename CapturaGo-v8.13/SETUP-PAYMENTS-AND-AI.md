@@ -556,15 +556,26 @@ tells the traveller **once** when the creator replied (10 minutes after the last
 Reviews older than 2 days when you run this part don't trigger an email.
 
 1. **Database:** run the whole `database.sql` again (safe to re-run).
-2. **Re-deploy `scheduled-jobs`** (keep its settings). Other `index.ts` files were rebuilt too (shared texts) but work
-   as before.
+2. **Re-deploy `scheduled-jobs` and `admin`** (keep their settings). Other `index.ts` files were rebuilt too (shared
+   texts) but work as before.
 3. **Website:** deploy the whole folder. Terms (section 7) and Privacy Policy mention replies.
 4. **App:** version 1.6.0 adds no native modules — build and submit as usual (or publish an update).
 
 **Test:** as a traveller, review a completed test booking → within the hour the creator gets "⭐ New review from …" →
 Dashboard → Reviews → ↩ Reply → write → Publish → the reply shows on the profile → ~10 minutes later (next hourly run)
 the traveller gets "… replied to your review". Edit it → no second email. Remove it → gone from the profile.
-To remove an abusive reply as admin: delete the review's reply in Supabase (Table editor → reviews → clear `reply`).
+To remove an abusive reply as admin: admin panel → **Reviews** → **Remove reply** (the review itself stays).
+
+**Also in this release (no extra setup):**
+- 🌅 **Light on the shoot day:** booking cards (website and app) and the "your shoot is tomorrow" emails show sunrise,
+  sunset and golden hour in the shoot city's local time, fitted to the booked time of day; creators get a suggested
+  meeting time for sunrise and golden-hour shoots ("💡 For the best light, meet at 15:16"). Same free Open-Meteo request
+  as the forecast — no new key. Golden hour = the hour after sunrise and the hour before sunset.
+- 📅 **Book again:** completed bookings have "Book Ana again" (dashboard and app), opening the creator's profile.
+- Fixes: bookings without map coordinates no longer ask the weather service for 0°,0° (wrong rain warnings); the
+  privacy policy's tables fit phone screens; two missing fonts were no longer requested on the home page; the app's
+  plan/photos screen titles and a few texts are now translated; in the app's web version, typing right after picking from
+  a list (e.g. a country) works.
 
 ## Going live (only when the site is ready AND these are done)
 1. **Register your business** (živnosť or s.r.o.). Stripe needs real business details to pay you.

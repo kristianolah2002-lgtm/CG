@@ -267,6 +267,10 @@ const t = StyleSheet.create({
 });
 
 /* ── Confirm (native dialog; browser confirm on web) ── */
+/** Web: no open/close animation for dialogs and sheets. React Native Web keeps a dialog's focus trap on while the closing
+ *  animation runs, so a field tapped right after picking an option (e.g. a country) would not get the typing. */
+const SHEET_ANIM = Platform.OS === 'web' ? 'none' : 'slide';
+const FADE_ANIM = Platform.OS === 'web' ? 'none' : 'fade';
 export function confirmAsync(title0: string, message0: string, confirmLabel0 = 'Continue', destructive = false): Promise<boolean> {
   const title = tr(title0), message = tr(message0), confirmLabel = tr(confirmLabel0);
   if (Platform.OS === 'web') return Promise.resolve(typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`));
@@ -292,7 +296,7 @@ export function PromptModal({ visible, title, message, label, placeholder, confi
     const v = value.trim(); setValue(''); setError(null); onSubmit(v);
   };
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
+    <Modal visible={visible} transparent animationType={FADE_ANIM} onRequestClose={close}>
       <View style={p.backdrop}>
         <View style={p.box} testID="prompt">
           <Txt v="h2">{title}</Txt>
@@ -435,7 +439,7 @@ export interface MenuItem { label: string; onPress: () => void; destructive?: bo
 export function MenuSheet({ visible, title, items, onClose }: { visible: boolean; title?: string; items: MenuItem[]; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={SHEET_ANIM} onRequestClose={onClose}>
       <Pressable style={ms.backdrop} onPress={onClose} accessibilityLabel={tr('Close menu')} />
       <View style={[ms.sheet, { paddingBottom: insets.bottom + space.md }]} testID="menu-sheet">
         {title ? <Text style={[txt.label, { marginBottom: space.sm }]}>{tr(title)}</Text> : null}
@@ -470,7 +474,7 @@ export function SelectField({ label, value, options, onChange, testID, placehold
         <Text style={[sf.value, !current && { color: color.dim }]} numberOfLines={1}>{tr(current ?? placeholder)}</Text>
         <Text style={sf.chev}>▾</Text>
       </Pressable>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType={SHEET_ANIM} onRequestClose={() => setOpen(false)}>
         <Pressable style={ms.backdrop} onPress={() => setOpen(false)} accessibilityLabel={tr('Close')} />
         <View style={[ms.sheet, { maxHeight: '70%', paddingBottom: insets.bottom + space.md }]}>
           <Text style={[txt.label, { marginBottom: space.sm }]}>{tr(label)}</Text>

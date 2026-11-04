@@ -83,7 +83,7 @@ test('weather: forecast window, parsing, bad days and the move offer', () => {
   assert.equal(forecastUrl(null, day(1), NOW), null);
   assert.equal(forecastUrl({ lat: 95, lon: 0 }, day(1), NOW), null);
   const rain = parseForecast({ daily: { weather_code: [63], temperature_2m_max: [17.6], temperature_2m_min: [11.2], precipitation_probability_max: [90] } })!;
-  assert.deepEqual(rain, { icon: '🌧️', text: 'Rain', max: 18, min: 11, rain: 90, bad: true });
+  assert.deepEqual(rain, { icon: '🌧️', text: 'Rain', max: 18, min: 11, rain: 90, bad: true, sunrise: null, sunset: null });   // (v1.6: sun times when Open-Meteo sends them)
   assert.equal(forecastLine(rain), '🌧️ Rain · 11–18°C · 90% chance of rain');
   const sun = parseForecast({ daily: { weather_code: [1], temperature_2m_max: [22], temperature_2m_min: [14], precipitation_probability_max: [null] } })!;
   assert.equal(sun.bad, false); assert.equal(sun.rain, null);

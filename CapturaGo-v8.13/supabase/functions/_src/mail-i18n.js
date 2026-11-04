@@ -341,4 +341,8 @@ const MAIL_TEXT = {
   '{name} replied to your review': { de: '{name} hat auf deine Bewertung geantwortet', es: '{name} ha respondido a tu reseña', fr: '{name} a répondu à ton avis' },
   '{name} replied to your review on CapturaGo: “{text}”': { de: '{name} hat auf deine Bewertung auf CapturaGo geantwortet: „{text}“', es: '{name} ha respondido a tu reseña en CapturaGo: «{text}»', fr: '{name} a répondu à ton avis sur CapturaGo : « {text} »' },
   'See it on {name}’s profile': { de: 'Auf dem Profil von {name} ansehen', es: 'Verla en el perfil de {name}', fr: 'Voir sur le profil de {name}' },
+  // light on the shoot day
+  '🌅 Sunrise {sunrise} · golden light until {until}': { de: '🌅 Sonnenaufgang {sunrise} · goldenes Licht bis {until}', es: '🌅 Amanecer {sunrise} · luz dorada hasta las {until}', fr: '🌅 Lever du soleil {sunrise} · lumière dorée jusqu\'à {until}' },
+  '🌇 Golden hour {from}–{sunset} · sunset {sunset}': { de: '🌇 Goldene Stunde {from}–{sunset} · Sonnenuntergang {sunset}', es: '🌇 Hora dorada {from}–{sunset} · puesta de sol {sunset}', fr: '🌇 Heure dorée {from}–{sunset} · coucher du soleil {sunset}' },
+  '🌅 Sunrise {sunrise} · 🌇 Sunset {sunset} (golden hour from {from})': { de: '🌅 Sonnenaufgang {sunrise} · 🌇 Sonnenuntergang {sunset} (goldene Stunde ab {from})', es: '🌅 Amanecer {sunrise} · 🌇 Puesta de sol {sunset} (hora dorada desde las {from})', fr: '🌅 Lever du soleil {sunrise} · 🌇 Coucher du soleil {sunset} (heure dorée dès {from})' },
 };

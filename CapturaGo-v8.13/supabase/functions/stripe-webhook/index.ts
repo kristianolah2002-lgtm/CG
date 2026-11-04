@@ -345,6 +345,10 @@ const MAIL_TEXT = {
   '{name} replied to your review': { de: '{name} hat auf deine Bewertung geantwortet', es: '{name} ha respondido a tu reseña', fr: '{name} a répondu à ton avis' },
   '{name} replied to your review on CapturaGo: “{text}”': { de: '{name} hat auf deine Bewertung auf CapturaGo geantwortet: „{text}“', es: '{name} ha respondido a tu reseña en CapturaGo: «{text}»', fr: '{name} a répondu à ton avis sur CapturaGo : « {text} »' },
   'See it on {name}’s profile': { de: 'Auf dem Profil von {name} ansehen', es: 'Verla en el perfil de {name}', fr: 'Voir sur le profil de {name}' },
+  // light on the shoot day
+  '🌅 Sunrise {sunrise} · golden light until {until}': { de: '🌅 Sonnenaufgang {sunrise} · goldenes Licht bis {until}', es: '🌅 Amanecer {sunrise} · luz dorada hasta las {until}', fr: '🌅 Lever du soleil {sunrise} · lumière dorée jusqu\'à {until}' },
+  '🌇 Golden hour {from}–{sunset} · sunset {sunset}': { de: '🌇 Goldene Stunde {from}–{sunset} · Sonnenuntergang {sunset}', es: '🌇 Hora dorada {from}–{sunset} · puesta de sol {sunset}', fr: '🌇 Heure dorée {from}–{sunset} · coucher du soleil {sunset}' },
+  '🌅 Sunrise {sunrise} · 🌇 Sunset {sunset} (golden hour from {from})': { de: '🌅 Sonnenaufgang {sunrise} · 🌇 Sonnenuntergang {sunset} (goldene Stunde ab {from})', es: '🌅 Amanecer {sunrise} · 🌇 Puesta de sol {sunset} (hora dorada desde las {from})', fr: '🌅 Lever du soleil {sunrise} · 🌇 Coucher du soleil {sunset} (heure dorée dès {from})' },
 };
 
 // ── CapturaGo server helpers (inlined into every function by build.py) ──
@@ -613,22 +617,36 @@ function isHeavyRain(code, pct, mm) {
   return Number.isFinite(m) && m >= 10 && Number.isFinite(p) && p >= 60;      // 10 mm+ of rain, likely
 }
 /** { heavy, pct, mm } for a place and day (0–15 days ahead), or null when unknown. Cached per run; never throws. */
+/* Light on the shoot day (same rules as the website and the app): times in the shoot city's local time (Open-Meteo,
+   timezone=auto); golden hour = the hour after sunrise and the hour before sunset. */
+function hhmm(v) { const m = String(v == null ? '' : v).match(/(?:^|T)([01]\d|2[0-3]):([0-5]\d)(?::\d\d)?$/); return m ? `${m[1]}:${m[2]}` : null; }
+function addMinutes(t, n) { const [h, m] = t.split(':').map(Number); const x = Math.min(23 * 60 + 59, Math.max(0, h * 60 + m + n)); return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; }
+/** The light line for an email, in the reader's language ('' near the poles or without a forecast). */
+function sunText(w, slot, lang) {
+  const sr = w && w.sunrise, ss = w && w.sunset;
+  if (!sr || !ss || sr >= ss) return '';
+  if (slot === 'sunrise') return L(lang, '🌅 Sunrise {sunrise} · golden light until {until}', { sunrise: sr, until: addMinutes(sr, 60) });
+  if (slot === 'golden_hour' || slot === 'evening') return L(lang, '🌇 Golden hour {from}–{sunset} · sunset {sunset}', { from: addMinutes(ss, -60), sunset: ss });
+  return L(lang, '🌅 Sunrise {sunrise} · 🌇 Sunset {sunset} (golden hour from {from})', { sunrise: sr, sunset: ss, from: addMinutes(ss, -60) });
+}
 async function rainForecast(ctx, deps, coords, isoDate) {
-  const lat = Number(coords && coords.lat), lon = Number(coords && coords.lon);
+  if (!coords || coords.lat == null || coords.lon == null || coords.lat === '' || coords.lon === '') return null;   // Number(null) is 0: never ask for 0,0
+  const lat = Number(coords.lat), lon = Number(coords.lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate || ''))) return null;
   const key = `${lat.toFixed(2)},${lon.toFixed(2)},${isoDate}`;
   if (!ctx._wx) ctx._wx = new Map();
   if (ctx._wx.has(key)) return ctx._wx.get(key);
   let out = null;
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,precipitation_probability_max,precipitation_sum&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,precipitation_probability_max,precipitation_sum,sunrise,sunset&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
     const r = await Promise.race([deps.fetch(url), new Promise((_, no) => setTimeout(() => no(new Error('weather timeout')), 6000))]);
     if (r && r.ok) {
       const d = ((await r.json()) || {}).daily || {};
       const code = Number(d.weather_code && d.weather_code[0]);
       const pct = Number(d.precipitation_probability_max && d.precipitation_probability_max[0]);
       const mm = Number(d.precipitation_sum && d.precipitation_sum[0]);
-      if (Number.isFinite(code)) out = { heavy: isHeavyRain(code, pct, mm), pct: Number.isFinite(pct) ? Math.round(pct) : null, mm: Number.isFinite(mm) ? Math.round(mm) : null };
+      if (Number.isFinite(code)) out = { heavy: isHeavyRain(code, pct, mm), pct: Number.isFinite(pct) ? Math.round(pct) : null, mm: Number.isFinite(mm) ? Math.round(mm) : null,
+        sunrise: hhmm(d.sunrise && d.sunrise[0]), sunset: hhmm(d.sunset && d.sunset[0]) };
     }
   } catch (e) { console.error('[weather]', e && e.message ? e.message : e); }
   ctx._wx.set(key, out);
