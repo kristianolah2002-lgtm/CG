@@ -3,7 +3,7 @@
     "name": "CapturaGo",
     "slug": "capturago",
     "scheme": "capturago",
-    "version": "1.4.0",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -40,6 +40,12 @@
       "expo-image",
       "expo-web-browser",
       "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#B04722"
+        }
+      ],
       [
         "expo-splash-screen",
         {

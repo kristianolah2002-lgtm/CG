@@ -267,10 +267,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td>${esc(r.photographers ? r.photographers.name : '—')}</td>
         <td>${esc(r.reviewer_name)}</td>
         <td>${'★'.repeat(Math.max(0, Math.min(5, Number(r.rating) || 0)))}</td>
-        <td style="max-width:380px">${esc(r.comment || '')}</td>
+        <td style="max-width:380px">${esc(r.comment || '')}${r.reply ? `<div class="admin-reply"><strong>↩ Creator's reply</strong> <span class="muted small">${fmtDate(r.reply_at)}</span><br>${esc(r.reply)}<br><button type="button" class="link-btn rv-reply-rm" data-id="${esc(r.id)}">Remove reply</button></div>` : ''}</td>
         <td><button class="danger-btn" data-id="${esc(r.id)}">Delete</button></td>
       </tr>`).join('')}</tbody></table>`;
-    $('rvList').querySelectorAll('button[data-id]').forEach((btn) => btn.addEventListener('click', async () => {
+    $('rvList').querySelectorAll('.rv-reply-rm').forEach((btn) => btn.addEventListener('click', async () => {
+      if (!confirm('Remove the creator\'s reply? The review itself stays.')) return;
+      const { error } = await call('review_reply_remove', { id: btn.dataset.id });
+      if (error) { showToast(error.message, 'error', 6000); return; }
+      showToast('Reply removed ✓', 'success');
+      loadReviews();
+    }));
+    $('rvList').querySelectorAll('button.danger-btn[data-id]').forEach((btn) => btn.addEventListener('click', async () => {
       if (!confirm('Delete this review? The creator\'s rating will be recalculated.')) return;
       const { error } = await call('review_delete', { id: btn.dataset.id });
       if (error) { showToast(error.message, 'error', 6000); return; }

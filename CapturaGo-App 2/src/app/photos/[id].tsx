@@ -153,7 +153,7 @@ export default function PhotosScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: remote ? 'Deliver' : 'Photos' }} />
+      <Stack.Screen options={{ title: trx(remote ? 'Deliver' : 'Photos') }} />
       <FlatList
         testID="photos-grid"
         style={{ backgroundColor: color.canvas }}

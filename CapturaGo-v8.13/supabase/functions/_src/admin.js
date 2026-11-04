@@ -315,7 +315,10 @@ function createHandler(deps) {
     }
 
     if (action === 'reviews') {
-      const rows = await ctx.db('reviews?select=id,created_at,rating,comment,reviewer_name,photographer_id,photographers(name,city)&order=created_at.desc&limit=200');
+      const cols = 'id,created_at,rating,comment,reviewer_name,photographer_id,photographers(name,city)';
+      let rows;
+      try { rows = await ctx.db(`reviews?select=${cols},reply,reply_at&order=created_at.desc&limit=200`); }
+      catch (e) { if (!/reply/.test(String(e && e.message))) throw e; rows = await ctx.db(`reviews?select=${cols}&order=created_at.desc&limit=200`); }   // before PART 23
       return json({ reviews: rows });
     }
 
@@ -325,6 +328,15 @@ function createHandler(deps) {
       const rows = await ctx.db(`reviews?id=eq.${id}&select=id`, { method: 'DELETE' });
       if (!rows.length) throw new HttpError(404, 'Review not found.');
       return json({ deleted: id });
+    }
+
+    // A creator's reply that breaks the rules (Terms §7): remove only the reply, the review stays
+    if (action === 'review_reply_remove') {
+      const id = String(body.id || '');
+      if (!UUID_RE.test(id)) throw new HttpError(404, 'Review not found.');
+      const rows = await ctx.db(`reviews?id=eq.${id}&reply=not.is.null`, { method: 'PATCH', body: { reply: null, reply_at: null } });
+      if (!rows.length) throw new HttpError(404, 'This review has no reply.');
+      return json({ removed: id });
     }
 
     // ── Reported conversations. Staff can read a conversation ONLY when one of the two people reported it.

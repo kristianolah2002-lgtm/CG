@@ -11,6 +11,14 @@ export function replyLabel(l?: { reply_minutes?: number | null; reply_samples?: 
   return '';
 }
 
+/** Ranking (v8.14): fast responders first after boosted listings — 3 = within an hour, 2 = a few hours, 1 = a day,
+ *  0 = slower or not measured yet. Same bands as replyLabel and the website (site.js replyRank). */
+export function replyRank(l?: { reply_minutes?: number | null; reply_samples?: number | null } | null): number {
+  const m = Number(l?.reply_minutes);
+  if (!l || !Number.isFinite(m) || m <= 0 || Number(l.reply_samples) < 3) return 0;
+  return m <= 60 ? 3 : m <= 180 ? 2 : m <= 1440 ? 1 : 0;
+}
+
 /** {name} becomes the other person's first name. Plain text — it goes into the message box. */
 export const fillTemplate = (body: string, name: string) =>
   String(body ?? '').replace(/\{name\}/gi, String(name ?? '').trim().split(/\s+/)[0] || 'there');

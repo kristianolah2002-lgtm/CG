@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { DEFAULT_TEMPLATES, fillTemplate, replyLabel, templateProblem, waitingLabel } from '../src/lib/reply-logic';
+import { WEB_DIR } from './web';
 
-const WEB = '/home/claude/cg9';
+const WEB = WEB_DIR;
 const web = (f: string) => (existsSync(`${WEB}/${f}`) ? readFileSync(`${WEB}/${f}`, 'utf8') : '');
 const NOW = Date.parse('2026-10-28T12:00:00Z');
 const minsAgo = (m: number) => new Date(NOW - m * 60000).toISOString();

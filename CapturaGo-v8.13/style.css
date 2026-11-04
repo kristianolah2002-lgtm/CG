@@ -841,6 +841,14 @@ button.dest-card{background:none;padding:0;text-align:left;font:inherit;color:in
 .legal li{margin-bottom:6px}
 .legal table{width:100%;border-collapse:collapse;margin:12px 0 18px;font-size:.84rem}
 .legal th,.legal td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text-muted);vertical-align:top}
+/* Phones: each table row becomes a small card, each cell shows its column name (data-label) */
+@media (max-width:640px){
+  .legal table,.legal tbody,.legal tr,.legal td{display:block;width:100%}
+  .legal tr:has(th){position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+  .legal tr{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px;padding:4px 0;background:var(--bg-card)}
+  .legal td{border-bottom:0;padding:6px 12px;overflow-wrap:anywhere}
+  .legal td[data-label]::before{content:attr(data-label);display:block;font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px}
+}
 .legal th{color:var(--text);font-weight:600}
 .legal .table-wrap{overflow-x:auto}
 .legal .callout{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 18px;margin:18px 0}
@@ -1153,6 +1161,20 @@ button.dest-card{background:none;padding:0;text-align:left;font:inherit;color:in
 .report-photo img{width:64px;height:64px;object-fit:cover;border-radius:var(--radius-sm)}
 
 .review-photos{display:flex;gap:6px;margin-top:8px}
+/* v8.17: the creator's public reply under a review */
+.review-reply{margin-top:10px;padding:10px 14px;border-left:3px solid var(--amber);background:var(--bg-deep);border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+.review-reply-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.84rem}
+.review-reply p{margin-top:4px}
+.review-reply-link{display:inline-block;margin-top:8px;font-size:.84rem}
+.reply-form{margin-top:10px;display:grid;gap:8px}
+.reply-form textarea{width:100%;min-height:84px;border-radius:var(--radius-sm);border:1px solid var(--border);padding:10px 14px;background:var(--bg-input);color:var(--text);font:inherit;font-size:.9rem;resize:vertical}
+.reply-form textarea:focus{outline:none;border-color:var(--amber)}
+.reply-form .reply-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.reply-form .reply-count{margin-left:auto}
+.review-reply .reply-actions{margin-top:6px;font-size:.84rem}
+.rv-reply-slot{margin:8px 0}
+.admin-reply{margin-top:8px;padding:6px 10px;border-left:3px solid var(--amber);background:var(--bg-deep);font-size:.84rem}
+.reviews-hint{margin-bottom:12px}
 .review-photos button{padding:0;border:0;width:76px;height:76px;border-radius:var(--radius-sm);overflow:hidden;cursor:zoom-in;background:var(--bg-deep)}
 .review-photos img{width:100%;height:100%;object-fit:cover;display:block}
 

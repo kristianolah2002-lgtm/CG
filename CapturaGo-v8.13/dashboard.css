@@ -658,6 +658,8 @@
 .bk-weather{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
 .bk-weather.bad{color:var(--err)}
 .bk-wx-tip{color:var(--text-muted);font-size:.84rem}
+.bk-sun,.bk-sun-tip{flex-basis:100%;font-size:.84rem;color:var(--text)}
+.bk-sun-tip{color:var(--text-muted)}
 .rs-reason{display:flex;flex-direction:column;gap:6px;margin:4px 0 14px;font-size:.92rem}
 .rs-reason label{display:flex;gap:8px;align-items:center;cursor:pointer}
 .rs-picked{margin:10px 0 8px}

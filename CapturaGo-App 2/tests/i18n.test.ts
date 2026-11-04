@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { setLang, tr, trChildren } from '../src/lib/i18n';
+import { WEB_DIR } from './web';
 
 test('German / Spanish / French: interface text, patterns, emoji and arrows kept, unknown text untouched', async () => {
   await setLang('de');
@@ -30,7 +31,7 @@ test('German / Spanish / French: interface text, patterns, emoji and arrows kept
 });
 
 test('the website translates the same way (i18n.js + /i18n/de.js)', async () => {
-  const SITE = '/home/claude/cg9';
+  const SITE = WEB_DIR;
   if (!existsSync(`${SITE}/i18n.js`)) return;
   const store: Record<string, string> = { cg_lang: 'de' };
   const win: Record<string, unknown> = {};

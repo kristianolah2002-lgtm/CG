@@ -3709,5 +3709,107 @@ END $$;
 REVOKE ALL ON FUNCTION dac7_report(INTEGER) FROM PUBLIC, anon, authenticated;
 
 -- ================================================================
+-- PART 22 — App push notifications (app v1.5). The app registers the
+-- phone's Expo push token after sign-in; the server sends booking news,
+-- "Notify me" alerts and "New message from …" to the user's own phones.
+-- No message text is ever pushed. Turning notifications off in the app
+-- (or signing out) removes the token. Re-runnable.
+-- ================================================================
+CREATE TABLE IF NOT EXISTS push_tokens (
+  token         TEXT        PRIMARY KEY CHECK (token ~ '^(Expo|Exponent)PushToken\[[A-Za-z0-9_-]{10,200}\]$'),
+  user_id       UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  platform      TEXT        NOT NULL DEFAULT 'unknown' CHECK (platform IN ('ios', 'android', 'unknown')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user ON push_tokens (user_id, last_seen_at DESC);
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;          -- no policies: only through the functions below and the server
+REVOKE ALL ON push_tokens FROM anon, authenticated;
+
+-- One push per unread streak for chat messages (set only by the server's "push" function)
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS client_pushed_at  TIMESTAMPTZ;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS creator_pushed_at TIMESTAMPTZ;
+
+-- This phone gets my notifications. A phone belongs to one account at a time: signing in with
+-- another account moves the token there. At most 10 phones per account (the oldest is dropped).
+CREATE OR REPLACE FUNCTION register_push_token(p_token TEXT, p_platform TEXT DEFAULT 'unknown')
+RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE me UUID := auth.uid(); t TEXT := btrim(coalesce(p_token, ''));
+        pf TEXT := CASE WHEN p_platform IN ('ios', 'android') THEN p_platform ELSE 'unknown' END;
+BEGIN
+  IF me IS NULL THEN RAISE EXCEPTION 'Please sign in.' USING ERRCODE = '42501'; END IF;
+  IF t !~ '^(Expo|Exponent)PushToken\[[A-Za-z0-9_-]{10,200}\]$' THEN RAISE EXCEPTION 'Invalid push token.' USING ERRCODE = '22023'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('push:' || me::text));
+  INSERT INTO push_tokens (token, user_id, platform, last_seen_at) VALUES (t, me, pf, clock_timestamp())
+  ON CONFLICT (token) DO UPDATE SET user_id = me, platform = pf, last_seen_at = clock_timestamp(),
+    created_at = CASE WHEN push_tokens.user_id = me THEN push_tokens.created_at ELSE NOW() END;
+  DELETE FROM push_tokens WHERE user_id = me AND token <> t AND token IN (   -- never the phone registering now
+    SELECT x.token FROM push_tokens x WHERE x.user_id = me ORDER BY x.token = t DESC, x.last_seen_at DESC OFFSET 10);
+  RETURN TRUE;
+END $$;
+REVOKE ALL ON FUNCTION register_push_token(TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION register_push_token(TEXT, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION unregister_push_token(p_token TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN FALSE; END IF;
+  DELETE FROM push_tokens WHERE token = btrim(coalesce(p_token, '')) AND user_id = auth.uid();
+  RETURN FOUND;
+END $$;
+REVOKE ALL ON FUNCTION unregister_push_token(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION unregister_push_token(TEXT) TO authenticated;
+
+-- Phones not seen for 120 days (app uninstalled without telling us) are forgotten (the hourly job calls this)
+CREATE OR REPLACE FUNCTION prune_push_tokens()
+RETURNS INTEGER LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+  WITH d AS (DELETE FROM push_tokens WHERE last_seen_at < NOW() - INTERVAL '120 days' RETURNING 1) SELECT count(*)::INTEGER FROM d;
+$$;
+REVOKE ALL ON FUNCTION prune_push_tokens() FROM PUBLIC, anon, authenticated;
+
+-- ================================================================
+-- PART 23 — v8.17: creators answer their reviews. One public reply per
+-- review (edit or remove it any time), shown under the review on the
+-- profile. The creator is told about every new review (email + app
+-- push) and the traveller once when the creator replies. Re-runnable.
+-- ================================================================
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply               TEXT;
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply_at            TIMESTAMPTZ;
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply_notified_at   TIMESTAMPTZ;   -- traveller told (once)
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS creator_notified_at TIMESTAMPTZ;   -- creator told about the new review
+ALTER TABLE reviews DROP CONSTRAINT IF EXISTS review_reply_len;
+ALTER TABLE reviews ADD  CONSTRAINT review_reply_len CHECK (reply IS NULL OR char_length(reply) BETWEEN 2 AND 1000);
+GRANT SELECT (reply, reply_at) ON reviews TO anon, authenticated;          -- public, like the review itself
+-- Reviews written before this part: no "new review" email for them
+UPDATE reviews SET creator_notified_at = coalesce(created_at, NOW())
+ WHERE creator_notified_at IS NULL AND created_at < NOW() - INTERVAL '2 days';
+CREATE INDEX IF NOT EXISTS idx_reviews_new_alert   ON reviews (created_at) WHERE creator_notified_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_reviews_reply_alert ON reviews (reply_at)   WHERE reply_at IS NOT NULL AND reply_notified_at IS NULL;
+
+-- The creator's reply: only on reviews of their own listing. Empty text removes the reply.
+CREATE OR REPLACE FUNCTION reply_to_review(p_review UUID, p_text TEXT)
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE me UUID := auth.uid(); r reviews; owner UUID; txt TEXT;
+BEGIN
+  IF me IS NULL THEN RAISE EXCEPTION 'Please sign in.' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO r FROM reviews WHERE id = p_review FOR UPDATE;
+  SELECT user_id INTO owner FROM photographers WHERE id = r.photographer_id;
+  IF r.id IS NULL OR owner IS DISTINCT FROM me THEN RAISE EXCEPTION 'Review not found.' USING ERRCODE = 'P0001'; END IF;
+  -- no control characters (line breaks are fine), at most one empty line in a row
+  txt := btrim(regexp_replace(regexp_replace(coalesce(p_text, ''), E'[\\x01-\\x09\\x0b-\\x1f\\x7f]', '', 'g'), E'\\n{3,}', E'\n\n', 'g'), E' \n');
+  IF txt = '' THEN
+    UPDATE reviews SET reply = NULL, reply_at = NULL WHERE id = r.id;
+    RETURN jsonb_build_object('reply', NULL, 'reply_at', NULL);
+  END IF;
+  IF char_length(txt) < 2 OR char_length(txt) > 1000 THEN
+    RAISE EXCEPTION 'Your reply can be 2 to 1000 characters.' USING ERRCODE = 'P0001';
+  END IF;
+  UPDATE reviews SET reply = txt, reply_at = NOW() WHERE id = r.id;
+  RETURN jsonb_build_object('reply', txt, 'reply_at', NOW());
+END $$;
+REVOKE ALL ON FUNCTION reply_to_review(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION reply_to_review(UUID, TEXT) TO authenticated;
+
+-- ================================================================
 -- Done. You should see "Success. No rows returned."
 -- ================================================================

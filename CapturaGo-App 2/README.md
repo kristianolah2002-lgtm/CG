@@ -102,8 +102,20 @@ All three use your **real database** — what you do there is real (no payments 
 5. After 14 days: *Production* → *Apply for production* → submit.
 
 ## F. Updating the app later
-Change the code → raise `"version"` in `app.json` (1.4.0 → 1.4.1) → run the production builds again → submit.
+Change the code → raise `"version"` in `app.json` (1.6.0 → 1.6.1) → run the production builds again → submit.
 
+> **Version 1.6.0** (↩ **answer your reviews** — on your own profile, every review gets a ↩ Reply button; edit or
+> remove it any time; travellers see "↩ Reply from …" under the review; a notification for every new review · 🌅 sunrise,
+> sunset and golden hour in the shoot plan, with a meeting-time tip for creators · 📅 "Book … again" on completed
+> bookings · more translated screens) adds no
+> new native modules. Do the website's SETUP-PAYMENTS-AND-AI.md **Part 23** first, then build and submit as usual.
+> **Version 1.5.0** (🔔 **push notifications** — new bookings and booking news, "Notify me" alerts, "New message from
+> …"; off under Account → Notifications on this phone · ⚡ **Last-minute deals** screen with 🎲 Surprise me and your
+> gift card (Explore → ⚡ Last-minute deals, or Account) · 🔔 **Notify me** on fully booked creators + "Creators you're
+> waiting for" in Account · 📸 **clients' favourite shots** on profiles · 💬 fast responders ranked higher · 🧾 **tax
+> details (EU DAC7)** for creators in Account) adds a **new native module** (`expo-notifications`, `expo-device`):
+> build again (section D) — an over-the-air update is not enough. Do the website's SETUP-PAYMENTS-AND-AI.md
+> **Part 22** first (database, the `push` function, push credentials for iPhone and Android in EAS).
 > **Version 1.4.0** (creator screens in German/Spanish/French — the chosen language is saved on the account so
 > emails and texts use it; ⚡ last-minute deals in Availability, on creator cards and in booking; 📱 text reminders on
 > the shoot day — Account → Text reminders. Needs the website's v8.13 database and functions.)

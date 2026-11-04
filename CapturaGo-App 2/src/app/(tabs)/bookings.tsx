@@ -190,6 +190,8 @@ export default function BookingsScreen() {
             {planning && asCreator && <Button testID={`meet-${b.id}`} title={hasMeeting ? '📍 Edit meeting point' : '📍 Set meeting point'} small kind={hasMeeting ? 'secondary' : 'primary'} onPress={() => plan(b, 'meeting')} />}
             {planning && !asCreator && <Button testID={`brief-${b.id}`} title={hasBrief ? '📝 Edit shot list' : '📝 Shot list & references'} small kind="secondary" onPress={() => plan(b, 'brief')} />}
             {showPropose && <Button testID={`move-${b.id}`} title="📅 Propose a new date" small kind="secondary" onPress={() => plan(b, 'reschedule')} />}
+            {canReview && b.photographers ? <Button testID={`again-${b.id}`} title={`📅 Book ${String(b.photographers.name || '').split(' ')[0] || 'them'} again`} small kind="secondary"
+              onPress={() => router.push({ pathname: '/creator/[id]', params: { id: String(b.photographer_id) } })} /> : null}
             {canReview && <Button testID={`next-${b.id}`} title="🧭 Where to next?" small kind="secondary" onPress={() => router.navigate({ pathname: '/', params: { trip: '1' } })} />}
             {canReview && (reviewed.has(b.id)
               ? <View style={s.reviewed}><Txt v="small" style={{ color: color.ok, fontFamily: font.bold }}>✓ Reviewed</Txt></View>

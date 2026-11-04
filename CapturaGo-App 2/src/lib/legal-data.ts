@@ -89,7 +89,7 @@ export const privacy: LegalBlock[] = [
  {
   "t": "row",
   "cells": [
-   "Reviews: your name as given in the booking, rating, comment, date, the booking the review belongs to, and up to 3 photos you choose from your delivered gallery (copied to public storage only if you choose them)",
+   "Reviews: your name as given in the booking, rating, comment, date, the booking the review belongs to, and up to 3 photos you choose from your delivered gallery (copied to public storage only if you choose them); the creator's public reply to your review and when it was written. We tell the creator about a new review and you once about a reply, by email (and app notification, if you allowed them)",
    "To show honest feedback from travellers who really booked — only a completed booking can be reviewed, once",
    "Contract (6(1)(b)) and legitimate interest in trustworthy reviews (6(1)(f))"
   ],
@@ -245,6 +245,19 @@ export const privacy: LegalBlock[] = [
  {
   "t": "row",
   "cells": [
+   "\"Notify me\" about a creator: which creator, whether you also want a text, the days that were already free when you asked (so we only tell you about days that open up later), when we last checked and when we told you",
+   "To email you once (and text you, if you asked) when that creator has a free day again or a last-minute deal",
+   "Your request / contract (6(1)(b))"
+  ],
+  "heads": [
+   "Data",
+   "Why",
+   "Legal basis (GDPR Art. 6)"
+  ]
+ },
+ {
+  "t": "row",
+  "cells": [
    "Shared gallery links: a random link, when it expires, whether it shows only favourites, and how often it was opened",
    "To let friends and family view your photos when you share a link",
    "Your request / contract (6(1)(b))"
@@ -274,6 +287,19 @@ export const privacy: LegalBlock[] = [
    "Bookings: package and a copy of what it included when you paid (price, length, number of edited photos, delivery time, extras), where the shoot takes place (the trip city when the creator is travelling), when the photos were first sent, date, preferred time of day, your note, links to files you share and files delivered to you, revision requests, amounts, booking status, payment references, and whether the booking came through a creator's personal link",
    "To process your booking, hold and release payments, handle refunds and disputes",
    "Contract (6(1)(b)); legal obligation for accounting and tax records (6(1)(c))"
+  ],
+  "heads": [
+   "Data",
+   "Why",
+   "Legal basis (GDPR Art. 6)"
+  ]
+ },
+ {
+  "t": "row",
+  "cells": [
+   "Creator tax details (EU DAC7 — creators who can be paid online): for a private person first and last name, date of birth, address, country of residence, tax identification number and the country that issued it (or, if that country issues none, the place of birth), VAT number if any; for a business its registered name, registration number, address, tax and VAT numbers. Also: when we asked for them, and the yearly totals we report (amount paid out per quarter, number of jobs, our fees)",
+   "To report creators' earnings to the tax authority once a year and send each creator a copy, as the EU DAC7 rules (Council Directive (EU) 2021/514, in Slovakia the law on international cooperation in tax administration) require. Only the creator and the CapturaGo team can see them. If they are missing after our request and two reminders, payouts may be held until they're added",
+   "Legal obligation (6(1)(c))"
   ],
   "heads": [
    "Data",
@@ -414,6 +440,19 @@ export const privacy: LegalBlock[] = [
  {
   "t": "row",
   "cells": [
+   "App notifications (only if you allow them in the app): your phone's push token, the phone type (iPhone/Android), when it was last seen. A notification contains a title and a short line (for example \"New message from Ana\" or \"Confirmed: Portraits\") — never the text of a message",
+   "To tell you about bookings, messages and creators you are waiting for",
+   "Consent (6(1)(a)) — turn them off any time in the app (Account) or in your phone's settings"
+  ],
+  "heads": [
+   "Data",
+   "Why",
+   "Legal basis (GDPR Art. 6)"
+  ]
+ },
+ {
+  "t": "row",
+  "cells": [
    "Text reminders (only if you add a number): your mobile number, SMS or WhatsApp, whether reminders are on, when you agreed, a one-way keyed hash of the 6-digit code while it is valid (10 minutes), and the times codes were sent (2 days, for the limits). On a shoot day we send your number, the other person's first name, the date, time, meeting point and a link to your bookings to our text provider",
    "To confirm the number is yours and to text you the meeting point and time on the day of your shoots",
    "Consent (6(1)(a)) — you can withdraw it any time by turning reminders off or removing your number"
@@ -473,7 +512,7 @@ export const privacy: LegalBlock[] = [
  },
  {
   "t": "p",
-  "text": "If you create a creator listing, everything in the listing except your contact email is visible to anyone visiting CapturaGo. A creator's intro video is shown as a link only; it opens on YouTube, Instagram, TikTok or Vimeo, which then process your data under their own privacy policies — nothing is loaded from them until you tap it. Reviews are public together with the reviewer's display name and any photos the reviewer added to the review. Private messages are visible only to the two people in the conversation. Inquiries are private — only the creator you message can see them."
+  "text": "If you create a creator listing, everything in the listing except your contact email is visible to anyone visiting CapturaGo. A creator's intro video is shown as a link only; it opens on YouTube, Instagram, TikTok or Vimeo, which then process your data under their own privacy policies — nothing is loaded from them until you tap it. Reviews are public together with the reviewer's display name, any photos the reviewer added to the review, and the creator's reply. Private messages are visible only to the two people in the conversation. Inquiries are private — only the creator you message can see them."
  },
  {
   "t": "h2",
@@ -610,7 +649,7 @@ export const privacy: LegalBlock[] = [
   "t": "row",
   "cells": [
    "Open-Meteo",
-   "Weather forecast shown on an upcoming shoot (up to 16 days ahead). Your browser or app sends the map position of the creator's city (or the trip city) and the shoot date; Open-Meteo also receives your IP address, as with any web request. No account or name is sent",
+   "Weather forecast shown on an upcoming shoot (up to 16 days ahead). Your browser or app sends the map position of the creator's city (or the trip city) and the shoot date; Open-Meteo also receives your IP address, as with any web request. Before the reminder email the day before a shoot and the text on the shoot day, our server also sends that map position and date (from our server's address) to check for heavy rain. No account or name is sent",
    "Switzerland / EU"
   ],
   "heads": [
@@ -648,8 +687,21 @@ export const privacy: LegalBlock[] = [
  {
   "t": "row",
   "cells": [
+   "Expo (650 Industries, Inc.), and Apple Push Notification service or Google Firebase Cloud Messaging — only if you allow notifications in the app",
+   "Delivering app notifications to your phone (the push token, the title and a short line — never message text)",
+   "USA"
+  ],
+  "heads": [
+   "Provider",
+   "Purpose",
+   "Location"
+  ]
+ },
+ {
+  "t": "row",
+  "cells": [
    "Twilio Inc. — only if you add a mobile number",
-   "Sending the confirmation code and the text reminders by SMS or WhatsApp (WhatsApp messages are delivered through Meta's WhatsApp service)",
+   "Sending the confirmation code and the text reminders by SMS or WhatsApp (WhatsApp messages are delivered through Meta's WhatsApp service), and \"Notify me\" texts by SMS if you ask for them",
    "USA / global network"
   ],
   "heads": [
@@ -657,6 +709,10 @@ export const privacy: LegalBlock[] = [
    "Purpose",
    "Location"
   ]
+ },
+ {
+  "t": "p",
+  "text": "Tax authorities (creators only): once a year we report the tax details and earnings of creators who live in the EU to the Slovak tax authority (Finančná správa), which passes them to the tax authority of the creator's EU country of residence (EU DAC7 rules). Creators who live outside the EU are not reported to an EU authority."
  },
  {
   "t": "p",
@@ -832,6 +888,10 @@ export const privacy: LegalBlock[] = [
  },
  {
   "t": "li",
+  "text": "Creator tax details and what we reported (DAC7): 10 years after the end of the year they were reported for, as the law requires — also if the account is deleted (the link to the account is then removed). Our requests for the details: until they are added or the account is deleted."
+ },
+ {
+  "t": "li",
   "text": "Delivered photos: 90 days after the booking is completed, 30 days after it is cancelled, declined or refunded, or when the traveller deletes their account — whichever comes first."
  },
  {
@@ -848,11 +908,19 @@ export const privacy: LegalBlock[] = [
  },
  {
   "t": "li",
+  "text": "\"Notify me\" about a creator: until you remove it or delete your account; at most 60 days after we told you, or 67 days after you asked if nothing opened up."
+ },
+ {
+  "t": "li",
   "text": "Founding creator spots: while your account exists (needed to keep the one-spot-per-person rule); deleted with your account."
  },
  {
   "t": "li",
   "text": "Quick replies: until you delete them or your account. Email preferences and your language: while your account exists."
+ },
+ {
+  "t": "li",
+  "text": "App notifications: the phone's push token until you turn notifications off, sign out, uninstall the app (we forget it when the notification service tells us) or delete your account; a phone not seen for 120 days is forgotten."
  },
  {
   "t": "li",
@@ -1147,7 +1215,7 @@ export const terms: LegalBlock[] = [
  },
  {
   "t": "li",
-  "text": "Moving a shoot (for example because of bad weather). Until the shoot day, either side can propose a new date. The booking only changes if the other side accepts it, and moving is free — up to 3 times per booking. Bad weather alone isn't a reason for a refund. If you can't agree on a new date and the creator can't do the shoot, the creator cancels and the client is refunded in full; otherwise the normal cancellation rules below apply. The weather forecast we show comes from a third-party service and may be wrong."
+  "text": "Moving a shoot (for example because of bad weather). Up to and including the shoot day, either side can propose a new date. The booking only changes if the other side accepts it, and moving is free — up to 3 times per booking. If heavy rain is forecast for the shoot day, our reminder email the day before and the text reminder on the day suggest moving it, with a link to propose a new date; nothing changes unless the other side accepts. Bad weather alone isn't a reason for a refund. If you can't agree on a new date and the creator can't do the shoot, the creator cancels and the client is refunded in full; otherwise the normal cancellation rules below apply. The weather forecast we show comes from a third-party service and may be wrong."
  },
  {
   "t": "li",
@@ -1183,7 +1251,7 @@ export const terms: LegalBlock[] = [
  },
  {
   "t": "li",
-  "text": "Taxes. Creators are responsible for declaring their income and paying their own taxes. As a platform, we may be required to report creators' earnings to tax authorities (EU DAC7 rules)."
+  "text": "Taxes. Creators are responsible for declaring their income and paying their own taxes. Under the EU DAC7 rules we must collect the tax details of creators who are paid through CapturaGo and report their earnings once a year — creators who live in the EU to the Slovak tax authority, which shares them with the creator's country. Creators add their details in the dashboard (Payments → Tax details) and get a copy of what we report by 31 January. If the details are still missing after our request and two reminders (60 days after the first request), we may hold payouts until they are added, as the rules allow."
  },
  {
   "t": "h2",
@@ -1256,6 +1324,10 @@ export const terms: LegalBlock[] = [
  {
   "t": "li",
   "text": "An unused gift card can be refunded within 14 days of buying it — write to hello@capturago.com from the email address you bought it with. Used or partly used gift cards can't be exchanged for cash."
+ },
+ {
+  "t": "li",
+  "text": "Gift cards can also be used on last-minute deals. A \"Surprise me\" gift card is a normal gift card; \"Surprise me\" on the gift card page picks one of the current deals at random (one your card fully covers, when there is one). You see the creator, day and price before booking, and nothing is booked or paid until you choose to."
  },
  {
   "t": "h2",
@@ -1367,11 +1439,23 @@ export const terms: LegalBlock[] = [
  },
  {
   "t": "h2",
+  "text": "6n. \"Notify me\" about a creator"
+ },
+ {
+  "t": "li",
+  "text": "When a creator has no free day in the next two weeks (or isn't taking bookings), you can ask us to tell you once when a day opens up within about the next 60 days, or when they post a last-minute deal. We send one email — and one text if you ask for it and have confirmed your number — then the alert is done; you can set it again any time and remove it in your dashboard."
+ },
+ {
+  "t": "li",
+  "text": "An alert doesn't reserve the day: other travellers may book it first."
+ },
+ {
+  "t": "h2",
   "text": "6b. How creators are ranked"
  },
  {
   "t": "p",
-  "text": "Search results are shown in this order: listings with an active boost — bought, or given free as a founding-creator perk — (always labelled \"Sponsored\"), then other listings, newest first. City pages (capturago.com/in/…) show boosted listings first, then founding creators, then by rating. When you use AI match, an AI model ranks creators by how well their listing fits your description (location first, then service, style, budget and languages). Paying for a boost never changes reviews or ratings."
+  "text": "Search results are shown in this order: listings with an active boost — bought, or given free as a founding-creator perk — (always labelled \"Sponsored\"), then creators who usually reply quickly (within an hour, then within a few hours, then within a day — measured by our server from the last 90 days of messages, and only after at least 3 answered travellers), then all other listings; newest first within each group. City pages (capturago.com/in/…) show boosted listings first, then founding creators, then the same reply-time groups, then by rating. The trip planner also lists creators who take online bookings before those who don't. When you use AI match, an AI model ranks creators by how well their listing fits your description (location first, then service, style, budget and languages); between equally good fits it prefers faster replies. Paying for a boost never changes reviews, ratings or reply times."
  },
  {
   "t": "h2",
@@ -1391,7 +1475,11 @@ export const terms: LegalBlock[] = [
  },
  {
   "t": "p",
-  "text": "A review can include up to 3 photos from the client's own delivered gallery. Creators agree that clients may show these photos with their review on the creator's CapturaGo profile. By adding a photo, the client confirms that the people shown in it agree to it being public. A creator or anyone shown in a photo can ask us to remove it."
+  "text": "The creator can publish one public reply under each review of their listing, and edit or remove it at any time. Replies are shown as written by the creator and follow the same rules as reviews: honest, polite, no personal data about the client (such as contact details or where they stay), no threats and no offers to pay outside CapturaGo. We may remove replies that break these rules. A reply never changes the rating."
+ },
+ {
+  "t": "p",
+  "text": "A review can include up to 3 photos from the client's own delivered gallery. Creators agree that clients may show these photos with their review on the creator's CapturaGo profile; the first photo the client picks (their favourite) is also shown in the \"Clients' favourite shots\" row of the profile. By adding a photo, the client confirms that the people shown in it agree to it being public. A creator or anyone shown in a photo can ask us to remove it."
  },
  {
   "t": "h2",

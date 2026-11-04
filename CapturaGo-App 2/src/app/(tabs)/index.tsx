@@ -15,6 +15,7 @@ import { addLocalDays, daySpan, localIso, nextWeekend, searchKey, tripProblem, t
 import { useAuth } from '../../lib/auth';
 import { tripCity, tripDates, tripMatches, upcomingTrips } from '../../lib/trip-logic';
 import { tr as trx } from '../../lib/i18n';
+import { replyRank } from '../../lib/reply-logic';
 
 type AiState = { matches: { id: string; reason: string }[]; note: string; basic: boolean } | null;
 type TripState = { from: string; to: string; city: string; rows: { l: Listing; reason: string; date: string }[] } | null;
@@ -141,7 +142,7 @@ export default function Explore() {
         return { l, reason: t ? `✈️ In ${tripCity(t)} ${tripDates(t)} · ${why}` : why, date: x.first_free, free: x.free_days };
       })
       .filter((r) => !serviceId || isRemoteService(serviceId) || (r.l.services ?? []).includes(serviceId))
-      .sort((a, b) => Number(isBoosted(b.l)) - Number(isBoosted(a.l)) || Number(canBook(b.l)) - Number(canBook(a.l)) || b.free - a.free)
+      .sort((a, b) => Number(isBoosted(b.l)) - Number(isBoosted(a.l)) || Number(canBook(b.l)) - Number(canBook(a.l)) || replyRank(b.l) - replyRank(a.l) || b.free - a.free)
       .map(({ l, reason, date }) => ({ l, reason, date }));
     api.logEvent('trip_search', c, serviceId, rows.length);
     animateLayout();
@@ -201,6 +202,7 @@ export default function Explore() {
         <View style={s.quick}>
           <Chip testID="trip-tomorrow" label="⚡ Free tomorrow" onPress={() => runTrip(tomorrow, tomorrow)} />
           <Chip testID="trip-weekend" label="This weekend" onPress={() => { const w = nextWeekend(); runTrip(w.from, w.to); }} />
+          <Chip testID="deals-chip" label="⚡ Last-minute deals" onPress={() => router.push({ pathname: '/deals', params: { city: cityInput.trim() } })} />
         </View>
         {tripOpen && (
           <View testID="trip-form">

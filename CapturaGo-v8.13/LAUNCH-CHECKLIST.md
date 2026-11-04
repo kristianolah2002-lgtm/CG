@@ -1,5 +1,17 @@
 # CapturaGo — Launch checklist
 
+> **v8.17 + app v1.6 — creators answer their reviews:** one public reply under each review (Dashboard → ⭐ Reviews, or
+> the app on your own profile), shown on the profile; creators are told about every new review (email + push) and the
+> traveller once about the reply (admin panel → Reviews → Remove reply for abusive ones). Also: 🌅 sunrise / sunset /
+> golden hour on booking cards and in the shoot-day email, 📅 "Book … again" on completed bookings, and fixes found by a
+> full sweep of the site and app. Run `database.sql`, re-deploy `scheduled-jobs` and `admin`: SETUP-PAYMENTS-AND-AI.md **Part 23**.
+> Terms (section 7) and Privacy Policy updated.
+> **v8.16 + app v1.5 — push notifications:** booking news, "Notify me" alerts and "New message from …" (never the text)
+> on people's phones; off in the app under Account. The app also gets the v8.14/v8.15 features (deals + 🎲 Surprise me
+> with gift cards, Notify me, clients' favourite shots, fast responders first, 🧾 tax details). Run `database.sql`,
+> deploy the new `push` function (Verify JWT **on**), re-deploy `booking-action`, `scheduled-jobs`, `stripe-webhook`,
+> set up push credentials in EAS (iPhone push key, Android FCM): SETUP-PAYMENTS-AND-AI.md **Part 22**. Then build
+> app 1.5.0 again (new native module) and submit.
 > **v8.15 — EU DAC7 tax reporting (legally required; first report for 2026 due by 31 January 2027):** creators add
 > their tax details in Dashboard → Payments → 🧾 Tax details (private; the database checks them); the hourly job asks
 > creators who can be paid online and sends 2 reminders (day 14 and 45); admin panel → **🧾 Tax reporting** shows every

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { type Booking } from '../src/lib/logic';
+import { WEB_DIR } from './web';
 import {
   activeShares, briefProblem, canPlan, canPropose, cleanTime, csvCell, daySpan, disputeProblem, disputeReasons, earningsCsv, earningsOf,
   expiresIn, forecastLine, forecastUrl, lines, MAX_RESCHEDULES, meetingProblem, MEETING_TIME_RE, nextWeekend, offerWeatherMove,
@@ -17,7 +18,7 @@ const bk = (over: Partial<Booking>): Booking => ({
   shoot_date: day(5), price_cents: 10000, client_fee_cents: 1000, creator_fee_cents: 0, total_cents: 11000, status: 'confirmed', created_at: '2026-10-01T00:00:00Z',
   booking_type: 'session', photographers: { name: 'Ana Kovac', city: 'Kyoto, Japan', coords: { lat: 35, lon: 135.7 } }, ...over,
 });
-const WEB = '/home/claude/cg9';
+const WEB = WEB_DIR;
 const web = (f: string) => (existsSync(`${WEB}/${f}`) ? readFileSync(`${WEB}/${f}`, 'utf8') : '');
 
 test('plan: sessions that are paid or confirmed only', () => {
@@ -82,7 +83,7 @@ test('weather: forecast window, parsing, bad days and the move offer', () => {
   assert.equal(forecastUrl(null, day(1), NOW), null);
   assert.equal(forecastUrl({ lat: 95, lon: 0 }, day(1), NOW), null);
   const rain = parseForecast({ daily: { weather_code: [63], temperature_2m_max: [17.6], temperature_2m_min: [11.2], precipitation_probability_max: [90] } })!;
-  assert.deepEqual(rain, { icon: '🌧️', text: 'Rain', max: 18, min: 11, rain: 90, bad: true });
+  assert.deepEqual(rain, { icon: '🌧️', text: 'Rain', max: 18, min: 11, rain: 90, bad: true, sunrise: null, sunset: null });   // (v1.6: sun times when Open-Meteo sends them)
   assert.equal(forecastLine(rain), '🌧️ Rain · 11–18°C · 90% chance of rain');
   const sun = parseForecast({ daily: { weather_code: [1], temperature_2m_max: [22], temperature_2m_min: [14], precipitation_probability_max: [null] } })!;
   assert.equal(sun.bad, false); assert.equal(sun.rain, null);

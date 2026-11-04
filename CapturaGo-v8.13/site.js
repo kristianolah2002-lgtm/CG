@@ -441,16 +441,36 @@ window.CG_CONFIG = {
     [61, '🌧️', 'Rain'], [63, '🌧️', 'Rain'], [65, '🌧️', 'Heavy rain'], [66, '🌧️', 'Freezing rain'], [67, '🌧️', 'Freezing rain'],
     [71, '🌨️', 'Snow'], [73, '🌨️', 'Snow'], [75, '❄️', 'Heavy snow'], [77, '🌨️', 'Snow'], [80, '🌦️', 'Showers'], [81, '🌧️', 'Showers'], [82, '⛈️', 'Heavy showers'],
     [85, '🌨️', 'Snow showers'], [86, '🌨️', 'Snow showers'], [95, '⛈️', 'Thunderstorm'], [96, '⛈️', 'Thunderstorm'], [99, '⛈️', 'Thunderstorm']];
-  /** Returns { icon, text, max, min, rain, bad } or null (no coordinates, too far ahead, offline). */
+  /* Light on the shoot day (same rules as the app and the reminder email). Times are the shoot city's local time
+     (Open-Meteo, timezone=auto). Golden hour = the hour after sunrise and the hour before sunset. */
+  const hhmm = (v) => { const m = String(v == null ? '' : v).match(/(?:^|T)([01]\d|2[0-3]):([0-5]\d)(?::\d\d)?$/); return m ? `${m[1]}:${m[2]}` : null; };
+  const addMinutes = (t, n) => { const [h, m] = t.split(':').map(Number); const x = Math.min(23 * 60 + 59, Math.max(0, h * 60 + m + n)); return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; };
+  const EVENING = ['golden_hour', 'evening'];
+  window.sunLine = function (w, slot) {
+    const sr = w && w.sunrise, ss = w && w.sunset;
+    if (!sr || !ss || sr >= ss) return '';
+    if (slot === 'sunrise') return `🌅 Sunrise ${sr} · golden light until ${addMinutes(sr, 60)}`;
+    if (EVENING.includes(String(slot))) return `🌇 Golden hour ${addMinutes(ss, -60)}–${ss} · sunset ${ss}`;
+    return `🌅 Sunrise ${sr} · 🌇 Sunset ${ss} (golden hour from ${addMinutes(ss, -60)})`;
+  };
+  window.bestMeetTime = function (w, slot) {
+    const sr = w && w.sunrise, ss = w && w.sunset;
+    if (!sr || !ss || sr >= ss) return null;
+    if (slot === 'sunrise') return addMinutes(sr, -20);
+    if (EVENING.includes(String(slot))) return addMinutes(ss, -75);
+    return null;
+  };
+  /** Returns { icon, text, max, min, rain, bad, sunrise, sunset } or null (no coordinates, too far ahead, offline). */
   window.getForecast = async function (coords, isoDate) {
-    const lat = Number(coords && coords.lat), lon = Number(coords && coords.lon);
+    if (!coords || coords.lat == null || coords.lon == null || coords.lat === '' || coords.lon === '') return null;   // Number(null) is 0: never ask for 0,0
+    const lat = Number(coords.lat), lon = Number(coords.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate))) return null;
     const days = Math.round((Date.parse(`${isoDate}T00:00:00Z`) - Date.parse(new Date().toISOString().slice(0, 10) + 'T00:00:00Z')) / 86400000);
     if (days < 0 || days > 15) return null;
-    const key = `cg_wx_${lat.toFixed(2)}_${lon.toFixed(2)}_${isoDate}`;
+    const key = `cg_wx2_${lat.toFixed(2)}_${lon.toFixed(2)}_${isoDate}`;   // wx2: with sunrise/sunset
     try { const c = JSON.parse(sessionStorage.getItem(key) || 'null'); if (c && Date.now() - c.at < 3 * 3600000) return c.v; } catch {}
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
       const r = await fetch(url);
       if (!r.ok) return null;
       const d = (await r.json()).daily || {};
@@ -458,7 +478,8 @@ window.CG_CONFIG = {
       if (!Number.isFinite(code)) return null;
       const w = WEATHER.find(([c]) => c === code) || [code, '🌡️', 'Forecast'];
       const rain = Number(d.precipitation_probability_max && d.precipitation_probability_max[0]);
-      const v = { icon: w[1], text: w[2], max: Math.round(d.temperature_2m_max[0]), min: Math.round(d.temperature_2m_min[0]), rain: Number.isFinite(rain) ? rain : null, bad: code >= 61 || (Number.isFinite(rain) && rain >= 70) };
+      const v = { icon: w[1], text: w[2], max: Math.round(d.temperature_2m_max[0]), min: Math.round(d.temperature_2m_min[0]), rain: Number.isFinite(rain) ? rain : null, bad: code >= 61 || (Number.isFinite(rain) && rain >= 70),
+        sunrise: hhmm(d.sunrise && d.sunrise[0]), sunset: hhmm(d.sunset && d.sunset[0]) };
       try { sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), v })); } catch {}
       return v;
     } catch { return null; }

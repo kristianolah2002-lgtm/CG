@@ -18,7 +18,7 @@ import { canBook, euroCents, feePctFor, fees, firstName, fmtDate, httpsUrl, isIs
 import { tr as trx } from '../../lib/i18n';
 
 export default function BookScreen() {
-  const { id, pkg, date: tripDate } = useLocalSearchParams<{ id: string; pkg: string; date?: string }>();
+  const { id, pkg, date: tripDate, gift: giftParam } = useLocalSearchParams<{ id: string; pkg: string; date?: string; gift?: string }>();
   const { user, ready } = useAuth();
   const toast = useToast();
   const [l, setL] = useState<Listing | null | undefined>(undefined);
@@ -37,8 +37,10 @@ export default function BookScreen() {
   const [busyDays, setBusyDays] = useState<Set<string>>(() => new Set());
   const [refId, setRefId] = useState<string | null>(null);
   // Pay with a gift card, or split the cost with friends (one or the other — the server checks the same)
-  const [payOpt, setPayOpt] = useState<'' | 'gift' | 'split'>('');
-  const [giftInput, setGiftInput] = useState('');
+  // From the deals screen: the gift card the traveller checked there is filled in and applied (checked again here and by the server)
+  const giftFromDeals = giftCodeNorm(String(giftParam ?? ''));
+  const [payOpt, setPayOpt] = useState<'' | 'gift' | 'split'>(giftFromDeals ? 'gift' : '');
+  const [giftInput, setGiftInput] = useState(giftFromDeals);
   const [gift, setGift] = useState<{ code: string; balance: number } | null>(null);
   const [giftMsg, setGiftMsg] = useState<{ text: string; bad: boolean } | null>(null);
   const [giftBusy, setGiftBusy] = useState(false);
@@ -54,6 +56,18 @@ export default function BookScreen() {
     });
     getRef().then(setRefId);
   }, [id]);
+  useEffect(() => {
+    if (!giftFromDeals || !user) return;
+    let live = true;
+    api.gifts.check(giftFromDeals).then(({ data, error }) => {
+      if (!live) return;
+      if (error || !data?.ok) { setGiftMsg({ text: data?.error || error?.message || 'Could not check the code. Please try again.', bad: true }); return; }
+      const balance = Number(data.balance_cents) || 0;
+      setGift({ code: giftFromDeals, balance });
+      setGiftMsg({ text: `✓ ${euroCents(balance)} on this card.`, bad: false });
+    });
+    return () => { live = false; };
+  }, [giftFromDeals, user]);
 
   if (!ready || l === undefined) return <Loading />;
   if (!user) return <Empty title="Sign in to book" text="It takes 30 seconds." action="Sign in" onAction={() => router.push('/sign-in')} />;

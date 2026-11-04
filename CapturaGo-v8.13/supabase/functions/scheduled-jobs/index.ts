@@ -336,6 +336,19 @@ const MAIL_TEXT = {
   '“Paid to you” is the price of the shoots that were paid out to you in that quarter, before our fees; tips and payments outside CapturaGo aren\'t included.': { de: '„An dich ausgezahlt“ ist der Preis der Shootings, die dir in diesem Quartal ausgezahlt wurden, vor unseren Gebühren; Trinkgelder und Zahlungen außerhalb von CapturaGo sind nicht enthalten.', es: '«Pagado a ti» es el precio de las sesiones que se te pagaron en ese trimestre, antes de nuestras comisiones; no incluye propinas ni pagos fuera de CapturaGo.', fr: '« Versé à toi » est le prix des shootings qui t\'ont été versés ce trimestre-là, avant nos frais ; les pourboires et paiements hors CapturaGo ne sont pas inclus.' },
   'If anything is wrong, correct it in {link} and reply to this email so we can update the report.': { de: 'Wenn etwas nicht stimmt, korrigiere es in {link} und antworte auf diese E-Mail, damit wir die Meldung aktualisieren können.', es: 'Si algo está mal, corrígelo en {link} y responde a este correo para que podamos actualizar la declaración.', fr: 'Si quelque chose est faux, corrige-le dans {link} et réponds à cet e-mail pour que nous mettions à jour la déclaration.' },
   'your tax details': { de: 'deinen Steuerdaten', es: 'tus datos fiscales', fr: 'tes informations fiscales' },
+  // v8.17: answering reviews
+  '⭐ New review from {name}: {stars}': { de: '⭐ Neue Bewertung von {name}: {stars}', es: '⭐ Nueva reseña de {name}: {stars}', fr: '⭐ Nouvel avis de {name} : {stars}' },
+  '{name} left you a {n}-star review: “{text}”': { de: '{name} hat dir eine Bewertung mit {n} Sternen hinterlassen: „{text}“', es: '{name} te ha dejado una reseña de {n} estrellas: «{text}»', fr: '{name} t\'a laissé un avis {n} étoiles : « {text} »' },
+  '{name} left you a {n}-star review.': { de: '{name} hat dir eine Bewertung mit {n} Sternen hinterlassen.', es: '{name} te ha dejado una reseña de {n} estrellas.', fr: '{name} t\'a laissé un avis {n} étoiles.' },
+  'A short, friendly reply helps the next travellers more than the stars do: thank them, explain briefly what happened, and don\'t argue.': { de: 'Eine kurze, freundliche Antwort hilft den nächsten Reisenden mehr als die Sterne: Bedanke dich, erkläre kurz, was passiert ist, und diskutiere nicht.', es: 'Una respuesta breve y amable ayuda a los próximos viajeros más que las estrellas: da las gracias, explica brevemente lo que pasó y no discutas.', fr: 'Une réponse courte et aimable aide les prochains voyageurs plus que les étoiles : remercie, explique brièvement ce qui s\'est passé et ne te dispute pas.' },
+  'Read it and reply': { de: 'Lesen und antworten', es: 'Léela y responde', fr: 'Le lire et répondre' },
+  '{name} replied to your review': { de: '{name} hat auf deine Bewertung geantwortet', es: '{name} ha respondido a tu reseña', fr: '{name} a répondu à ton avis' },
+  '{name} replied to your review on CapturaGo: “{text}”': { de: '{name} hat auf deine Bewertung auf CapturaGo geantwortet: „{text}“', es: '{name} ha respondido a tu reseña en CapturaGo: «{text}»', fr: '{name} a répondu à ton avis sur CapturaGo : « {text} »' },
+  'See it on {name}’s profile': { de: 'Auf dem Profil von {name} ansehen', es: 'Verla en el perfil de {name}', fr: 'Voir sur le profil de {name}' },
+  // light on the shoot day
+  '🌅 Sunrise {sunrise} · golden light until {until}': { de: '🌅 Sonnenaufgang {sunrise} · goldenes Licht bis {until}', es: '🌅 Amanecer {sunrise} · luz dorada hasta las {until}', fr: '🌅 Lever du soleil {sunrise} · lumière dorée jusqu\'à {until}' },
+  '🌇 Golden hour {from}–{sunset} · sunset {sunset}': { de: '🌇 Goldene Stunde {from}–{sunset} · Sonnenuntergang {sunset}', es: '🌇 Hora dorada {from}–{sunset} · puesta de sol {sunset}', fr: '🌇 Heure dorée {from}–{sunset} · coucher du soleil {sunset}' },
+  '🌅 Sunrise {sunrise} · 🌇 Sunset {sunset} (golden hour from {from})': { de: '🌅 Sonnenaufgang {sunrise} · 🌇 Sonnenuntergang {sunset} (goldene Stunde ab {from})', es: '🌅 Amanecer {sunrise} · 🌇 Puesta de sol {sunset} (hora dorada desde las {from})', fr: '🌅 Lever du soleil {sunrise} · 🌇 Coucher du soleil {sunset} (heure dorée dès {from})' },
 };
 
 // ── CapturaGo server helpers (inlined into every function by build.py) ──
@@ -506,6 +519,45 @@ async function sendEmail(ctx, deps, to, subject, html) {
   }
 }
 
+/* ── App push notifications through Expo's push service (https://exp.host). The app registers its token with
+   register_push_token(); the server only ever sends to a user's own tokens. Optional secret: EXPO_ACCESS_TOKEN
+   (if "enhanced push security" is on in the Expo project). PUSH_DISABLED=1 turns pushes off. Never throws. */
+const PUSH_TOKEN_RE = /^(Expo|Exponent)PushToken\[[A-Za-z0-9_-]{10,200}\]$/;
+/** Email HTML → a short plain line for a notification (tags removed, entities decoded, cut at max). */
+function plainText(html, max = 178) {
+  const t = String(html || '').replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+async function sendPush(ctx, deps, userId, title, body, data = {}) {
+  if (!userId || !UUID_RE.test(String(userId)) || ctx.env('PUSH_DISABLED', '') === '1') return 0;
+  try {
+    const rows = await ctx.db(`push_tokens?user_id=eq.${userId}&select=token&order=last_seen_at.desc&limit=10`);
+    const tokens = (rows || []).map((r) => r.token).filter((t) => PUSH_TOKEN_RE.test(t));
+    if (!tokens.length) return 0;
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    const key = ctx.env('EXPO_ACCESS_TOKEN', '');
+    if (key) headers.Authorization = `Bearer ${key}`;
+    // The title is an email subject (plain text already); the body is email HTML
+    const head = String(title || '').replace(/\s+/g, ' ').trim();
+    const msgs = tokens.map((to) => ({ to, title: head.length > 100 ? `${head.slice(0, 99).trimEnd()}…` : head, body: plainText(body), data, sound: 'default', channelId: 'default', priority: 'high' }));
+    const r = await deps.fetch('https://exp.host/--/api/v2/push/send', { method: 'POST', headers, body: JSON.stringify(msgs) });
+    if (!r.ok) { console.error('[push] status', r.status); return 0; }
+    const out = await r.json().catch(() => ({}));
+    const tickets = Array.isArray(out && out.data) ? out.data : [];
+    // Uninstalled apps / revoked permission: forget those tokens
+    const dead = tokens.filter((_, i) => tickets[i] && tickets[i].status === 'error' && tickets[i].details && tickets[i].details.error === 'DeviceNotRegistered');
+    if (dead.length) {
+      await ctx.db(`push_tokens?token=in.(${encodeURIComponent(dead.map((t) => `"${t}"`).join(','))})`, { method: 'DELETE', prefer: 'return=minimal' }).catch((e) => console.error('[push] cleanup', e));
+    }
+    return tickets.filter((t) => t && t.status === 'ok').length;
+  } catch (e) {
+    console.error('[push]', e);
+    return 0;
+  }
+}
+
 /* ── Text messages (SMS / WhatsApp) through Twilio — keys only in Supabase secrets ──
    SMS: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM (or TWILIO_MESSAGING_SERVICE_SID).
    WhatsApp (optional): TWILIO_WHATSAPP_FROM and an approved template TWILIO_WHATSAPP_TEMPLATE_SID
@@ -565,22 +617,36 @@ function isHeavyRain(code, pct, mm) {
   return Number.isFinite(m) && m >= 10 && Number.isFinite(p) && p >= 60;      // 10 mm+ of rain, likely
 }
 /** { heavy, pct, mm } for a place and day (0–15 days ahead), or null when unknown. Cached per run; never throws. */
+/* Light on the shoot day (same rules as the website and the app): times in the shoot city's local time (Open-Meteo,
+   timezone=auto); golden hour = the hour after sunrise and the hour before sunset. */
+function hhmm(v) { const m = String(v == null ? '' : v).match(/(?:^|T)([01]\d|2[0-3]):([0-5]\d)(?::\d\d)?$/); return m ? `${m[1]}:${m[2]}` : null; }
+function addMinutes(t, n) { const [h, m] = t.split(':').map(Number); const x = Math.min(23 * 60 + 59, Math.max(0, h * 60 + m + n)); return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; }
+/** The light line for an email, in the reader's language ('' near the poles or without a forecast). */
+function sunText(w, slot, lang) {
+  const sr = w && w.sunrise, ss = w && w.sunset;
+  if (!sr || !ss || sr >= ss) return '';
+  if (slot === 'sunrise') return L(lang, '🌅 Sunrise {sunrise} · golden light until {until}', { sunrise: sr, until: addMinutes(sr, 60) });
+  if (slot === 'golden_hour' || slot === 'evening') return L(lang, '🌇 Golden hour {from}–{sunset} · sunset {sunset}', { from: addMinutes(ss, -60), sunset: ss });
+  return L(lang, '🌅 Sunrise {sunrise} · 🌇 Sunset {sunset} (golden hour from {from})', { sunrise: sr, sunset: ss, from: addMinutes(ss, -60) });
+}
 async function rainForecast(ctx, deps, coords, isoDate) {
-  const lat = Number(coords && coords.lat), lon = Number(coords && coords.lon);
+  if (!coords || coords.lat == null || coords.lon == null || coords.lat === '' || coords.lon === '') return null;   // Number(null) is 0: never ask for 0,0
+  const lat = Number(coords.lat), lon = Number(coords.lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate || ''))) return null;
   const key = `${lat.toFixed(2)},${lon.toFixed(2)},${isoDate}`;
   if (!ctx._wx) ctx._wx = new Map();
   if (ctx._wx.has(key)) return ctx._wx.get(key);
   let out = null;
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,precipitation_probability_max,precipitation_sum&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,precipitation_probability_max,precipitation_sum,sunrise,sunset&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
     const r = await Promise.race([deps.fetch(url), new Promise((_, no) => setTimeout(() => no(new Error('weather timeout')), 6000))]);
     if (r && r.ok) {
       const d = ((await r.json()) || {}).daily || {};
       const code = Number(d.weather_code && d.weather_code[0]);
       const pct = Number(d.precipitation_probability_max && d.precipitation_probability_max[0]);
       const mm = Number(d.precipitation_sum && d.precipitation_sum[0]);
-      if (Number.isFinite(code)) out = { heavy: isHeavyRain(code, pct, mm), pct: Number.isFinite(pct) ? Math.round(pct) : null, mm: Number.isFinite(mm) ? Math.round(mm) : null };
+      if (Number.isFinite(code)) out = { heavy: isHeavyRain(code, pct, mm), pct: Number.isFinite(pct) ? Math.round(pct) : null, mm: Number.isFinite(mm) ? Math.round(mm) : null,
+        sunrise: hhmm(d.sunrise && d.sunrise[0]), sunset: hhmm(d.sunset && d.sunset[0]) };
     }
   } catch (e) { console.error('[weather]', e && e.message ? e.message : e); }
   ctx._wx.set(key, out);
@@ -761,6 +827,10 @@ async function afterBookingPaid(ctx, deps, booking) {
     (instant
       ? `<p>${L(lc, '⚡ It\'s <strong>confirmed automatically</strong> because you use instant booking. {open} to message {first}. The payment is released to you {release}.', { open: bookingsLink(lc, 'Open your bookings'), first: escHtml(String(b.client_name).split(' ')[0]), release: releaseText(lc) })}</p>`
       : `<p>${L(lc, 'Please {action}. The payment is held safely and released to you {release}.', { action: bookingsLink(lc, remote ? 'accept the order in your dashboard' : 'confirm the booking in your dashboard'), release: releaseText(lc) })}</p>`));
+  await sendPush(ctx, deps, creator && creator.user_id,
+    instant ? L(lc, 'Confirmed booking: {pkg} on {date}', { pkg: b.package_name, date: b.shoot_date }) : remote ? L(lc, 'New order: {pkg} (due {date})', { pkg: b.package_name, date: b.shoot_date }) : L(lc, 'New booking: {pkg} on {date}', { pkg: b.package_name, date: b.shoot_date }),
+    L(lc, '{client} booked {pkg} {when} and paid {amount}.', { client: escHtml(b.client_name), pkg: escHtml(b.package_name), when: whenText(lc), amount: euro(b.total_cents) }),
+    { url: '/bookings', booking_id: b.id });
   // to the traveller
   const lt = await mailLang(ctx, b.client_user_id, b.client_email);
   const heldUntil = remote ? L(lt, 'you approve the delivery') : payoutHold(b).promised ? L(lt, 'your photos arrive') : L(lt, 'your shoot is done');
@@ -1183,6 +1253,8 @@ function buildIcsFeed(bookings, userId, siteUrl, nowMs) {
 // 19. Last-minute deals → one email to travellers in that city   20. Text reminders on the shoot day (SMS / WhatsApp)
 //  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
 // 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
+// 23. (v8.17) A new review → the creator (email + push, link to reply); the creator replied → the traveller, once.
+// (v1.5 app) Booking emails, "Notify me" alerts and the new-booking email also go to the user's phones as a push (lib.js sendPush).
 // 22. (v8.15) EU DAC7: creators who can be paid online are asked for their tax details (then 2 reminders: day 14 and 45).
 //     With the secret TAX_INFO_HOLD=on, payouts wait for creators still without details 60 days after the first request.
 const BATCH = 50;
@@ -1200,7 +1272,7 @@ async function runJobs(ctx, deps) {
   const now = ctx.nowMs();
   const nowIso = new Date(now).toISOString();
   const summary = { expired: 0, nudged: 0, auto_refunded: 0, released: 0, reminders: 0, late_notices: 0, message_emails: 0, photo_reminders: 0, photos_deleted: 0, city_alerts: 0,
-    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, errors: 0 };
+    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, review_alerts: 0, reply_alerts: 0, errors: 0 };
   const errors = [];
   const fail = (what, id, e) => { summary.errors++; errors.push(`${what} ${id}: ${e && e.message ? e.message : e}`); console.error('[jobs]', what, id, e); };
   const mark = (b, key) => ctx.db(`bookings?id=eq.${b.id}`, { method: 'PATCH', body: { notices: { ...(b.notices || {}), [key]: nowIso } }, prefer: 'return=minimal' });
@@ -1210,12 +1282,14 @@ async function runJobs(ctx, deps) {
   async function mailClient(b, make) {
     const l = await mailLang(ctx, b.client_user_id, b.client_email);
     const [subject, html] = make(l);
+    await sendPush(ctx, deps, b.client_user_id, subject, html, { url: '/bookings', booking_id: b.id });
     return sendEmail(ctx, deps, b.client_email, clientSubject(b, subject, l), `${hiP(l, escHtml(b.client_name))}<p>${html}</p>${dash(l)}`);
   }
   async function mailCreator(b, make) {
     const c = await creatorContact(ctx, b);
     if (!c || !c.email) return;
     const [subject, html] = make(c.lang);
+    await sendPush(ctx, deps, c.user_id || b.creator_user_id, subject, html, { url: '/bookings', booking_id: b.id });
     await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${html}</p>${dash(c.lang)}`);
   }
   const LOCALE = { en: 'en-GB', de: 'de-DE', es: 'es-ES', fr: 'fr-FR' };
@@ -1223,6 +1297,13 @@ async function runJobs(ctx, deps) {
   const moveLink = (b) => `${ctx.siteUrl}/dashboard.html?move=${b.id}#bookings`;
   const canMove = (b) => b.booking_type !== 'delivery' && ['paid', 'confirmed'].includes(b.status) && !b.proposed_date && (Number(b.reschedules) || 0) < 3;
   const shootCoords = (b) => (b.shoot_city ? b.shoot_coords : (b.photographers && b.photographers.coords)) || null;   // a trip: the trip city
+  /** Sunrise / sunset for an in-person shoot (same forecast request, cached) — or null. */
+  async function sunFor(b) {
+    if (b.booking_type === 'delivery') return null;
+    const w = await rainForecast(ctx, deps, shootCoords(b), b.shoot_date);
+    return w && w.sunrise && w.sunset ? w : null;
+  }
+  const sunHtml = (w, b, l) => { const t = w ? sunText(w, b.time_slot, l) : ''; return t ? `<p>${escHtml(t)}</p>` : ''; };
   async function heavyRainFor(b) {
     if (!canMove(b)) return null;
     const w = await rainForecast(ctx, deps, shootCoords(b), b.shoot_date);
@@ -1334,12 +1415,13 @@ async function runJobs(ctx, deps) {
     if (b.notices && b.notices.reminder) continue;
     try {
       const rain = b.booking_type === 'delivery' ? null : await heavyRainFor(b);
+      const sun = await sunFor(b);
       if (rain) summary.rain_warnings++;
       if (b.booking_type === 'delivery') {
         await mailCreator(b, (l) => [L(l, 'Due tomorrow: {pkg}', { pkg: b.package_name }), L(l, 'Delivery for {pkg} is due tomorrow ({date}). Deliver the files from your dashboard.', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })]);
       } else {
-        await mailClient(b, (l) => [rain ? L(l, 'Your shoot is tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Your shoot is tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Just a reminder — your shoot {pkg} is tomorrow ({date}).', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${planHtml(b, false, l) || `<p>${L(l, 'Your creator hasn\'t shared a meeting point yet — message them on CapturaGo.')}`}<p>${L(l, 'Enjoy it!')}`]);
-        await mailCreator(b, (l) => [rain ? L(l, 'Shoot tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Shoot tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Reminder: you\'re shooting {pkg} with {name} tomorrow ({date}).', { pkg: pkgOf(b), name: escHtml(b.client_name), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${planHtml(b, true, l) || `<p>${L(l, 'Tip: share a meeting point and time from your bookings so the traveller knows where to go.')}`}<p>`]);
+        await mailClient(b, (l) => [rain ? L(l, 'Your shoot is tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Your shoot is tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Just a reminder — your shoot {pkg} is tomorrow ({date}).', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${sunHtml(sun, b, l)}${planHtml(b, false, l) || `<p>${L(l, 'Your creator hasn\'t shared a meeting point yet — message them on CapturaGo.')}`}<p>${L(l, 'Enjoy it!')}`]);
+        await mailCreator(b, (l) => [rain ? L(l, 'Shoot tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Shoot tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Reminder: you\'re shooting {pkg} with {name} tomorrow ({date}).', { pkg: pkgOf(b), name: escHtml(b.client_name), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${sunHtml(sun, b, l)}${planHtml(b, true, l) || `<p>${L(l, 'Tip: share a meeting point and time from your bookings so the traveller knows where to go.')}`}<p>`]);
       }
       await mark(b, 'reminder');
       summary.reminders++;
@@ -1758,6 +1840,7 @@ async function runJobs(ctx, deps) {
           sent = await sendEmail(ctx, deps, email, subject,
             `<p>${L(l, 'Hi,')}</p><p>${body}</p><p>${L(l, '{link} — free days go quickly, and the payment is protected as always.', { link: `<a href="${book}"><strong>${L(l, 'Book {name}', { name: escHtml(first) })}</strong></a>` })}</p>`
             + `<p style="color:#7D6A53;font-size:13px">${L(l, 'This was a one-time alert. Watch again any time from {link}.', { link: `<a href="${profile}">${L(l, '{name}’s profile', { name: escHtml(first) })}</a>` })}</p>`);
+          if (sent) await sendPush(ctx, deps, w.user_id, subject, body, { url: `/creator/${w.photographer_id}`, date: w.day });   // only once: a failed email is retried next hour
         }
         if (w.by_text && textsConfigured(ctx)) {
           const [pn] = await ctx.db(`phone_numbers?user_id=eq.${w.user_id}&verified_at=not.is.null&select=phone,channel`);
@@ -1795,6 +1878,58 @@ async function runJobs(ctx, deps) {
     }
   } catch (e) { if (!/due_tax_requests/.test(String(e && e.message))) fail('tax-requests', '-', e); }
 
+  // 23. Reviews: tell the creator about each new review (email + push, with a link to reply), and the traveller once
+  //     when the creator replied (10 minutes after the last edit, so a quick typo fix doesn't send two messages).
+  const notYet = (e) => /creator_notified_at|reply_notified_at|reply_at|42703/.test(String(e && e.message));   // PART 23 not run yet
+  const quote = (t, max = 300) => { const x = String(t || '').trim(); return escHtml(x.length > max ? `${x.slice(0, max - 1).trimEnd()}…` : x); };
+  try {
+    const since = encodeURIComponent(new Date(now - 3 * 86400000).toISOString());
+    const fresh = await ctx.db(`reviews?creator_notified_at=is.null&created_at=gte.${since}&select=id,photographer_id,reviewer_name,rating,comment,booking_id,photographers(user_id,email,name)&order=created_at.asc&limit=100`);
+    for (const r of fresh || []) {
+      try {
+        const c = r.photographers || {};
+        const l = await mailLang(ctx, c.user_id, c.email);
+        const who = String(r.reviewer_name || '').trim() || L(l, 'A traveller');
+        const stars = Math.max(1, Math.min(5, Math.round(Number(r.rating) || 0)));
+        const subject = L(l, '⭐ New review from {name}: {stars}', { name: who, stars: '★'.repeat(stars) + '☆'.repeat(5 - stars) });
+        const text = r.comment ? L(l, '{name} left you a {n}-star review: “{text}”', { name: escHtml(who), n: stars, text: quote(r.comment) }) : L(l, '{name} left you a {n}-star review.', { name: escHtml(who), n: stars });
+        let sent = true;
+        if (c.email) {
+          sent = await sendEmail(ctx, deps, c.email, subject, `${hiP(l, escHtml(String(c.name || '').split(' ')[0]))}<p>${text}</p>`
+            + (stars <= 3 ? `<p>${L(l, 'A short, friendly reply helps the next travellers more than the stars do: thank them, explain briefly what happened, and don\'t argue.')}</p>` : '')
+            + `<p><a href="${ctx.siteUrl}/dashboard.html#reviews"><strong>${L(l, 'Read it and reply')}</strong></a></p>`);
+        }
+        if (!sent) continue;   // try again next hour
+        await sendPush(ctx, deps, c.user_id, subject, text, { url: `/creator/${r.photographer_id}` });
+        await ctx.db(`reviews?id=eq.${r.id}&creator_notified_at=is.null`, { method: 'PATCH', body: { creator_notified_at: nowIso }, prefer: 'return=minimal' });
+        summary.review_alerts++;
+      } catch (e) { fail('review-alert', r.id, e); }
+    }
+  } catch (e) { if (!notYet(e)) fail('review-alerts', '-', e); }
+  try {
+    const settled = encodeURIComponent(new Date(now - 10 * 60000).toISOString());
+    const replied = await ctx.db(`reviews?reply_notified_at=is.null&reply_at=lte.${settled}&user_id=not.is.null&select=id,photographer_id,user_id,reviewer_name,reply,photographers(name,handle)&order=reply_at.asc&limit=100`);
+    for (const r of replied || []) {
+      try {
+        if (!r.reply) continue;
+        const u = await authUser(ctx, deps, r.user_id);
+        const email = u && u.email;
+        const l = await mailLang(ctx, r.user_id, email);
+        const c = r.photographers || {};
+        const name = String(c.name || '').trim() || L(l, 'Your creator');
+        const profile = c.handle ? `${ctx.siteUrl}/c/${encodeURIComponent(c.handle)}` : `${ctx.siteUrl}/?creator=${encodeURIComponent(r.photographer_id)}`;
+        const subject = L(l, '{name} replied to your review', { name });
+        const text = L(l, '{name} replied to your review on CapturaGo: “{text}”', { name: escHtml(name), text: quote(r.reply) });
+        let sent = true;
+        if (email) sent = await sendEmail(ctx, deps, email, subject, `${hiP(l, escHtml(String(r.reviewer_name || '').split(' ')[0]))}<p>${text}</p><p><a href="${profile}">${L(l, 'See it on {name}’s profile', { name: escHtml(name.split(' ')[0]) })}</a></p>`);
+        if (!sent) continue;
+        await sendPush(ctx, deps, r.user_id, subject, text, { url: `/creator/${r.photographer_id}` });
+        await ctx.db(`reviews?id=eq.${r.id}&reply_notified_at=is.null`, { method: 'PATCH', body: { reply_notified_at: nowIso }, prefer: 'return=minimal' });
+        summary.reply_alerts++;
+      } catch (e) { fail('reply-alert', r.id, e); }
+    }
+  } catch (e) { if (!notYet(e)) fail('reply-alerts', '-', e); }
+
   // 6. + 10. housekeeping
   await ctx.db(`ai_requests?created_at=lt.${encodeURIComponent(new Date(now - HOUR).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`search_events?created_at=lt.${encodeURIComponent(new Date(now - 180 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
@@ -1805,6 +1940,7 @@ async function runJobs(ctx, deps) {
   await ctx.db(`phone_code_log?created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`creator_watches?or=(until_day.lt.${ctx.isoInDays(-7)},notified_at.lt.${encodeURIComponent(new Date(now - 60 * 86400000).toISOString())})`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`phone_numbers?verified_at=is.null&created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});   // never confirmed
+  await ctx.db('rpc/prune_push_tokens', { method: 'POST', body: {} }).catch(() => {});   // app phones not seen for 120 days
 
   if (run && run.id) {
     await ctx.db(`job_runs?id=eq.${run.id}`, { method: 'PATCH', body: { finished_at: new Date(ctx.nowMs()).toISOString(), summary, error: errors.length ? errors.slice(0, 10).join('\n').slice(0, 2000) : null }, prefer: 'return=minimal' });

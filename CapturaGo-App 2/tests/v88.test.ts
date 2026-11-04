@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { cityKey, isFounding, type Listing } from '../src/lib/logic';
 import { FOUNDING_NEEDS, foundingView, stillRunning } from '../src/lib/plan-logic';
+import { WEB_DIR } from './web';
 
-const WEB = '/home/claude/cg9';
+const WEB = WEB_DIR;
 const web = (f: string) => (existsSync(`${WEB}/${f}`) ? readFileSync(`${WEB}/${f}`, 'utf8') : '');
 const L = (o: Partial<Listing>): Listing => ({ id: 'p', name: 'Ana', city: 'Kyoto, Japan', ...o });
 
