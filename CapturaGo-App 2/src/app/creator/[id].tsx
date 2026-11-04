@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { color, font, radius, space } from '../../theme';
-import { Badge, Button, Card, Empty, Loading, Stars, Txt, useToast, TText } from '../../components/ui';
+import { Badge, Button, Card, Checkbox, Empty, Loading, Stars, Txt, useToast, TText } from '../../components/ui';
 import { coverSource } from '../../components/CreatorCard';
 import { api, type Review } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -23,9 +23,10 @@ import {
 import { tr as trx } from '../../lib/i18n';
 import { dealCents, dealDay } from '../../lib/deal-logic';
 import { useDeals } from '../../lib/deals';
+import { canWatch, clientShots, isFullyBooked } from '../../lib/watch-logic';
 
 export default function CreatorScreen() {
-  const { id, date } = useLocalSearchParams<{ id: string; date?: string }>();
+  const { id, date, gift } = useLocalSearchParams<{ id: string; date?: string; gift?: string }>();
   const { user } = useAuth();
   const toast = useToast();
   const [l, setL] = useState<Listing | null>(null);
@@ -38,6 +39,11 @@ export default function CreatorScreen() {
   const [reviewView, setReviewView] = useState<{ urls: string[]; at: number; name: string } | null>(null);
   const [sampleOpen, setSampleOpen] = useState(false);
   const dealMap = useDeals();
+  // 🔔 Notify me (fully booked creators): taken days, whether I'm already waiting, whether I can also get a text
+  const [busy, setBusy] = useState<string[] | null>(null);
+  const [watch, setWatch] = useState<{ key: string; on: boolean; phoneOk: boolean } | null>(null);
+  const [byText, setByText] = useState(false);
+  const [watchBusy, setWatchBusy] = useState(false);
 
   const load = useCallback(async () => {
     const pid = String(id ?? '');
@@ -60,6 +66,20 @@ export default function CreatorScreen() {
     api.listings.incrementViews(l.id);
     api.logEvent('profile_view', l.city);
   }, [l?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const watchable = canWatch(l, user?.id);
+  useEffect(() => {
+    if (!watchable || !l) return;
+    let alive = true;
+    api.listings.busyDates(l.id).then((d) => { if (alive) setBusy(d); });
+    return () => { alive = false; };
+  }, [watchable, l?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const watchKey = user && l && watchable ? `${user.id}:${l.id}` : '';
+  const loadWatch = useCallback(async () => {
+    if (!watchKey || !l) return;
+    const [w, ph] = await Promise.all([api.watches.mine(), api.phone.mine()]);
+    setWatch({ key: watchKey, on: (w.data ?? []).some((x) => x.photographer_id === l.id && !x.notified_at), phoneOk: !!ph.data?.verified });
+  }, [watchKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadWatch(); }, [loadWatch]); // eslint-disable-line react-hooks/set-state-in-effect
   const favKey = user && l && !l.isExample ? `${user.id}:${l.id}` : '';
   const fav = !!favKey && favState?.key === favKey && favState.on;
   useEffect(() => {
@@ -97,7 +117,7 @@ export default function CreatorScreen() {
   };
   const book = (pkgId: string) => {
     if (!user) return needSignIn('Sign in to book — it takes 30 seconds.');
-    router.push({ pathname: '/book/[id]', params: { id: l.id, pkg: pkgId, ...(date ? { date: String(date) } : {}) } });
+    router.push({ pathname: '/book/[id]', params: { id: l.id, pkg: pkgId, ...(date ? { date: String(date) } : {}), ...(gift ? { gift: String(gift) } : {}) } });
   };
   const canReport = !l.isExample && !isOwn;
   const report = (photo?: string) => {
@@ -105,6 +125,28 @@ export default function CreatorScreen() {
     setViewerAt(null); setReviewView(null);
     router.push({ pathname: '/report/[id]', params: { id: l.id, name: firstName(l.name), ...(photo ? { photo } : {}) } });
   };
+  const watching = !!watchKey && watch?.key === watchKey && watch.on;
+  const phoneOk = !!watchKey && watch?.key === watchKey && watch.phoneOk;
+  const full = watchable && busy !== null && isFullyBooked(l, busy, (dealMap.get(l.id) ?? []).length > 0);
+  const showWatch = watchable && (full || watching);
+  const notifyMe = async () => {
+    if (!user) return needSignIn(`Sign in and we'll tell you when ${firstName(l.name)} has a free day.`);
+    setWatchBusy(true);
+    const { error } = await api.watches.add(l.id, phoneOk && byText);
+    setWatchBusy(false);
+    if (error) { toast(error.message || 'Could not save it. Please try again.', 'error'); return; }
+    toast(`Done — we'll tell you once when ${firstName(l.name)} has a free day or a deal.`, 'success');
+    loadWatch();
+  };
+  const stopNotify = async () => {
+    setWatchBusy(true);
+    const { error } = await api.watches.remove(l.id);
+    setWatchBusy(false);
+    if (error) { toast('Could not change it. Please try again.', 'error'); return; }
+    toast('Done — no more alerts about this creator.', 'info');
+    loadWatch();
+  };
+  const shots = l.isExample ? [] : clientShots(reviews);
   const gallery = galleryOf(l);
   const sample = galleryOf(l, 'sample_gallery').slice(0, 40);
 
@@ -171,6 +213,22 @@ export default function CreatorScreen() {
               </View>
             </Pressable>
           )}
+          {shots.length > 0 && (
+            <View style={{ marginTop: space.lg }} testID="client-shots">
+              <Txt v="h3">{"📸 Clients' favourite shots"}</Txt>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} style={{ marginHorizontal: -space.lg, marginTop: space.sm }}>
+                <View style={{ width: space.lg - 8 }} />
+                {shots.map((x, i) => (
+                  <Pressable key={x.review.id} testID={`shot-${i}`} onPress={() => setReviewView({ urls: reviewPhotosOf(x.review), at: 0, name: x.review.reviewer_name })}
+                    accessibilityRole="imagebutton" accessibilityLabel={trx(`Photo from ${x.review.reviewer_name}'s review`)} style={({ pressed }) => [s.shot, pressed && { opacity: 0.85 }]}>
+                    <Image source={{ uri: x.url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} recyclingKey={x.url} accessibilityIgnoresInvertColors />
+                    <View style={s.shotTag}><TText style={s.shotTagText}>{`${'★'.repeat(Math.max(1, Math.min(5, Math.round(x.review.rating))))} ${firstName(x.review.reviewer_name)}`}</TText></View>
+                  </Pressable>
+                ))}
+                <View style={{ width: space.lg - 8 }} />
+              </ScrollView>
+            </View>
+          )}
           {(l.occasions ?? []).length > 0 && <Txt v="muted" style={{ marginTop: space.md }}><Txt v="h3">Great for: </Txt>{l.occasions!.map(occasionLabel).join(' · ')}</Txt>}
 
           <View style={[s.badges, { marginTop: space.lg }]}>
@@ -218,6 +276,24 @@ export default function CreatorScreen() {
             </Card>
           )}
 
+          {showWatch && (
+            <Card style={{ marginTop: space.lg }} testID="watch-box">
+              {watching ? (
+                <>
+                  <Txt v="h3">{"🔔 We'll tell you"}</Txt>
+                  <Txt v="small" style={{ marginTop: 2 }}>{`You'll get one message when ${firstName(l.name)} has a free day again or posts a last-minute deal.`}</Txt>
+                  <Button testID="watch-stop" title="Stop notifying me" kind="ghost" small loading={watchBusy} onPress={stopNotify} style={{ alignSelf: 'flex-start', paddingHorizontal: 0, marginTop: space.xs }} />
+                </>
+              ) : (
+                <>
+                  <Txt v="h3">{`📅 ${l.available === false ? `${firstName(l.name)} isn't taking bookings right now` : 'Fully booked for the next 2 weeks'}`}</Txt>
+                  <Txt v="small" style={{ marginTop: 2, marginBottom: space.sm }}>{`Get one message when ${firstName(l.name)} has a free day again or posts a last-minute deal.`}</Txt>
+                  {phoneOk ? <Checkbox testID="watch-text" checked={byText} onChange={setByText} label="Also send me a text message" /> : null}
+                  <Button testID="watch-btn" title="🔔 Notify me" loading={watchBusy} onPress={notifyMe} style={{ marginTop: space.xs }} />
+                </>
+              )}
+            </Card>
+          )}
           {!l.isExample && !isOwn && (
             <Button testID="message-btn" title={`Message ${firstName(l.name)}`} kind={bookable ? 'secondary' : 'primary'} style={{ marginTop: space.lg }}
               loading={opening} onPress={message} />
@@ -316,6 +392,9 @@ const s = StyleSheet.create({
   rules: { marginTop: space.md, padding: space.md, borderRadius: radius.md, backgroundColor: color.okDim, gap: 2 },
   sample: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: color.border, backgroundColor: color.card },
   sampleThumb: { width: 44, height: 44, borderRadius: 8, borderWidth: 2, borderColor: color.card, backgroundColor: color.sand },
+  shot: { width: 120, height: 150, borderRadius: radius.md, overflow: 'hidden', backgroundColor: color.sand },
+  shotTag: { position: 'absolute', left: 6, right: 6, bottom: 6, backgroundColor: 'rgba(33,25,17,0.72)', borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  shotTagText: { fontFamily: font.body, fontSize: 11, color: color.inkText },
   rvPhotos: { flexDirection: 'row', gap: 6, marginTop: space.sm },
   rvThumb: { width: 72, height: 72, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: color.sand },
   founding: { backgroundColor: '#FBEFD5', borderColor: '#EBCB8B', borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6, marginBottom: 6, alignSelf: 'flex-start' },

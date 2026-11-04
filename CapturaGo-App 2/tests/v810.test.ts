@@ -6,8 +6,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { introVideoOk, packageFacts, packageRules, photosDue, trustLine } from '../src/lib/trust-logic';
 import { buildListingPayload, draftFrom, emptyPackage } from '../src/lib/listing-logic';
 import type { Booking } from '../src/lib/logic';
+import { WEB_DIR } from './web';
 
-const WEB = '/home/claude/cg9';
+const WEB = WEB_DIR;
 const web = (f: string) => (existsSync(`${WEB}/${f}`) ? readFileSync(`${WEB}/${f}`, 'utf8') : '');
 
 test("what's included: short lines, same as the website", () => {

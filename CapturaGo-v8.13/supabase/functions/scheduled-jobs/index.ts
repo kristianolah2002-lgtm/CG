@@ -506,6 +506,45 @@ async function sendEmail(ctx, deps, to, subject, html) {
   }
 }
 
+/* ── App push notifications through Expo's push service (https://exp.host). The app registers its token with
+   register_push_token(); the server only ever sends to a user's own tokens. Optional secret: EXPO_ACCESS_TOKEN
+   (if "enhanced push security" is on in the Expo project). PUSH_DISABLED=1 turns pushes off. Never throws. */
+const PUSH_TOKEN_RE = /^(Expo|Exponent)PushToken\[[A-Za-z0-9_-]{10,200}\]$/;
+/** Email HTML → a short plain line for a notification (tags removed, entities decoded, cut at max). */
+function plainText(html, max = 178) {
+  const t = String(html || '').replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+async function sendPush(ctx, deps, userId, title, body, data = {}) {
+  if (!userId || !UUID_RE.test(String(userId)) || ctx.env('PUSH_DISABLED', '') === '1') return 0;
+  try {
+    const rows = await ctx.db(`push_tokens?user_id=eq.${userId}&select=token&order=last_seen_at.desc&limit=10`);
+    const tokens = (rows || []).map((r) => r.token).filter((t) => PUSH_TOKEN_RE.test(t));
+    if (!tokens.length) return 0;
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    const key = ctx.env('EXPO_ACCESS_TOKEN', '');
+    if (key) headers.Authorization = `Bearer ${key}`;
+    // The title is an email subject (plain text already); the body is email HTML
+    const head = String(title || '').replace(/\s+/g, ' ').trim();
+    const msgs = tokens.map((to) => ({ to, title: head.length > 100 ? `${head.slice(0, 99).trimEnd()}…` : head, body: plainText(body), data, sound: 'default', channelId: 'default', priority: 'high' }));
+    const r = await deps.fetch('https://exp.host/--/api/v2/push/send', { method: 'POST', headers, body: JSON.stringify(msgs) });
+    if (!r.ok) { console.error('[push] status', r.status); return 0; }
+    const out = await r.json().catch(() => ({}));
+    const tickets = Array.isArray(out && out.data) ? out.data : [];
+    // Uninstalled apps / revoked permission: forget those tokens
+    const dead = tokens.filter((_, i) => tickets[i] && tickets[i].status === 'error' && tickets[i].details && tickets[i].details.error === 'DeviceNotRegistered');
+    if (dead.length) {
+      await ctx.db(`push_tokens?token=in.(${encodeURIComponent(dead.map((t) => `"${t}"`).join(','))})`, { method: 'DELETE', prefer: 'return=minimal' }).catch((e) => console.error('[push] cleanup', e));
+    }
+    return tickets.filter((t) => t && t.status === 'ok').length;
+  } catch (e) {
+    console.error('[push]', e);
+    return 0;
+  }
+}
+
 /* ── Text messages (SMS / WhatsApp) through Twilio — keys only in Supabase secrets ──
    SMS: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM (or TWILIO_MESSAGING_SERVICE_SID).
    WhatsApp (optional): TWILIO_WHATSAPP_FROM and an approved template TWILIO_WHATSAPP_TEMPLATE_SID
@@ -761,6 +800,10 @@ async function afterBookingPaid(ctx, deps, booking) {
     (instant
       ? `<p>${L(lc, '⚡ It\'s <strong>confirmed automatically</strong> because you use instant booking. {open} to message {first}. The payment is released to you {release}.', { open: bookingsLink(lc, 'Open your bookings'), first: escHtml(String(b.client_name).split(' ')[0]), release: releaseText(lc) })}</p>`
       : `<p>${L(lc, 'Please {action}. The payment is held safely and released to you {release}.', { action: bookingsLink(lc, remote ? 'accept the order in your dashboard' : 'confirm the booking in your dashboard'), release: releaseText(lc) })}</p>`));
+  await sendPush(ctx, deps, creator && creator.user_id,
+    instant ? L(lc, 'Confirmed booking: {pkg} on {date}', { pkg: b.package_name, date: b.shoot_date }) : remote ? L(lc, 'New order: {pkg} (due {date})', { pkg: b.package_name, date: b.shoot_date }) : L(lc, 'New booking: {pkg} on {date}', { pkg: b.package_name, date: b.shoot_date }),
+    L(lc, '{client} booked {pkg} {when} and paid {amount}.', { client: escHtml(b.client_name), pkg: escHtml(b.package_name), when: whenText(lc), amount: euro(b.total_cents) }),
+    { url: '/bookings', booking_id: b.id });
   // to the traveller
   const lt = await mailLang(ctx, b.client_user_id, b.client_email);
   const heldUntil = remote ? L(lt, 'you approve the delivery') : payoutHold(b).promised ? L(lt, 'your photos arrive') : L(lt, 'your shoot is done');
@@ -1183,6 +1226,7 @@ function buildIcsFeed(bookings, userId, siteUrl, nowMs) {
 // 19. Last-minute deals → one email to travellers in that city   20. Text reminders on the shoot day (SMS / WhatsApp)
 //  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
 // 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
+// (v1.5 app) Booking emails, "Notify me" alerts and the new-booking email also go to the user's phones as a push (lib.js sendPush).
 // 22. (v8.15) EU DAC7: creators who can be paid online are asked for their tax details (then 2 reminders: day 14 and 45).
 //     With the secret TAX_INFO_HOLD=on, payouts wait for creators still without details 60 days after the first request.
 const BATCH = 50;
@@ -1210,12 +1254,14 @@ async function runJobs(ctx, deps) {
   async function mailClient(b, make) {
     const l = await mailLang(ctx, b.client_user_id, b.client_email);
     const [subject, html] = make(l);
+    await sendPush(ctx, deps, b.client_user_id, subject, html, { url: '/bookings', booking_id: b.id });
     return sendEmail(ctx, deps, b.client_email, clientSubject(b, subject, l), `${hiP(l, escHtml(b.client_name))}<p>${html}</p>${dash(l)}`);
   }
   async function mailCreator(b, make) {
     const c = await creatorContact(ctx, b);
     if (!c || !c.email) return;
     const [subject, html] = make(c.lang);
+    await sendPush(ctx, deps, c.user_id || b.creator_user_id, subject, html, { url: '/bookings', booking_id: b.id });
     await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${html}</p>${dash(c.lang)}`);
   }
   const LOCALE = { en: 'en-GB', de: 'de-DE', es: 'es-ES', fr: 'fr-FR' };
@@ -1758,6 +1804,7 @@ async function runJobs(ctx, deps) {
           sent = await sendEmail(ctx, deps, email, subject,
             `<p>${L(l, 'Hi,')}</p><p>${body}</p><p>${L(l, '{link} — free days go quickly, and the payment is protected as always.', { link: `<a href="${book}"><strong>${L(l, 'Book {name}', { name: escHtml(first) })}</strong></a>` })}</p>`
             + `<p style="color:#7D6A53;font-size:13px">${L(l, 'This was a one-time alert. Watch again any time from {link}.', { link: `<a href="${profile}">${L(l, '{name}’s profile', { name: escHtml(first) })}</a>` })}</p>`);
+          if (sent) await sendPush(ctx, deps, w.user_id, subject, body, { url: `/creator/${w.photographer_id}`, date: w.day });   // only once: a failed email is retried next hour
         }
         if (w.by_text && textsConfigured(ctx)) {
           const [pn] = await ctx.db(`phone_numbers?user_id=eq.${w.user_id}&verified_at=not.is.null&select=phone,channel`);
@@ -1805,6 +1852,7 @@ async function runJobs(ctx, deps) {
   await ctx.db(`phone_code_log?created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`creator_watches?or=(until_day.lt.${ctx.isoInDays(-7)},notified_at.lt.${encodeURIComponent(new Date(now - 60 * 86400000).toISOString())})`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`phone_numbers?verified_at=is.null&created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});   // never confirmed
+  await ctx.db('rpc/prune_push_tokens', { method: 'POST', body: {} }).catch(() => {});   // app phones not seen for 120 days
 
   if (run && run.id) {
     await ctx.db(`job_runs?id=eq.${run.id}`, { method: 'PATCH', body: { finished_at: new Date(ctx.nowMs()).toISOString(), summary, error: errors.length ? errors.slice(0, 10).join('\n').slice(0, 2000) : null }, prefer: 'return=minimal' });

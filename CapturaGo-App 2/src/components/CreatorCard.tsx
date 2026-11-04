@@ -8,6 +8,7 @@ import {
 } from '../lib/logic';
 import { tr as trx } from '../lib/i18n';
 import { useDeals } from '../lib/deals';
+import { replyRank } from '../lib/reply-logic';
 
 const FALLBACK = require('../../assets/default-cover.jpg');
 
@@ -48,10 +49,11 @@ export function CreatorCard({ l, reason, onPress }: { l: Listing; reason?: strin
             <Txt v="h3">{price ? `From ${money(price)}` : (PRICE_LABELS[l.price ?? ''] ?? '')}</Txt>
           </View>
         </View>
-        {canBook(l) || galleryOf(l).length ? (
+        {canBook(l) || galleryOf(l).length || replyRank(l) === 3 ? (
           <View style={{ marginTop: space.sm, flexDirection: 'row', flexWrap: 'wrap' }}>
             {canBook(l) ? <Badge label={l.instant_book ? '⚡ Instant book' : 'Book online'} tone="ok" /> : null}
             {galleryOf(l).length ? <Badge label={`📷 ${plural(galleryOf(l).length, 'photo')}`} /> : null}
+            {!l.isExample && replyRank(l) === 3 ? <Badge label="💬 Replies within an hour" tone="clay" /> : null}
           </View>
         ) : null}
       </View>

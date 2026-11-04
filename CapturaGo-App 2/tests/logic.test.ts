@@ -8,6 +8,7 @@ import {
 } from '../src/lib/logic';
 import { occasions, services, vibes } from '../src/lib/taxonomy-data';
 import { EXAMPLES } from '../src/lib/examples';
+import { WEB_DIR } from './web';
 
 const NOW = Date.parse('2026-10-14T12:00:00Z');
 const day = (n: number) => isoInDays(n, NOW);
@@ -19,8 +20,8 @@ const B = (o: Partial<Booking>): Booking => ({
 });
 const actions = (b: Booking, creator: boolean) => bookingButtons(b, creator, NOW).map((x) => x.action);
 
-test('categories are identical to the website taxonomy.js', { skip: !existsSync(process.env.WEBSITE_TAXONOMY ?? '../cg9/taxonomy.js') }, () => {
-  const web = readFileSync(process.env.WEBSITE_TAXONOMY ?? '../cg9/taxonomy.js', 'utf8');
+test('categories are identical to the website taxonomy.js', { skip: !existsSync(process.env.WEBSITE_TAXONOMY ?? `${WEB_DIR}/taxonomy.js`) }, () => {
+  const web = readFileSync(process.env.WEBSITE_TAXONOMY ?? `${WEB_DIR}/taxonomy.js`, 'utf8');
   const ids = (name: string) => {
     const i = web.indexOf(`const ${name} = [`); const block = web.slice(i, web.indexOf('];', i));
     return [...block.matchAll(/\{ id: '([a-z_]+)'/g)].map((m) => m[1]);

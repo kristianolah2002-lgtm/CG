@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as D from '../src/lib/deal-logic';
+import { WEB_DIR } from './web';
 
-const SITE = '/home/claude/cg9/site.js';
+const SITE = `${WEB_DIR}/site.js`;
 const W: Record<string, (...a: unknown[]) => unknown> | null = (() => {
   if (!existsSync(SITE)) return null;
   const win: Record<string, unknown> = { CG_CONFIG: { social: {} } };
@@ -15,7 +16,7 @@ const W: Record<string, (...a: unknown[]) => unknown> | null = (() => {
   vm.runInContext(readFileSync(SITE, 'utf8'), ctx);
   return win as Record<string, (...a: unknown[]) => unknown>;
 })();
-const LIB = '/home/claude/cg9/supabase/functions/_src/lib.js';
+const LIB = `${WEB_DIR}/supabase/functions/_src/lib.js`;
 
 test('deal price: −pct of the package, rounded to the cent like the server', () => {
   assert.equal(D.dealCents(120, 25), 9000);

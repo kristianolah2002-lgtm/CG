@@ -272,4 +272,9 @@ P = [
   (r"\+ (\d+)% service fee", "+ $1 % Servicegebühr", "+ $1 % de tarifa de servicio", "+ $1 % de frais de service"),
   (r"(.+?) from your card", "$1 von deinem Gutschein", "$1 de tu tarjeta", "$1 de ta carte"),
   (r"(€[0-9.,]+) to pay", "$1 zu zahlen", "$1 por pagar", "$1 à payer"),
+  # app v1.5: deals screen
+  (r"✓ (€[\d.,]+) on this card — we show what it covers and fill it in when you book\.", "✓ $1 auf diesem Gutschein — wir zeigen, was er abdeckt, und tragen ihn beim Buchen ein.", "✓ $1 en esta tarjeta: te mostramos lo que cubre y la añadimos al reservar.", "✓ $1 sur cette carte — on te montre ce qu'elle couvre et on la remplit quand tu réserves."),
+  (r"✓ (€[\d.,]+) on this card\.", "✓ $1 auf diesem Gutschein.", "✓ $1 en esta tarjeta.", "✓ $1 sur cette carte."),
+  (r"Book this deal with ([^→]+)", "Dieses Angebot bei $1 buchen", "Reservar esta oferta con $1", "Réserver cette offre avec $1"),
+  (r"Photo from (.+?)'s review", "Foto aus der Bewertung von $1", "Foto de la reseña de $1", "Photo de l'avis de $1"),
 ]

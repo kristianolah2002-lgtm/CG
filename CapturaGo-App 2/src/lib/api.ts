@@ -9,6 +9,8 @@ import { forecastUrl, parseForecast, type FreeCreator, type Forecast, type Galle
 import type { ReplyTemplate } from './reply-logic';
 import type { CalendarSync } from './trip-logic';
 import type { BookingShare, GiftCard } from './gift-logic';
+import type { WatchRow } from './watch-logic';
+import type { MyTax } from './tax-logic';
 import type { NearRequest, ShootRequest } from './request-logic';
 
 export interface ApiError { message: string; status?: number; code?: string }
@@ -247,7 +249,12 @@ export const api = {
       });
       return { data: r.data ? [...r.data].reverse() : null, error: r.error };
     },
-    send: (id: string, body: string) => run<ChatMessage>(() => supabase.from('messages').insert([{ conversation_id: id, body }]).select('id,conversation_id,sender_id,body,created_at').single()),
+    send: async (id: string, body: string) => {
+      const r = await run<ChatMessage>(() => supabase.from('messages').insert([{ conversation_id: id, body }]).select('id,conversation_id,sender_id,body,created_at').single());
+      // "New message from …" on the other person's phone; never waits, never fails the send (the server decides)
+      if (!r.error) fn<{ sent: boolean }>('push', { conversation_id: id }).catch(() => {});
+      return r;
+    },
     start: (photographerId: string) => run<string>(() => supabase.rpc('start_conversation', { p_photographer_id: photographerId })),
     forBooking: (bookingId: string) => run<string>(() => supabase.rpc('booking_conversation', { p_booking_id: bookingId })),
     markRead: (id: string) => run(() => supabase.rpc('mark_conversation_read', { p_conversation_id: id })),
@@ -346,6 +353,22 @@ export const api = {
     mine: () => run<MyDealDay[]>(() => supabase.rpc('my_last_minute')),
     set: (day: string, pct: number) => run<MyDealDay[]>(() => supabase.rpc('set_last_minute', { p_day: day, p_pct: Math.round(pct) })),
     remove: (day: string) => run<MyDealDay[]>(() => supabase.rpc('remove_last_minute', { p_day: day })),
+  },
+  /** "Notify me" on a fully booked creator: an email (or a text) when a day frees up or a deal appears. */
+  watches: {
+    add: (photographerId: string, byText: boolean) => run<{ watching: boolean; by_text: boolean; free_days: number }>(() => supabase.rpc('watch_creator', { p_photographer: photographerId, p_text: byText })),
+    remove: (photographerId: string) => run<boolean>(() => supabase.rpc('unwatch_creator', { p_photographer: photographerId })),
+    mine: () => run<WatchRow[]>(() => supabase.rpc('my_creator_watches')),
+  },
+  /** Push notifications on this phone (booking news, "Notify me" alerts, new messages). */
+  push: {
+    register: (token: string, platform: string) => run<boolean>(() => supabase.rpc('register_push_token', { p_token: token, p_platform: platform })),
+    unregister: (token: string) => run<boolean>(() => supabase.rpc('unregister_push_token', { p_token: token })),
+  },
+  /** EU DAC7: the tax details a platform must collect from the people it pays (checked again by the database). */
+  tax: {
+    mine: () => run<MyTax | null>(() => supabase.rpc('my_tax_info')),
+    save: (p: Record<string, unknown>) => run<MyTax>(() => supabase.rpc('save_tax_info', { p })),
   },
   /** Text reminders on the shoot day: my number (confirmed with a code by SMS), SMS or WhatsApp. */
   phone: {

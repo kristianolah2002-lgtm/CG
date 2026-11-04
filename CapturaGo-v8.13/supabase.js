@@ -450,7 +450,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         });
         return { data: r.data ? [...r.data].reverse() : null, error: r.error };
       },
-      send: (id, body) => run(d => d.from('messages').insert([{ conversation_id: id, body }]).select('id,conversation_id,sender_id,body,created_at').single()),
+      send: async (id, body) => {
+        const r = await run(d => d.from('messages').insert([{ conversation_id: id, body }]).select('id,conversation_id,sender_id,body,created_at').single());
+        // "New message from …" on the other person's phone (if they use the app); never waits, never fails the send
+        if (r && !r.error) fn('push', { conversation_id: id }).catch(() => {});
+        return r;
+      },
       start: (photographerId) => run(d => d.rpc('start_conversation', { p_photographer_id: photographerId })),
       forBooking: (bookingId) => run(d => d.rpc('booking_conversation', { p_booking_id: bookingId })),
       markRead: (id) => run(d => d.rpc('mark_conversation_read', { p_conversation_id: id })),

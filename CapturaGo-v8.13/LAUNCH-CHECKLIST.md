@@ -1,5 +1,11 @@
 # CapturaGo — Launch checklist
 
+> **v8.16 + app v1.5 — push notifications:** booking news, "Notify me" alerts and "New message from …" (never the text)
+> on people's phones; off in the app under Account. The app also gets the v8.14/v8.15 features (deals + 🎲 Surprise me
+> with gift cards, Notify me, clients' favourite shots, fast responders first, 🧾 tax details). Run `database.sql`,
+> deploy the new `push` function (Verify JWT **on**), re-deploy `booking-action`, `scheduled-jobs`, `stripe-webhook`,
+> set up push credentials in EAS (iPhone push key, Android FCM): SETUP-PAYMENTS-AND-AI.md **Part 22**. Then build
+> app 1.5.0 again (new native module) and submit.
 > **v8.15 — EU DAC7 tax reporting (legally required; first report for 2026 due by 31 January 2027):** creators add
 > their tax details in Dashboard → Payments → 🧾 Tax details (private; the database checks them); the hourly job asks
 > creators who can be paid online and sends 2 reminders (day 14 and 45); admin panel → **🧾 Tax reporting** shows every

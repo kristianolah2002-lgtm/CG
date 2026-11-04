@@ -13,6 +13,9 @@ import { FoundingCard } from '../../components/FoundingCard';
 import { useAuth, displayName } from '../../lib/auth';
 import { SITE_URL, SUPPORT_EMAIL } from '../../lib/config';
 import { serviceLabel, type Listing } from '../../lib/logic';
+import { watchStatus, type WatchRow } from '../../lib/watch-logic';
+import type { MyTax } from '../../lib/tax-logic';
+import { disablePush, enablePush, pushState, type PushState } from '../../lib/push';
 
 function Row({ icon, label, onPress, testID, detail }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void; testID?: string; detail?: string }) {
   return (
@@ -38,15 +41,21 @@ export default function AccountScreen() {
   const [alerts, setAlerts] = useState<CityAlert[]>([]);
   const [openCities, setOpenCities] = useState<FoundingCity[]>([]);
   const [tips, setTips] = useState<boolean | null>(null);
+  const [watches, setWatches] = useState<WatchRow[]>([]);
+  const [tax, setTax] = useState<MyTax | null>(null);
+  const [push, setPush] = useState<PushState>('unsupported');
 
   const load = useCallback(async () => {
-    if (!user) { setListing(null); setAlerts([]); return; }
+    if (!user) { setListing(null); setAlerts([]); setWatches([]); setTax(null); return; }
+    api.watches.mine().then(({ data }) => setWatches(data ?? []));
+    pushState().then(setPush);
     api.alerts.mine().then(({ data }) => setAlerts(data ?? []));
     api.emailPrefs.mine().then(({ data }) => setTips(data ? data.tips !== false : null));
     const { data } = await api.listings.mine(user.id);
     setListing(data ?? null);
     if (!data) api.founding.cities().then(({ data: fc }) => setOpenCities((fc ?? []).filter((c) => c.spots_left > 0).slice(0, 6)));
     if (data) {
+      api.tax.mine().then(({ data: t }) => setTax(t ?? null));
       const inq = await api.inquiries.forListing(data.id);
       setUnread((inq.data ?? []).filter((q) => !q.read).length);
       setInquiryCount((inq.data ?? []).length);
@@ -69,6 +78,20 @@ export default function AccountScreen() {
     if (error) { setTips(!on); toast('Could not save your choice.', 'error'); return; }
     toast(on ? 'Tips & reminders on ✓' : "Done — we won't send tips & reminders.");
   }
+  async function togglePush(on: boolean) {
+    if (!on) { setPush('off'); await disablePush(true); toast('Notifications off on this phone.'); return; }
+    const st = await enablePush(true);
+    setPush(st === 'unsupported' ? 'off' : st);
+    if (st === 'on') toast('Notifications on ✓', 'success');
+    else if (st === 'denied') toast('Notifications are blocked — turn them on for CapturaGo in your phone settings.', 'error');
+    else toast('Notifications are not available on this phone yet.', 'error');
+  }
+  async function removeWatch(w: WatchRow) {
+    const { error } = await api.watches.remove(w.photographer_id);
+    if (error) { toast('Could not change it. Please try again.', 'error'); return; }
+    toast('Done — no more alerts about this creator.', 'info');
+    setWatches((cur) => cur.filter((x) => x.id !== w.id));
+  }
   async function removeAlert(a: CityAlert) {
     const { error } = await api.alerts.remove(a.id);
     if (error) { toast('Could not remove it.', 'error'); return; }
@@ -76,6 +99,7 @@ export default function AccountScreen() {
   }
   async function signOut() {
     if (!(await confirmAsync('Sign out?', 'You can sign in again any time.', 'Sign out'))) return;
+    await disablePush(false).catch(() => {});   // this phone stops getting the account's notifications
     await api.auth.signOut();
     toast('Signed out.');
   }
@@ -101,6 +125,14 @@ export default function AccountScreen() {
           <Txt v="label" style={s.section}>Creator</Txt>
           {listing ? <FoundingCard onClaimed={load} /> : null}
           {listing === undefined ? <Loading /> : listing ? (
+            <>
+            {tax && tax.required && !tax.info ? (
+              <Pressable testID="tax-reminder" onPress={() => router.push('/tax')} accessibilityRole="button" style={[s.taxNote, tax.hold && { borderColor: color.err }]}>
+                <Txt v="h3">🧾 Add your tax details</Txt>
+                <Txt v="small" style={{ marginTop: 2 }}>EU law (DAC7) requires us to collect them from creators who are paid through CapturaGo. It takes about two minutes.</Txt>
+                {tax.hold ? <Txt v="small" style={{ color: color.err, fontFamily: font.bold, marginTop: 4 }}>Your payouts are on hold until you add them.</Txt> : null}
+              </Pressable>
+            ) : null}
             <Card testID="creator-card">
               <View style={s.switchRow}>
                 <View style={{ flex: 1 }}>
@@ -116,8 +148,10 @@ export default function AccountScreen() {
               <Row testID="booking-link" icon="link-outline" label="My booking link, QR code & invites" detail={listing.handle ? `/c/${listing.handle}` : 'Set up'} onPress={() => router.push('/link')} />
               <Row testID="earnings" icon="stats-chart-outline" label="Earnings & CSV export" onPress={() => router.push('/earnings')} />
               <Row testID="payouts" icon="card-outline" label="Payouts" detail={listing.payouts_enabled ? 'Active' : 'Not set up'} onPress={() => router.push('/payouts')} />
+              <Row testID="tax-link" icon="receipt-outline" label="Tax details (EU DAC7)" detail={tax?.info ? '✓ Saved' : tax?.required ? 'Needed' : undefined} onPress={() => router.push('/tax')} />
               {inquiryCount > 0 && <Row testID="my-inquiries" icon="mail-outline" label="Email inquiries" detail={unread ? `${unread} new` : undefined} onPress={() => router.push('/inquiries')} />}
             </Card>
+            </>
           ) : (
             <Card testID="become-creator">
               <Txt v="h3">Are you a photographer, videographer or editor?</Txt>
@@ -141,7 +175,18 @@ export default function AccountScreen() {
             <Row testID="quick-replies" icon="flash-outline" label="Quick replies for chats" onPress={() => router.push('/templates')} />
             <Row testID="calendar-link" icon="today-outline" label="Bookings in your calendar" onPress={() => router.push('/calendar')} />
             <Row testID="phone-link" icon="chatbox-ellipses-outline" label="Text reminders on the shoot day" onPress={() => router.push('/phone')} />
+            <Row testID="deals-link" icon="flash-outline" label="Last-minute deals & 🎲 Surprise me" onPress={() => router.push('/deals')} />
             <Row testID="gift-link" icon="gift-outline" label="Gift a shoot — gift cards" onPress={() => web('/gift.html')} />
+            {push !== 'unsupported' && (
+              <View style={s.tipsRow} testID="push-row">
+                <View style={{ flex: 1 }}>
+                  <Txt v="body">Notifications on this phone</Txt>
+                  <Txt v="small">{push === 'denied' ? 'Blocked in your phone settings — allow notifications for CapturaGo there.' : 'New bookings, messages and replies, free days of creators you wait for.'}</Txt>
+                </View>
+                <Switch testID="push-toggle" value={push === 'on'} onValueChange={togglePush} disabled={push === 'denied'} accessibilityLabel={trx('Notifications on this phone')}
+                  trackColor={{ true: color.clay, false: color.borderStrong }} thumbColor={color.card} />
+              </View>
+            )}
             {tips !== null && (
               <View style={s.tipsRow}>
                 <View style={{ flex: 1 }}>
@@ -153,6 +198,25 @@ export default function AccountScreen() {
               </View>
             )}
           </Card>
+          {watches.length > 0 && (
+            <>
+              <Txt v="label" style={s.section}>{"Creators you're waiting for"}</Txt>
+              <Card style={{ paddingVertical: 4 }} testID="watches-card">
+                <Txt v="small" style={{ paddingTop: space.sm }}>We tell you once when one of them has a free day again or posts a last-minute deal.</Txt>
+                {watches.map((w) => (
+                  <View key={w.id} style={s.alert} testID={`watch-${w.photographer_id}`}>
+                    <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/creator/[id]', params: { id: w.photographer_id } })} accessibilityRole="button">
+                      <Txt v="body">🔔 {w.name}{w.city ? ` · ${String(w.city).split(',')[0]}` : ''}</Txt>
+                      <Txt v="small" style={w.notified_at ? { color: color.ok } : undefined}>{watchStatus(w)}{w.by_text && !w.notified_at ? ' · 📱' : ''}</Txt>
+                    </Pressable>
+                    <Pressable testID={`watch-del-${w.photographer_id}`} onPress={() => removeWatch(w)} hitSlop={8} accessibilityRole="button" accessibilityLabel={trx('Stop notifying me')} style={s.alertDel}>
+                      <Ionicons name="close" size={20} color={color.dim} />
+                    </Pressable>
+                  </View>
+                ))}
+              </Card>
+            </>
+          )}
           {alerts.length > 0 && (
             <>
               <Txt v="label" style={s.section}>Cities you follow</Txt>
@@ -206,5 +270,6 @@ const s = StyleSheet.create({
   open: { marginTop: space.md, padding: space.md, borderRadius: radius.md, backgroundColor: '#FFFBF2', borderWidth: 1, borderColor: '#EBCB8B', gap: 2 },
   alert: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: TOUCH, paddingVertical: 6 },
   alertDel: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  taxNote: { backgroundColor: color.clayDim, borderRadius: radius.lg, borderWidth: 1, borderColor: color.clay, padding: space.lg, marginBottom: space.md },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingBottom: space.sm, marginBottom: space.sm, borderBottomWidth: 1, borderBottomColor: color.border },
 });

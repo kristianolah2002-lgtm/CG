@@ -58,12 +58,14 @@ function createHandler(deps) {
     async function notifyClient(make) {
       const lang = await mailLang(ctx, b.client_user_id, b.client_email);
       const [subject, text] = make(lang);
+      await sendPush(ctx, deps, b.client_user_id, subject, text, { url: '/bookings', booking_id: b.id });
       return sendEmail(ctx, deps, b.client_email, clientSubject(b, subject, lang), `${hiP(lang, escHtml(b.client_name))}<p>${text}</p>${link(lang)}`);
     }
     async function notifyCreator(make) {
       const c = await creatorContact(ctx, b);
       if (!c || !c.email) return;
       const [subject, text] = make(c.lang);
+      await sendPush(ctx, deps, c.user_id || b.creator_user_id, subject, text, { url: '/bookings', booking_id: b.id });
       await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${text}</p>${link(c.lang)}`);
     }
 

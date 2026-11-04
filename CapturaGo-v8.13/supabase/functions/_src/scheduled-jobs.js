@@ -29,6 +29,7 @@
 // 19. Last-minute deals → one email to travellers in that city   20. Text reminders on the shoot day (SMS / WhatsApp)
 //  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
 // 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
+// (v1.5 app) Booking emails, "Notify me" alerts and the new-booking email also go to the user's phones as a push (lib.js sendPush).
 // 22. (v8.15) EU DAC7: creators who can be paid online are asked for their tax details (then 2 reminders: day 14 and 45).
 //     With the secret TAX_INFO_HOLD=on, payouts wait for creators still without details 60 days after the first request.
 const BATCH = 50;
@@ -56,12 +57,14 @@ async function runJobs(ctx, deps) {
   async function mailClient(b, make) {
     const l = await mailLang(ctx, b.client_user_id, b.client_email);
     const [subject, html] = make(l);
+    await sendPush(ctx, deps, b.client_user_id, subject, html, { url: '/bookings', booking_id: b.id });
     return sendEmail(ctx, deps, b.client_email, clientSubject(b, subject, l), `${hiP(l, escHtml(b.client_name))}<p>${html}</p>${dash(l)}`);
   }
   async function mailCreator(b, make) {
     const c = await creatorContact(ctx, b);
     if (!c || !c.email) return;
     const [subject, html] = make(c.lang);
+    await sendPush(ctx, deps, c.user_id || b.creator_user_id, subject, html, { url: '/bookings', booking_id: b.id });
     await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${html}</p>${dash(c.lang)}`);
   }
   const LOCALE = { en: 'en-GB', de: 'de-DE', es: 'es-ES', fr: 'fr-FR' };
@@ -604,6 +607,7 @@ async function runJobs(ctx, deps) {
           sent = await sendEmail(ctx, deps, email, subject,
             `<p>${L(l, 'Hi,')}</p><p>${body}</p><p>${L(l, '{link} — free days go quickly, and the payment is protected as always.', { link: `<a href="${book}"><strong>${L(l, 'Book {name}', { name: escHtml(first) })}</strong></a>` })}</p>`
             + `<p style="color:#7D6A53;font-size:13px">${L(l, 'This was a one-time alert. Watch again any time from {link}.', { link: `<a href="${profile}">${L(l, '{name}’s profile', { name: escHtml(first) })}</a>` })}</p>`);
+          if (sent) await sendPush(ctx, deps, w.user_id, subject, body, { url: `/creator/${w.photographer_id}`, date: w.day });   // only once: a failed email is retried next hour
         }
         if (w.by_text && textsConfigured(ctx)) {
           const [pn] = await ctx.db(`phone_numbers?user_id=eq.${w.user_id}&verified_at=not.is.null&select=phone,channel`);
@@ -651,6 +655,7 @@ async function runJobs(ctx, deps) {
   await ctx.db(`phone_code_log?created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`creator_watches?or=(until_day.lt.${ctx.isoInDays(-7)},notified_at.lt.${encodeURIComponent(new Date(now - 60 * 86400000).toISOString())})`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`phone_numbers?verified_at=is.null&created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});   // never confirmed
+  await ctx.db('rpc/prune_push_tokens', { method: 'POST', body: {} }).catch(() => {});   // app phones not seen for 120 days
 
   if (run && run.id) {
     await ctx.db(`job_runs?id=eq.${run.id}`, { method: 'PATCH', body: { finished_at: new Date(ctx.nowMs()).toISOString(), summary, error: errors.length ? errors.slice(0, 10).join('\n').slice(0, 2000) : null }, prefer: 'return=minimal' });

@@ -506,6 +506,45 @@ async function sendEmail(ctx, deps, to, subject, html) {
   }
 }
 
+/* ── App push notifications through Expo's push service (https://exp.host). The app registers its token with
+   register_push_token(); the server only ever sends to a user's own tokens. Optional secret: EXPO_ACCESS_TOKEN
+   (if "enhanced push security" is on in the Expo project). PUSH_DISABLED=1 turns pushes off. Never throws. */
+const PUSH_TOKEN_RE = /^(Expo|Exponent)PushToken\[[A-Za-z0-9_-]{10,200}\]$/;
+/** Email HTML → a short plain line for a notification (tags removed, entities decoded, cut at max). */
+function plainText(html, max = 178) {
+  const t = String(html || '').replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+async function sendPush(ctx, deps, userId, title, body, data = {}) {
+  if (!userId || !UUID_RE.test(String(userId)) || ctx.env('PUSH_DISABLED', '') === '1') return 0;
+  try {
+    const rows = await ctx.db(`push_tokens?user_id=eq.${userId}&select=token&order=last_seen_at.desc&limit=10`);
+    const tokens = (rows || []).map((r) => r.token).filter((t) => PUSH_TOKEN_RE.test(t));
+    if (!tokens.length) return 0;
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    const key = ctx.env('EXPO_ACCESS_TOKEN', '');
+    if (key) headers.Authorization = `Bearer ${key}`;
+    // The title is an email subject (plain text already); the body is email HTML
+    const head = String(title || '').replace(/\s+/g, ' ').trim();
+    const msgs = tokens.map((to) => ({ to, title: head.length > 100 ? `${head.slice(0, 99).trimEnd()}…` : head, body: plainText(body), data, sound: 'default', channelId: 'default', priority: 'high' }));
+    const r = await deps.fetch('https://exp.host/--/api/v2/push/send', { method: 'POST', headers, body: JSON.stringify(msgs) });
+    if (!r.ok) { console.error('[push] status', r.status); return 0; }
+    const out = await r.json().catch(() => ({}));
+    const tickets = Array.isArray(out && out.data) ? out.data : [];
+    // Uninstalled apps / revoked permission: forget those tokens
+    const dead = tokens.filter((_, i) => tickets[i] && tickets[i].status === 'error' && tickets[i].details && tickets[i].details.error === 'DeviceNotRegistered');
+    if (dead.length) {
+      await ctx.db(`push_tokens?token=in.(${encodeURIComponent(dead.map((t) => `"${t}"`).join(','))})`, { method: 'DELETE', prefer: 'return=minimal' }).catch((e) => console.error('[push] cleanup', e));
+    }
+    return tickets.filter((t) => t && t.status === 'ok').length;
+  } catch (e) {
+    console.error('[push]', e);
+    return 0;
+  }
+}
+
 /* ── Text messages (SMS / WhatsApp) through Twilio — keys only in Supabase secrets ──
    SMS: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM (or TWILIO_MESSAGING_SERVICE_SID).
    WhatsApp (optional): TWILIO_WHATSAPP_FROM and an approved template TWILIO_WHATSAPP_TEMPLATE_SID
@@ -761,6 +800,10 @@ async function afterBookingPaid(ctx, deps, booking) {
     (instant
       ? `<p>${L(lc, '⚡ It\'s <strong>confirmed automatically</strong> because you use instant booking. {open} to message {first}. The payment is released to you {release}.', { open: bookingsLink(lc, 'Open your bookings'), first: escHtml(String(b.client_name).split(' ')[0]), release: releaseText(lc) })}</p>`
       : `<p>${L(lc, 'Please {action}. The payment is held safely and released to you {release}.', { action: bookingsLink(lc, remote ? 'accept the order in your dashboard' : 'confirm the booking in your dashboard'), release: releaseText(lc) })}</p>`));
+  await sendPush(ctx, deps, creator && creator.user_id,
+    instant ? L(lc, 'Confirmed booking: {pkg} on {date}', { pkg: b.package_name, date: b.shoot_date }) : remote ? L(lc, 'New order: {pkg} (due {date})', { pkg: b.package_name, date: b.shoot_date }) : L(lc, 'New booking: {pkg} on {date}', { pkg: b.package_name, date: b.shoot_date }),
+    L(lc, '{client} booked {pkg} {when} and paid {amount}.', { client: escHtml(b.client_name), pkg: escHtml(b.package_name), when: whenText(lc), amount: euro(b.total_cents) }),
+    { url: '/bookings', booking_id: b.id });
   // to the traveller
   const lt = await mailLang(ctx, b.client_user_id, b.client_email);
   const heldUntil = remote ? L(lt, 'you approve the delivery') : payoutHold(b).promised ? L(lt, 'your photos arrive') : L(lt, 'your shoot is done');
@@ -1212,12 +1255,14 @@ function createHandler(deps) {
     async function notifyClient(make) {
       const lang = await mailLang(ctx, b.client_user_id, b.client_email);
       const [subject, text] = make(lang);
+      await sendPush(ctx, deps, b.client_user_id, subject, text, { url: '/bookings', booking_id: b.id });
       return sendEmail(ctx, deps, b.client_email, clientSubject(b, subject, lang), `${hiP(lang, escHtml(b.client_name))}<p>${text}</p>${link(lang)}`);
     }
     async function notifyCreator(make) {
       const c = await creatorContact(ctx, b);
       if (!c || !c.email) return;
       const [subject, text] = make(c.lang);
+      await sendPush(ctx, deps, c.user_id || b.creator_user_id, subject, text, { url: '/bookings', booking_id: b.id });
       await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${text}</p>${link(c.lang)}`);
     }
 

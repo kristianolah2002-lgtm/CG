@@ -7,8 +7,9 @@ import vm from 'node:vm';
 import * as T from '../src/lib/trip-logic';
 import { bookingButtons, bookingHint, type Booking } from '../src/lib/logic';
 import { disputeProblem, disputeReasons } from '../src/lib/plan-logic';
+import { WEB_DIR } from './web';
 
-const SITE = '/home/claude/cg9/site.js';
+const SITE = `${WEB_DIR}/site.js`;
 // The website's helpers, run as-is in a sandbox
 const W: Record<string, (...a: unknown[]) => unknown> | null = (() => {
   if (!existsSync(SITE)) return null;
@@ -108,7 +109,7 @@ test('calendar links: only well-known calendar providers (same as the server and
     'https://calendar.google.com:8443/x/basic.ics', 'https://169.254.169.254/latest/meta-data/x', 'javascript:alert(1)//calendar.google.com', 'https://calendar.google.com/x y.ics', 'https://evil-icloud.com/abc/def/ghi'];
   for (const u of ok) { assert.equal(T.calendarUrlOk(u), true, u); if (W) assert.equal(W.calendarUrlOk(u), true, `website: ${u}`); }
   for (const u of bad) { assert.equal(T.calendarUrlOk(u), false, u); if (W) assert.equal(W.calendarUrlOk(u), false, `website: ${u}`); }
-  const db = readFileSync('/home/claude/cg9/database.sql', 'utf8');
+  const db = readFileSync(`${WEB_DIR}/database.sql`, 'utf8');
   for (const host of ['calendar\\.google\\.com', 'icloud\\.com', 'outlook\\.live\\.com', 'outlook\\.office365\\.com', 'outlook\\.office\\.com', 'calendar\\.proton\\.me', 'user\\.fm']) assert.ok(db.includes(host), `database allows ${host}`);
   assert.equal(T.webcalUrl('https://x.supabase.co/functions/v1/calendar?t=1'), 'webcal://x.supabase.co/functions/v1/calendar?t=1');
   assert.equal(T.googleSubscribeUrl('https://x.co/c?t=1'), 'https://calendar.google.com/calendar/r?cid=webcal%3A%2F%2Fx.co%2Fc%3Ft%3D1');

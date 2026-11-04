@@ -514,6 +514,39 @@ What's new:
 form (try a 15-year-old birth date or a VAT number without a country code → refused) → Save → "✓ Saved". As admin:
 complete a test booking → 🧾 Tax reporting → this year → your creator with Q-amounts → Download CSV → Email statements.
 
+## Part 22 — Push notifications for the app, app v1.5 (15 min) — v8.16
+**What's new:** the app (v1.5) shows **push notifications**: new bookings and every booking email (confirmed,
+declined, photos ready, new date proposed, reminders…), "🔔 Notify me" alerts, and **"New message from …"** a moment
+after someone writes (never the message text; one per unread conversation, like the email after 10 minutes). People
+turn them off in the app (Account → Notifications on this phone); signing out stops them on that phone. The website
+also triggers the message push, so app users hear about messages sent from the website. App v1.5 also brings the
+v8.14/v8.15 features to the app: last-minute deals with 🎲 Surprise me and gift cards, "Notify me", clients' favourite
+shots, fast responders ranked higher, and the 🧾 tax details form for creators.
+
+1. **Database:** run the whole `database.sql` again (safe to re-run). Adds `push_tokens` (only the server reads it).
+2. **New function `push`:** Edge Functions → Deploy a new function → name `push` → paste
+   `supabase/functions/push/index.ts` → **Verify JWT: ON** (only signed-in people can call it; the function checks that
+   the caller sent the latest message).
+3. **Re-deploy** `booking-action`, `scheduled-jobs` and `stripe-webhook` (keep their Verify JWT settings). Other
+   `index.ts` files were rebuilt too (shared helper code) but work as before.
+4. **Website:** deploy the whole folder (chat messages trigger the push).
+5. **App credentials (once, with EAS — see the app's README section D):** after `npx eas-cli@latest init`,
+   - **iPhone:** `npx eas-cli@latest credentials -p ios` → *Push Notifications* → let EAS create a push key (or
+     answer **Yes** when a production build offers it).
+   - **Android:** create a Firebase project (free) → add an Android app with package `com.capturago.app` → download
+     `google-services.json` → in Firebase *Project settings → Service accounts* generate a private key (JSON) →
+     `npx eas-cli@latest credentials -p android` → *Google Service Account* → *Push Notifications (FCM V1)* → upload it.
+     Put `google-services.json` in the app folder and add `"googleServicesFile": "./google-services.json"` under
+     `"android"` in `app.json`.
+   Then build the app again (a new native module was added — an over-the-air update is not enough).
+6. **Optional secrets:** `EXPO_ACCESS_TOKEN` (only if you turn on "Enhanced push security" for the project on
+   expo.dev), `PUSH_DISABLED` = `1` to switch all pushes off without a deploy.
+
+**Test (real phone, test build):** sign in on the phone → allow notifications → from the website (other account)
+send a message to that account → a "New message from …" notification arrives → tap it → the conversation opens.
+Book and confirm a test booking → "Confirmed: …" arrives. Account → turn *Notifications on this phone* off → no more.
+(Push doesn't work in Expo Go on Android or in simulators; use a test build from section D of the app README.)
+
 ## Going live (only when the site is ready AND these are done)
 1. **Register your business** (živnosť or s.r.o.). Stripe needs real business details to pay you.
 2. Stripe → switch Test mode OFF → **Activate account** → enter business and bank details.

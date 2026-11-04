@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import * as G from '../src/lib/gift-logic';
 import { euroCents, statusText, type Booking } from '../src/lib/logic';
 
-const SITE = '/home/claude/cg9/site.js';
+const SITE = `${WEB_DIR}/site.js`;
 const W: Record<string, (...a: unknown[]) => unknown> | null = (() => {
   if (!existsSync(SITE)) return null;
   const win: Record<string, unknown> = { CG_CONFIG: { social: {} } };
@@ -81,6 +81,7 @@ test('split status line, "Friends are paying", amounts on the booking card', () 
 });
 
 import * as R from '../src/lib/request-logic';
+import { WEB_DIR } from './web';
 test('shoot requests: wording and checks match the website and the database', () => {
   for (const m of [30, 45, 60, 90, 120, 480, 75]) if (W) assert.equal(W.minutesText(m), R.minutesText(m));
   assert.equal(R.minutesText(90), '1 h 30 min');

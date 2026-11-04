@@ -2,7 +2,7 @@
 import os
 here = os.path.dirname(os.path.abspath(__file__)); root = os.path.dirname(here)
 lib = open(os.path.join(here, 'mail-i18n.js')).read() + '\n' + open(os.path.join(here, 'lib.js')).read()
-for name in ['ai-match', 'stripe-connect', 'create-checkout', 'create-boost', 'stripe-webhook', 'booking-action', 'scheduled-jobs', 'admin', 'delete-account', 'translate', 'shared-gallery', 'calendar', 'create-gift', 'pay-share', 'phone']:
+for name in ['ai-match', 'stripe-connect', 'create-checkout', 'create-boost', 'stripe-webhook', 'booking-action', 'scheduled-jobs', 'admin', 'delete-account', 'translate', 'shared-gallery', 'calendar', 'create-gift', 'pay-share', 'phone', 'push']:
     body = open(os.path.join(here, f'{name}.js')).read()
     os.makedirs(os.path.join(root, name), exist_ok=True)
     out = (f"// @ts-nocheck\n// CapturaGo edge function: {name}\n// GENERATED from supabase/functions/_src — edit there and re-run build.py\n\n"

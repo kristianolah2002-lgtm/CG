@@ -7,12 +7,21 @@ import { Fraunces_400Regular } from '@expo-google-fonts/fraunces/400Regular';
 import { Fraunces_400Regular_Italic } from '@expo-google-fonts/fraunces/400Regular_Italic';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
-import { AuthProvider } from '../lib/auth';
+import { AuthProvider, useAuth } from '../lib/auth';
+import { usePushRegistration, usePushRouting } from '../lib/push';
 import { ToastProvider } from '../components/ui';
 import { color, font } from '../theme';
 import { initLang, tr, useLang } from '../lib/i18n';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+/** Push notifications: register this phone after sign-in; a tapped notification opens its screen. */
+function PushBridge() {
+  const { user } = useAuth();
+  usePushRegistration(user?.id);
+  usePushRouting();
+  return null;
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({ Fraunces_400Regular, Fraunces_400Regular_Italic, Inter_500Medium, Inter_600SemiBold });
@@ -29,6 +38,7 @@ export default function RootLayout() {
       <AuthProvider>
         <ToastProvider key={lang}>
           <StatusBar style="dark" />
+          <PushBridge />
           <Stack
             screenOptions={{
               headerTintColor: color.clay,
@@ -67,6 +77,8 @@ export default function RootLayout() {
             <Stack.Screen name="requests" options={{ title: tr('Requests') }} />
             <Stack.Screen name="request-new" options={{ title: tr('Post a request') }} />
             <Stack.Screen name="offer/[id]" options={{ title: tr('Your offer') }} />
+            <Stack.Screen name="deals" options={{ title: tr('Last-minute deals') }} />
+            <Stack.Screen name="tax" options={{ title: tr('Tax details') }} />
           </Stack>
         </ToastProvider>
       </AuthProvider>

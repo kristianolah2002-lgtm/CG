@@ -106,7 +106,7 @@ export default function ReviewScreen() {
         {pool.length > 0 && (
           <View style={{ marginBottom: space.lg }} testID="rv-photos">
             <Txt v="h3">Add up to 3 of your photos <Txt v="muted">(optional)</Txt></Txt>
-            <Txt v="small" style={{ marginTop: 2, marginBottom: space.sm }}>They’re shown publicly with your review. Your favourites come first.</Txt>
+            <Txt v="small" style={{ marginTop: 2, marginBottom: space.sm }}>{"They're shown publicly with your review. The first one you pick is your favourite — it's also shown on the creator's profile."}</Txt>
             <View style={s.grid}>
               {pool.map((p, i) => {
                 const n = chosen.indexOf(p.id);
@@ -114,7 +114,7 @@ export default function ReviewScreen() {
                   <Pressable key={p.id} testID={`rv-pick-${i}`} onPress={() => toggle(p.id)} style={[s.pick, n >= 0 && s.pickOn]}
                     accessibilityRole="checkbox" accessibilityState={{ checked: n >= 0 }} aria-checked={n >= 0} accessibilityLabel={trx(n >= 0 ? 'Remove photo from review' : 'Add photo to review')}>
                     {thumbs[p.path] ? <Image source={{ uri: thumbs[p.path] }} style={StyleSheet.absoluteFill} contentFit="cover" recyclingKey={p.id} accessibilityIgnoresInvertColors /> : null}
-                    {n >= 0 ? <View style={s.num}><Text style={s.numText}>{n + 1}</Text></View> : null}
+                    {n >= 0 ? <View style={s.num}><Text style={s.numText}>{n === 0 ? '★' : n + 1}</Text></View> : null}
                     {p.favorite ? <Text style={s.fav}>♥</Text> : null}
                   </Pressable>
                 );

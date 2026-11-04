@@ -3,6 +3,7 @@
 import { services, vibes, occasions, type Service } from './taxonomy-data';
 import { holdState, photosPromised } from './trip-logic';
 import { CLIENT_FEE_PCT, LINK_FEE_PCT } from './config';
+import { replyRank } from './reply-logic';
 
 export interface Trip { city: string; from: string; to: string; lat?: number; lon?: number }
 
@@ -258,9 +259,10 @@ export function clientFilter(list: Listing[], f: Filters): Listing[] {
     (!f.occasion || (c.occasions ?? []).includes(f.occasion)) &&
     (!f.availableOnly || c.available !== false));
 }
-/** Sponsored (boosted) listings first; otherwise keeps the server order (stable sort). */
+/** Sponsored (boosted) listings first, then fast responders (v8.14, same as the website); otherwise keeps the
+ *  server order (stable sort — newest first within each group). */
 export const sponsoredFirst = (list: Listing[], now = Date.now()) =>
-  [...list].sort((a, b) => Number(isBoosted(b, now)) - Number(isBoosted(a, now)));
+  [...list].sort((a, b) => Number(isBoosted(b, now)) - Number(isBoosted(a, now)) || replyRank(b) - replyRank(a));
 
 /* ── keyword matcher (fallback when the AI service is unavailable) ── */
 const PRICE_WORDS: Record<string, string[]> = { budget: ['cheap', 'budget', 'affordable', 'student'], premium: ['luxury', 'premium', 'high-end'] };
