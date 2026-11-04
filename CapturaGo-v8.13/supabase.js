@@ -226,13 +226,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     reviews: {
       get: async (pid) => {
         const q = (cols) => run(d => d.from('reviews').select(cols).eq('photographer_id', pid).order('created_at', { ascending: false }));
-        for (const cols of [REVIEW_COLS + ',booking_id,photos', REVIEW_COLS + ',booking_id']) {
+        for (const cols of [REVIEW_COLS + ',booking_id,photos,reply,reply_at', REVIEW_COLS + ',booking_id,photos', REVIEW_COLS + ',booking_id']) {
           const res = await q(cols);
           if (!(res.error && COLUMN_ERRORS.includes(res.error.code))) return res;
         }
         return q(REVIEW_COLS);
       },
       add: (p) => run(d => d.from('reviews').insert([p])),
+      /** The creator's public reply to a review of their listing ('' removes it). Returns { reply, reply_at }. */
+      reply: (id, text) => run(d => d.rpc('reply_to_review', { p_review: id, p_text: String(text || '').slice(0, 1200) })),
       /** booking ids I have already reviewed */
       myBookingIds: async (uid) => {
         const { data } = await run(d => d.from('reviews').select('booking_id').eq('user_id', uid).not('booking_id', 'is', null));

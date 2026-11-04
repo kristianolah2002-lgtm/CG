@@ -89,7 +89,7 @@ export const privacy: LegalBlock[] = [
  {
   "t": "row",
   "cells": [
-   "Reviews: your name as given in the booking, rating, comment, date, the booking the review belongs to, and up to 3 photos you choose from your delivered gallery (copied to public storage only if you choose them)",
+   "Reviews: your name as given in the booking, rating, comment, date, the booking the review belongs to, and up to 3 photos you choose from your delivered gallery (copied to public storage only if you choose them); the creator's public reply to your review and when it was written. We tell the creator about a new review and you once about a reply, by email (and app notification, if you allowed them)",
    "To show honest feedback from travellers who really booked — only a completed booking can be reviewed, once",
    "Contract (6(1)(b)) and legitimate interest in trustworthy reviews (6(1)(f))"
   ],
@@ -512,7 +512,7 @@ export const privacy: LegalBlock[] = [
  },
  {
   "t": "p",
-  "text": "If you create a creator listing, everything in the listing except your contact email is visible to anyone visiting CapturaGo. A creator's intro video is shown as a link only; it opens on YouTube, Instagram, TikTok or Vimeo, which then process your data under their own privacy policies — nothing is loaded from them until you tap it. Reviews are public together with the reviewer's display name and any photos the reviewer added to the review. Private messages are visible only to the two people in the conversation. Inquiries are private — only the creator you message can see them."
+  "text": "If you create a creator listing, everything in the listing except your contact email is visible to anyone visiting CapturaGo. A creator's intro video is shown as a link only; it opens on YouTube, Instagram, TikTok or Vimeo, which then process your data under their own privacy policies — nothing is loaded from them until you tap it. Reviews are public together with the reviewer's display name, any photos the reviewer added to the review, and the creator's reply. Private messages are visible only to the two people in the conversation. Inquiries are private — only the creator you message can see them."
  },
  {
   "t": "h2",
@@ -1472,6 +1472,10 @@ export const terms: LegalBlock[] = [
  {
   "t": "p",
   "text": "Only a client with a completed booking paid through CapturaGo can review that creator — once per booking. These reviews are marked \"✓ Verified booking\". The review is shown with the name given in the booking. Reviews must reflect a genuine experience. We may remove reviews that break these rules. We do not pay for reviews and do not allow creators to remove honest negative reviews."
+ },
+ {
+  "t": "p",
+  "text": "The creator can publish one public reply under each review of their listing, and edit or remove it at any time. Replies are shown as written by the creator and follow the same rules as reviews: honest, polite, no personal data about the client (such as contact details or where they stay), no threats and no offers to pay outside CapturaGo. We may remove replies that break these rules. A reply never changes the rating."
  },
  {
   "t": "p",

@@ -547,6 +547,25 @@ send a message to that account → a "New message from …" notification arrives
 Book and confirm a test booking → "Confirmed: …" arrives. Account → turn *Notifications on this phone* off → no more.
 (Push doesn't work in Expo Go on Android or in simulators; use a test build from section D of the app README.)
 
+## Part 23 — Creators answer their reviews, app v1.6 (3 min) — v8.17
+**What's new:** creators can publish **one public reply** under each review (edit or remove it any time), from
+Dashboard → **⭐ Reviews** (a hint counts reviews without a reply) or in the app on their own profile. The reply shows
+under the review on the profile, on the website and in the app. The hourly job tells the creator about every **new
+review** (email + app notification, with a tip for 3 stars or less: thank them, explain briefly, don't argue) and
+tells the traveller **once** when the creator replied (10 minutes after the last edit, so a typo fix doesn't send two).
+Reviews older than 2 days when you run this part don't trigger an email.
+
+1. **Database:** run the whole `database.sql` again (safe to re-run).
+2. **Re-deploy `scheduled-jobs`** (keep its settings). Other `index.ts` files were rebuilt too (shared texts) but work
+   as before.
+3. **Website:** deploy the whole folder. Terms (section 7) and Privacy Policy mention replies.
+4. **App:** version 1.6.0 adds no native modules — build and submit as usual (or publish an update).
+
+**Test:** as a traveller, review a completed test booking → within the hour the creator gets "⭐ New review from …" →
+Dashboard → Reviews → ↩ Reply → write → Publish → the reply shows on the profile → ~10 minutes later (next hourly run)
+the traveller gets "… replied to your review". Edit it → no second email. Remove it → gone from the profile.
+To remove an abusive reply as admin: delete the review's reply in Supabase (Table editor → reviews → clear `reply`).
+
 ## Going live (only when the site is ready AND these are done)
 1. **Register your business** (živnosť or s.r.o.). Stripe needs real business details to pay you.
 2. Stripe → switch Test mode OFF → **Activate account** → enter business and bank details.

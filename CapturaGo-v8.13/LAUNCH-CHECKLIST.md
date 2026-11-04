@@ -1,5 +1,9 @@
 # CapturaGo — Launch checklist
 
+> **v8.17 + app v1.6 — creators answer their reviews:** one public reply under each review (Dashboard → ⭐ Reviews, or
+> the app on your own profile), shown on the profile; creators are told about every new review (email + push) and the
+> traveller once about the reply. Run `database.sql`, re-deploy `scheduled-jobs`: SETUP-PAYMENTS-AND-AI.md **Part 23**.
+> Terms (section 7) and Privacy Policy updated.
 > **v8.16 + app v1.5 — push notifications:** booking news, "Notify me" alerts and "New message from …" (never the text)
 > on people's phones; off in the app under Account. The app also gets the v8.14/v8.15 features (deals + 🎲 Surprise me
 > with gift cards, Notify me, clients' favourite shots, fast responders first, 🧾 tax details). Run `database.sql`,

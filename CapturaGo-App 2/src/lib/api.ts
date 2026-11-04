@@ -79,7 +79,7 @@ async function fn<T>(name: string, body: Record<string, unknown>): Promise<Resul
   }
 }
 
-export interface Review { id: string; photographer_id: string; user_id: string | null; reviewer_name: string; rating: number; comment: string | null; created_at: string; booking_id?: string | null; photos?: string[] | null }
+export interface Review { id: string; photographer_id: string; user_id: string | null; reviewer_name: string; rating: number; comment: string | null; created_at: string; booking_id?: string | null; photos?: string[] | null; reply?: string | null; reply_at?: string | null }
 export interface FoundingCity { city_key: string; city_label: string; slots: number; spots_left: number; perk_days: number }
 export interface FoundingStatus {
   listing: boolean; claimed?: boolean; revoked?: boolean; used?: boolean; founding_city?: string | null; boost_until?: string | null;
@@ -126,13 +126,15 @@ export const api = {
     list: async (pid: string) => {
       const q = (cols: string) => run<Review[]>(() => supabase.from('reviews').select(cols).eq('photographer_id', pid).order('created_at', { ascending: false }));
       const cols = 'id,photographer_id,user_id,reviewer_name,rating,comment,created_at';
-      let res = await q(cols + ',booking_id,photos');
-      for (const c of [cols + ',booking_id', cols]) {
+      let res = await q(cols + ',booking_id,photos,reply,reply_at');
+      for (const c of [cols + ',booking_id,photos', cols + ',booking_id', cols]) {
         if (!(res.error?.code && COLUMN_ERRORS.includes(res.error.code))) break;
         res = await q(c);
       }
       return res;
     },
+    /** The creator's public reply to a review of their own listing ('' removes it). */
+    reply: (id: string, text: string) => run<{ reply: string | null; reply_at: string | null }>(() => supabase.rpc('reply_to_review', { p_review: id, p_text: text.slice(0, 1200) })),
     /** Only travellers with a completed booking can review (database rule); one review per booking. Up to 3 public photo URLs. */
     add: async (p: { photographer_id: string; user_id: string; booking_id: string; reviewer_name: string; rating: number; comment: string | null; photos?: string[] }) => {
       const { photos, ...rest } = p;

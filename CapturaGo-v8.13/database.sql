@@ -3768,5 +3768,48 @@ $$;
 REVOKE ALL ON FUNCTION prune_push_tokens() FROM PUBLIC, anon, authenticated;
 
 -- ================================================================
+-- PART 23 — v8.17: creators answer their reviews. One public reply per
+-- review (edit or remove it any time), shown under the review on the
+-- profile. The creator is told about every new review (email + app
+-- push) and the traveller once when the creator replies. Re-runnable.
+-- ================================================================
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply               TEXT;
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply_at            TIMESTAMPTZ;
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply_notified_at   TIMESTAMPTZ;   -- traveller told (once)
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS creator_notified_at TIMESTAMPTZ;   -- creator told about the new review
+ALTER TABLE reviews DROP CONSTRAINT IF EXISTS review_reply_len;
+ALTER TABLE reviews ADD  CONSTRAINT review_reply_len CHECK (reply IS NULL OR char_length(reply) BETWEEN 2 AND 1000);
+GRANT SELECT (reply, reply_at) ON reviews TO anon, authenticated;          -- public, like the review itself
+-- Reviews written before this part: no "new review" email for them
+UPDATE reviews SET creator_notified_at = coalesce(created_at, NOW())
+ WHERE creator_notified_at IS NULL AND created_at < NOW() - INTERVAL '2 days';
+CREATE INDEX IF NOT EXISTS idx_reviews_new_alert   ON reviews (created_at) WHERE creator_notified_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_reviews_reply_alert ON reviews (reply_at)   WHERE reply_at IS NOT NULL AND reply_notified_at IS NULL;
+
+-- The creator's reply: only on reviews of their own listing. Empty text removes the reply.
+CREATE OR REPLACE FUNCTION reply_to_review(p_review UUID, p_text TEXT)
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE me UUID := auth.uid(); r reviews; owner UUID; txt TEXT;
+BEGIN
+  IF me IS NULL THEN RAISE EXCEPTION 'Please sign in.' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO r FROM reviews WHERE id = p_review FOR UPDATE;
+  SELECT user_id INTO owner FROM photographers WHERE id = r.photographer_id;
+  IF r.id IS NULL OR owner IS DISTINCT FROM me THEN RAISE EXCEPTION 'Review not found.' USING ERRCODE = 'P0001'; END IF;
+  -- no control characters (line breaks are fine), at most one empty line in a row
+  txt := btrim(regexp_replace(regexp_replace(coalesce(p_text, ''), E'[\\x01-\\x09\\x0b-\\x1f\\x7f]', '', 'g'), E'\\n{3,}', E'\n\n', 'g'), E' \n');
+  IF txt = '' THEN
+    UPDATE reviews SET reply = NULL, reply_at = NULL WHERE id = r.id;
+    RETURN jsonb_build_object('reply', NULL, 'reply_at', NULL);
+  END IF;
+  IF char_length(txt) < 2 OR char_length(txt) > 1000 THEN
+    RAISE EXCEPTION 'Your reply can be 2 to 1000 characters.' USING ERRCODE = 'P0001';
+  END IF;
+  UPDATE reviews SET reply = txt, reply_at = NOW() WHERE id = r.id;
+  RETURN jsonb_build_object('reply', txt, 'reply_at', NOW());
+END $$;
+REVOKE ALL ON FUNCTION reply_to_review(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION reply_to_review(UUID, TEXT) TO authenticated;
+
+-- ================================================================
 -- Done. You should see "Success. No rows returned."
 -- ================================================================

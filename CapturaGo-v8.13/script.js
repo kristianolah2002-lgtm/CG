@@ -846,6 +846,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="review-header"><strong>${esc(r.reviewer_name)}</strong>${r.booking_id ? '<span class="verified-tag" title="This traveller booked and paid through CapturaGo">✓ Verified booking</span>' : ''}<span class="stars-inline">${starRating(r.rating)}</span><span class="muted small">${timeAgo(r.created_at)}</span></div>
                 ${r.comment ? `<p translate="no">${esc(r.comment)}</p>` : ''}
                 ${Array.isArray(r.photos) && r.photos.filter(safeUrl).length ? `<div class="review-photos">${r.photos.filter(safeUrl).slice(0, 3).map((u, k) => `<button type="button" data-rv="${esc(r.id)}" data-rk="${k}" aria-label="Open photo ${k + 1} from ${esc(r.reviewer_name)}'s review"><img src="${esc(safeUrl(u))}" alt="" loading="lazy" ${imgFallback} /></button>`).join('')}</div>` : ''}
+                ${r.reply ? `<div class="review-reply"><div class="review-reply-head"><strong>↩ Reply from ${esc(firstName(p.name))}</strong>${r.reply_at ? `<span class="muted small">${timeAgo(r.reply_at)}</span>` : ''}</div><p translate="no">${esc(r.reply)}</p></div>`
+                  : isOwn ? '<a class="link-btn small review-reply-link" href="dashboard.html#reviews">↩ Reply to this review</a>' : ''}
               </div>`).join('')
             : '<p class="muted">No reviews yet.</p>'}
           <p class="muted small" style="margin-top:12px">${p.isExample ? 'Example profiles have no reviews.' : `Only travellers who booked ${esc(firstName(p.name))} through CapturaGo can leave a review${verifiedCount ? ` — ${verifiedCount} of these are from verified bookings` : ''}. After your shoot you'll find “Leave a review” in your bookings.`}</p>

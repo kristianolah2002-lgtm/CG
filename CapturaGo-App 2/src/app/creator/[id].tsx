@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { color, font, radius, space } from '../../theme';
-import { Badge, Button, Card, Checkbox, Empty, Loading, Stars, Txt, useToast, TText } from '../../components/ui';
+import { Badge, Button, Card, Checkbox, confirmAsync, Empty, Field, Loading, Stars, Txt, useToast, TText } from '../../components/ui';
 import { coverSource } from '../../components/CreatorCard';
 import { api, type Review } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -24,6 +24,7 @@ import { tr as trx } from '../../lib/i18n';
 import { dealCents, dealDay } from '../../lib/deal-logic';
 import { useDeals } from '../../lib/deals';
 import { canWatch, clientShots, isFullyBooked } from '../../lib/watch-logic';
+import { cleanReply, REPLY_MAX, replyProblem, unanswered } from '../../lib/review-logic';
 
 export default function CreatorScreen() {
   const { id, date, gift } = useLocalSearchParams<{ id: string; date?: string; gift?: string }>();
@@ -44,6 +45,9 @@ export default function CreatorScreen() {
   const [watch, setWatch] = useState<{ key: string; on: boolean; phoneOk: boolean } | null>(null);
   const [byText, setByText] = useState(false);
   const [watchBusy, setWatchBusy] = useState(false);
+  // My own profile: answer a review (one public reply each; edit or remove it)
+  const [replying, setReplying] = useState<{ id: string; text: string; error: string } | null>(null);
+  const [replyBusy, setReplyBusy] = useState(false);
 
   const load = useCallback(async () => {
     const pid = String(id ?? '');
@@ -147,6 +151,21 @@ export default function CreatorScreen() {
     loadWatch();
   };
   const shots = l.isExample ? [] : clientShots(reviews);
+  const saveReply = async (id: string, text: string) => {
+    const t = cleanReply(text);
+    if (t) { const bad = replyProblem(t); if (bad) { setReplying((x) => (x ? { ...x, error: bad } : x)); return; } }
+    setReplyBusy(true);
+    const { data, error } = await api.reviews.reply(id, t);
+    setReplyBusy(false);
+    if (error) { toast(error.message || 'Could not save your reply.', 'error'); return; }
+    setReviews((cur) => cur.map((x) => (x.id === id ? { ...x, reply: data?.reply ?? null, reply_at: data?.reply_at ?? null } : x)));
+    setReplying(null);
+    toast(t ? 'Reply published ✓' : 'Reply removed.', t ? 'success' : 'info');
+  };
+  const removeReply = async (id: string) => {
+    if (await confirmAsync('Remove your reply?', 'It disappears from your profile.', 'Remove', true)) saveReply(id, '');
+  };
+  const open = isOwn ? unanswered(reviews) : 0;
   const gallery = galleryOf(l);
   const sample = galleryOf(l, 'sample_gallery').slice(0, 40);
 
@@ -318,6 +337,7 @@ export default function CreatorScreen() {
             <View style={{ marginTop: space.xl }} testID="reviews">
               <Txt v="h2">Reviews ({reviews.length})</Txt>
               {reviews.length === 0 && <Txt v="muted" style={{ marginTop: space.sm }}>No reviews yet.</Txt>}
+              {open > 0 ? <Txt v="small" testID="reply-hint" style={{ marginTop: space.sm }}>{`↩ ${open} review${open === 1 ? '' : 's'} without a reply. A short, friendly reply shows future travellers that you care — it appears under the review on your profile.`}</Txt> : null}
               {reviews.map((r) => (
                 <Card key={r.id} style={{ marginTop: space.md }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.sm }}>
@@ -338,6 +358,32 @@ export default function CreatorScreen() {
                       ))}
                     </View>
                   )}
+                  {r.reply && replying?.id !== r.id ? (
+                    <View style={s.reply} testID={`reply-${r.id}`}>
+                      <Txt v="small" style={{ fontFamily: font.bold, color: color.text }}>{isOwn ? '↩ Your reply' : `↩ Reply from ${firstName(l.name)}`}</Txt>
+                      <Txt v="muted" raw style={{ marginTop: 2 }}>{r.reply}</Txt>
+                      {isOwn ? (
+                        <View style={{ flexDirection: 'row', gap: space.lg, marginTop: 4 }}>
+                          <Button testID={`reply-edit-${r.id}`} title="Edit" kind="ghost" small onPress={() => setReplying({ id: r.id, text: r.reply || '', error: '' })} style={{ paddingHorizontal: 0 }} />
+                          <Button testID={`reply-del-${r.id}`} title="Remove" kind="ghost" small onPress={() => removeReply(r.id)} style={{ paddingHorizontal: 0 }} />
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  {isOwn && replying?.id === r.id ? (
+                    <View style={{ marginTop: space.sm }} testID={`reply-form-${r.id}`}>
+                      <Field testID={`reply-input-${r.id}`} label={`Your reply (${replying.text.length}/${REPLY_MAX})`} value={replying.text} multiline maxLength={REPLY_MAX} autoFocus
+                        onChangeText={(v) => setReplying({ id: r.id, text: v, error: '' })} error={replying.error}
+                        placeholder={`Thank ${firstName(r.reviewer_name)} — and if something went wrong, explain briefly and politely.`} />
+                      <Txt v="small" style={{ marginTop: -space.sm, marginBottom: space.sm }}>{`Public, under the review on your profile. ${firstName(r.reviewer_name)} gets an email once.`}</Txt>
+                      <View style={{ flexDirection: 'row', gap: space.md }}>
+                        <Button title="Cancel" kind="secondary" small onPress={() => setReplying(null)} style={{ flex: 1 }} />
+                        <Button testID={`reply-save-${r.id}`} title="Publish reply" small loading={replyBusy} onPress={() => saveReply(r.id, replying.text)} style={{ flex: 1 }} />
+                      </View>
+                    </View>
+                  ) : isOwn && !r.reply && 'reply' in r ? (
+                    <Button testID={`reply-btn-${r.id}`} title="↩ Reply" kind="secondary" small onPress={() => setReplying({ id: r.id, text: '', error: '' })} style={{ alignSelf: 'flex-start', marginTop: space.sm }} />
+                  ) : null}
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
                     <Txt v="small">{fmtDate(r.created_at)}</Txt>
                     {isOwn ? (
@@ -395,6 +441,7 @@ const s = StyleSheet.create({
   shot: { width: 120, height: 150, borderRadius: radius.md, overflow: 'hidden', backgroundColor: color.sand },
   shotTag: { position: 'absolute', left: 6, right: 6, bottom: 6, backgroundColor: 'rgba(33,25,17,0.72)', borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
   shotTagText: { fontFamily: font.body, fontSize: 11, color: color.inkText },
+  reply: { marginTop: space.sm, paddingVertical: space.sm, paddingHorizontal: space.md, borderLeftWidth: 3, borderLeftColor: color.clay, backgroundColor: color.sand, borderTopRightRadius: radius.sm, borderBottomRightRadius: radius.sm },
   rvPhotos: { flexDirection: 'row', gap: 6, marginTop: space.sm },
   rvThumb: { width: 72, height: 72, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: color.sand },
   founding: { backgroundColor: '#FBEFD5', borderColor: '#EBCB8B', borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6, marginBottom: 6, alignSelf: 'flex-start' },

@@ -1214,19 +1214,77 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data } = await CG.reviews.get(listing.id);
     const list = data || [];
     if (!list.length) { box.innerHTML = '<div class="empty-state">No reviews yet. After a shoot, ask your client to leave one on your CapturaGo profile.</div>'; return; }
-    box.innerHTML = list.map(r => `
-      <div class="review-item">
+    const canReply = list.some((r) => 'reply' in r);   // the database has PART 23
+    const open = list.filter((r) => canReply && !r.reply).length;
+    box.innerHTML = (canReply ? `<p class="muted small reviews-hint" id="reviewsHint">${open
+        ? `↩ ${open} review${open === 1 ? '' : 's'} without a reply. A short, friendly reply shows future travellers that you care — it appears under the review on your profile.`
+        : '✓ You replied to every review.'}</p>` : '') + list.map(r => `
+      <div class="review-item" data-review="${esc(r.id)}">
         <div class="review-header">
           <strong translate="no">${esc(r.reviewer_name)}</strong>
           <span style="color:var(--amber)">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
           <span class="muted small">${fmtDate(r.created_at)}</span>
         </div>
         ${r.comment ? `<p translate="no">${esc(r.comment)}</p>` : ''}
+        <div class="rv-reply-slot">${canReply ? replyView(r) : ''}</div>
         <button type="button" class="link-btn rv-card" data-id="${esc(r.id)}">📣 Share as an image</button>
       </div>`).join('');
     box.querySelectorAll('.rv-card').forEach((b) => b.addEventListener('click', () => {
       const r = list.find((x) => String(x.id) === b.dataset.id); if (r) shareReviewCard(r);
     }));
+    if (!canReply) return;
+    const rerender = (r) => {
+      const slot = box.querySelector(`[data-review="${CSS.escape(String(r.id))}"] .rv-reply-slot`);
+      if (slot) { slot.innerHTML = replyView(r); wire(r, slot); }
+      const left = list.filter((x) => !x.reply).length, hint = $('reviewsHint');
+      if (hint) hint.textContent = left ? `↩ ${left} review${left === 1 ? '' : 's'} without a reply. A short, friendly reply shows future travellers that you care — it appears under the review on your profile.` : '✓ You replied to every review.';
+    };
+    const wire = (r, slot) => {
+      slot.querySelector('.rv-reply-btn')?.addEventListener('click', () => {
+        slot.innerHTML = `<form class="reply-form">
+            <label class="sr-only" for="rt-${esc(r.id)}">Your reply</label>
+            <textarea id="rt-${esc(r.id)}" maxlength="1000" placeholder="Thank ${esc(String(r.reviewer_name || '').split(' ')[0] || 'them')} — and if something went wrong, explain briefly and politely.">${esc(r.reply || '')}</textarea>
+            <div class="reply-actions">
+              <button type="submit" class="primary-btn small">Publish reply</button>
+              <button type="button" class="link-btn rv-cancel">Cancel</button>
+              <span class="muted small reply-count"></span>
+            </div>
+            <p class="muted small">Public, under the review on your profile. ${esc(String(r.reviewer_name || '').split(' ')[0] || 'The traveller')} gets an email once.</p>
+          </form>`;
+        const ta = slot.querySelector('textarea'), count = slot.querySelector('.reply-count');
+        const upd = () => { count.textContent = `${ta.value.length}/1000`; };
+        ta.addEventListener('input', upd); upd(); ta.focus();
+        slot.querySelector('.rv-cancel').addEventListener('click', () => rerender(r));
+        slot.querySelector('form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const text = ta.value.trim();
+          if (text.length < 2) { showToast('Write a reply first (at least 2 characters).', 'error'); ta.focus(); return; }
+          const btn = e.submitter || slot.querySelector('[type=submit]'); btn.disabled = true;
+          const { data: res, error } = await CG.reviews.reply(r.id, text);
+          btn.disabled = false;
+          if (error) { showToast(error.message || 'Could not save your reply.', 'error'); return; }
+          r.reply = res && res.reply; r.reply_at = res && res.reply_at;
+          showToast('Reply published ✓', 'success');
+          rerender(r);
+        });
+      });
+      slot.querySelector('.rv-reply-del')?.addEventListener('click', async () => {
+        if (!confirm('Remove your reply? It disappears from your profile.')) return;
+        const { error } = await CG.reviews.reply(r.id, '');
+        if (error) { showToast(error.message || 'Could not remove it.', 'error'); return; }
+        r.reply = null; r.reply_at = null;
+        showToast('Reply removed.', 'info');
+        rerender(r);
+      });
+    };
+    list.forEach((r) => { const slot = box.querySelector(`[data-review="${CSS.escape(String(r.id))}"] .rv-reply-slot`); if (slot) wire(r, slot); });
+  }
+  /** Under a review in the dashboard: my reply with Edit / Remove, or a Reply button. */
+  function replyView(r) {
+    return r.reply
+      ? `<div class="review-reply"><div class="review-reply-head"><strong>↩ Your reply</strong>${r.reply_at ? `<span class="muted small">${fmtDate(r.reply_at)}</span>` : ''}</div><p translate="no">${esc(r.reply)}</p>
+          <div class="reply-actions"><button type="button" class="link-btn rv-reply-btn">Edit</button> · <button type="button" class="link-btn rv-reply-del">Remove</button></div></div>`
+      : '<button type="button" class="secondary-btn small rv-reply-btn">↩ Reply</button>';
   }
 
   /* ── A review as a 1080×1350 image for Instagram / stories (drawn in the browser; text only, no HTML) ── */

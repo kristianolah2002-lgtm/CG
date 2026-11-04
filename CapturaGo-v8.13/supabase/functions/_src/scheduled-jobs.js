@@ -29,6 +29,7 @@
 // 19. Last-minute deals → one email to travellers in that city   20. Text reminders on the shoot day (SMS / WhatsApp)
 //  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
 // 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
+// 23. (v8.17) A new review → the creator (email + push, link to reply); the creator replied → the traveller, once.
 // (v1.5 app) Booking emails, "Notify me" alerts and the new-booking email also go to the user's phones as a push (lib.js sendPush).
 // 22. (v8.15) EU DAC7: creators who can be paid online are asked for their tax details (then 2 reminders: day 14 and 45).
 //     With the secret TAX_INFO_HOLD=on, payouts wait for creators still without details 60 days after the first request.
@@ -47,7 +48,7 @@ async function runJobs(ctx, deps) {
   const now = ctx.nowMs();
   const nowIso = new Date(now).toISOString();
   const summary = { expired: 0, nudged: 0, auto_refunded: 0, released: 0, reminders: 0, late_notices: 0, message_emails: 0, photo_reminders: 0, photos_deleted: 0, city_alerts: 0,
-    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, errors: 0 };
+    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, tax_requests: 0, tax_held: 0, review_alerts: 0, reply_alerts: 0, errors: 0 };
   const errors = [];
   const fail = (what, id, e) => { summary.errors++; errors.push(`${what} ${id}: ${e && e.message ? e.message : e}`); console.error('[jobs]', what, id, e); };
   const mark = (b, key) => ctx.db(`bookings?id=eq.${b.id}`, { method: 'PATCH', body: { notices: { ...(b.notices || {}), [key]: nowIso } }, prefer: 'return=minimal' });
@@ -644,6 +645,58 @@ async function runJobs(ctx, deps) {
       } catch (e) { fail('tax-request', r.user_id, e); }
     }
   } catch (e) { if (!/due_tax_requests/.test(String(e && e.message))) fail('tax-requests', '-', e); }
+
+  // 23. Reviews: tell the creator about each new review (email + push, with a link to reply), and the traveller once
+  //     when the creator replied (10 minutes after the last edit, so a quick typo fix doesn't send two messages).
+  const notYet = (e) => /creator_notified_at|reply_notified_at|reply_at|42703/.test(String(e && e.message));   // PART 23 not run yet
+  const quote = (t, max = 300) => { const x = String(t || '').trim(); return escHtml(x.length > max ? `${x.slice(0, max - 1).trimEnd()}…` : x); };
+  try {
+    const since = encodeURIComponent(new Date(now - 3 * 86400000).toISOString());
+    const fresh = await ctx.db(`reviews?creator_notified_at=is.null&created_at=gte.${since}&select=id,photographer_id,reviewer_name,rating,comment,booking_id,photographers(user_id,email,name)&order=created_at.asc&limit=100`);
+    for (const r of fresh || []) {
+      try {
+        const c = r.photographers || {};
+        const l = await mailLang(ctx, c.user_id, c.email);
+        const who = String(r.reviewer_name || '').trim() || L(l, 'A traveller');
+        const stars = Math.max(1, Math.min(5, Math.round(Number(r.rating) || 0)));
+        const subject = L(l, '⭐ New review from {name}: {stars}', { name: who, stars: '★'.repeat(stars) + '☆'.repeat(5 - stars) });
+        const text = r.comment ? L(l, '{name} left you a {n}-star review: “{text}”', { name: escHtml(who), n: stars, text: quote(r.comment) }) : L(l, '{name} left you a {n}-star review.', { name: escHtml(who), n: stars });
+        let sent = true;
+        if (c.email) {
+          sent = await sendEmail(ctx, deps, c.email, subject, `${hiP(l, escHtml(String(c.name || '').split(' ')[0]))}<p>${text}</p>`
+            + (stars <= 3 ? `<p>${L(l, 'A short, friendly reply helps the next travellers more than the stars do: thank them, explain briefly what happened, and don\'t argue.')}</p>` : '')
+            + `<p><a href="${ctx.siteUrl}/dashboard.html#reviews"><strong>${L(l, 'Read it and reply')}</strong></a></p>`);
+        }
+        if (!sent) continue;   // try again next hour
+        await sendPush(ctx, deps, c.user_id, subject, text, { url: `/creator/${r.photographer_id}` });
+        await ctx.db(`reviews?id=eq.${r.id}&creator_notified_at=is.null`, { method: 'PATCH', body: { creator_notified_at: nowIso }, prefer: 'return=minimal' });
+        summary.review_alerts++;
+      } catch (e) { fail('review-alert', r.id, e); }
+    }
+  } catch (e) { if (!notYet(e)) fail('review-alerts', '-', e); }
+  try {
+    const settled = encodeURIComponent(new Date(now - 10 * 60000).toISOString());
+    const replied = await ctx.db(`reviews?reply_notified_at=is.null&reply_at=lte.${settled}&user_id=not.is.null&select=id,photographer_id,user_id,reviewer_name,reply,photographers(name,handle)&order=reply_at.asc&limit=100`);
+    for (const r of replied || []) {
+      try {
+        if (!r.reply) continue;
+        const u = await authUser(ctx, deps, r.user_id);
+        const email = u && u.email;
+        const l = await mailLang(ctx, r.user_id, email);
+        const c = r.photographers || {};
+        const name = String(c.name || '').trim() || L(l, 'Your creator');
+        const profile = c.handle ? `${ctx.siteUrl}/c/${encodeURIComponent(c.handle)}` : `${ctx.siteUrl}/?creator=${encodeURIComponent(r.photographer_id)}`;
+        const subject = L(l, '{name} replied to your review', { name });
+        const text = L(l, '{name} replied to your review on CapturaGo: “{text}”', { name: escHtml(name), text: quote(r.reply) });
+        let sent = true;
+        if (email) sent = await sendEmail(ctx, deps, email, subject, `${hiP(l, escHtml(String(r.reviewer_name || '').split(' ')[0]))}<p>${text}</p><p><a href="${profile}">${L(l, 'See it on {name}’s profile', { name: escHtml(name.split(' ')[0]) })}</a></p>`);
+        if (!sent) continue;
+        await sendPush(ctx, deps, r.user_id, subject, text, { url: `/creator/${r.photographer_id}` });
+        await ctx.db(`reviews?id=eq.${r.id}&reply_notified_at=is.null`, { method: 'PATCH', body: { reply_notified_at: nowIso }, prefer: 'return=minimal' });
+        summary.reply_alerts++;
+      } catch (e) { fail('reply-alert', r.id, e); }
+    }
+  } catch (e) { if (!notYet(e)) fail('reply-alerts', '-', e); }
 
   // 6. + 10. housekeeping
   await ctx.db(`ai_requests?created_at=lt.${encodeURIComponent(new Date(now - HOUR).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});

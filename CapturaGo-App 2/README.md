@@ -102,8 +102,11 @@ All three use your **real database** — what you do there is real (no payments 
 5. After 14 days: *Production* → *Apply for production* → submit.
 
 ## F. Updating the app later
-Change the code → raise `"version"` in `app.json` (1.5.0 → 1.5.1) → run the production builds again → submit.
+Change the code → raise `"version"` in `app.json` (1.6.0 → 1.6.1) → run the production builds again → submit.
 
+> **Version 1.6.0** (↩ **answer your reviews** — on your own profile, every review gets a ↩ Reply button; edit or
+> remove it any time; travellers see "↩ Reply from …" under the review; a notification for every new review) adds no
+> new native modules. Do the website's SETUP-PAYMENTS-AND-AI.md **Part 23** first, then build and submit as usual.
 > **Version 1.5.0** (🔔 **push notifications** — new bookings and booking news, "Notify me" alerts, "New message from
 > …"; off under Account → Notifications on this phone · ⚡ **Last-minute deals** screen with 🎲 Surprise me and your
 > gift card (Explore → ⚡ Last-minute deals, or Account) · 🔔 **Notify me** on fully booked creators + "Creators you're
