@@ -259,4 +259,17 @@ P = [
   (r"Travellers in (.+?) are told in about 10 minutes\.", "Reisende in $1 werden in etwa 10 Minuten informiert.", "Se avisará a los viajeros de $1 en unos 10 minutos.", "Les voyageurs à $1 seront prévenus dans 10 minutes environ."),
   (r"Deal live ✓ — −(\d+)% for (.+?)\.", "Angebot aktiv ✓ — −$1 % für {2}.", "Oferta activa ✓: −$1 % para {2}.", "Offre active ✓ — −$1 % pour {2}."),
   (r"Code sent to (.+?) ✓", "Code an {1} gesendet ✓", "Código enviado a {1} ✓", "Code envoyé au {1} ✓"),
+  # v8.14: notify me on a creator, clients' favourite shots, deals for gift cards
+  (r"You'll get one message when (.+?) has a free day again or posts a last-minute deal\.", "Du bekommst eine Nachricht, wenn $1 wieder einen freien Tag hat oder ein Last-Minute-Angebot einstellt.", "Recibirás un mensaje cuando $1 vuelva a tener un día libre o publique una oferta de última hora.", "Tu recevras un message quand $1 aura de nouveau un jour libre ou publiera une offre de dernière minute."),
+  (r"Get one message when (.+?) has a free day again or posts a last-minute deal\.", "Erhalte eine Nachricht, wenn $1 wieder einen freien Tag hat oder ein Last-Minute-Angebot einstellt.", "Recibe un mensaje cuando $1 vuelva a tener un día libre o publique una oferta de última hora.", "Reçois un message quand $1 aura de nouveau un jour libre ou publiera une offre de dernière minute."),
+  (r"(.+?) isn't taking bookings right now", "$1 nimmt gerade keine Buchungen an", "$1 no acepta reservas ahora mismo", "$1 ne prend pas de réservations pour le moment"),
+  (r"Sign in and we'll tell you when (.+?) has a free day\.", "Melde dich an, und wir sagen dir Bescheid, wenn $1 einen freien Tag hat.", "Inicia sesión y te avisaremos cuando $1 tenga un día libre.", "Connecte-toi et on te prévient quand $1 aura un jour libre."),
+  (r"Done — we'll tell you once when (.+?) has a free day or a deal\.", "Erledigt — wir sagen dir einmal Bescheid, wenn $1 einen freien Tag oder ein Angebot hat.", "Hecho: te avisaremos una vez cuando $1 tenga un día libre o una oferta.", "C'est noté — on te prévient une fois quand $1 aura un jour libre ou une offre."),
+  (r"Picked by travellers who booked (.+?) — tap to see their review photos\.", "Ausgewählt von Reisenden, die $1 gebucht haben — tippe, um die Fotos ihrer Bewertung zu sehen.", "Elegidas por viajeros que reservaron con $1: toca para ver las fotos de su reseña.", "Choisies par des voyageurs qui ont réservé $1 — touche pour voir les photos de leur avis."),
+  (r"Open the favourite photo from (.+?)'s review", "Lieblingsfoto aus der Bewertung von $1 öffnen", "Abrir la foto favorita de la reseña de $1", "Ouvrir la photo préférée de l'avis de $1"),
+  (r"(\d+) last-minute deals? in (.+)\.", "$1 Last-Minute-Angebote in $2.", "$1 ofertas de última hora en $2.", "$1 offres de dernière minute à $2."),
+  (r"(\d+) last-minute deals?\.", "$1 Last-Minute-Angebote.", "$1 ofertas de última hora.", "$1 offres de dernière minute."),
+  (r"\+ (\d+)% service fee", "+ $1 % Servicegebühr", "+ $1 % de tarifa de servicio", "+ $1 % de frais de service"),
+  (r"(.+?) from your card", "$1 von deinem Gutschein", "$1 de tu tarjeta", "$1 de ta carte"),
+  (r"(€[0-9.,]+) to pay", "$1 zu zahlen", "$1 por pagar", "$1 à payer"),
 ]

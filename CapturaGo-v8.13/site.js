@@ -56,6 +56,13 @@ window.CG_CONFIG = {
     if (m <= 1440) return 'Usually replies within a day';
     return '';
   };
+  /* Ranking: fast responders come first after boosted listings (3 = within an hour … 0 = slower or not measured yet).
+     Same bands as replyLabel, the city pages, the app and the AI match. */
+  window.replyRank = function (p) {
+    const m = Number(p && p.reply_minutes);
+    if (!p || !Number.isFinite(m) || m <= 0 || Number(p.reply_samples) < 3) return 0;
+    return m <= 60 ? 3 : m <= 180 ? 2 : m <= 1440 ? 1 : 0;
+  };
   /* Intro video: a link to YouTube, Instagram, TikTok or Vimeo only (opened on their site, never embedded) */
   const VIDEO_HOSTS = ['youtube.com', 'youtu.be', 'instagram.com', 'tiktok.com', 'vimeo.com'];
   window.introVideoOk = function (u) {

@@ -284,6 +284,32 @@ const MAIL_TEXT = {
   'your shoot with {name} {when} {time}': { de: 'dein Shooting mit {name} {when} {time}', es: 'tu sesión con {name} {when} {time}', fr: 'ton shooting avec {name} {when} {time}' },
   'CapturaGo reminder: {what}. Details: {link}': { de: 'CapturaGo-Erinnerung: {what}. Details: {link}', es: 'Recordatorio de CapturaGo: {what}. Detalles: {link}', fr: 'Rappel CapturaGo : {what}. Détails : {link}' },
   'CapturaGo reminder: {what}. Meeting point: {place}. Details: {link}': { de: 'CapturaGo-Erinnerung: {what}. Treffpunkt: {place}. Details: {link}', es: 'Recordatorio de CapturaGo: {what}. Punto de encuentro: {place}. Detalles: {link}', fr: 'Rappel CapturaGo : {what}. Point de rendez-vous : {place}. Détails : {link}' },
+
+  // weather-aware reminders, "notify me" on a creator, "Surprise me" gift cards (v8.14)
+  '🌧 <strong>Heavy rain is forecast</strong> for the shoot day{detail}.': { de: '🌧 Für den Shooting-Tag ist <strong>starker Regen vorhergesagt</strong>{detail}.', es: '🌧 Se prevé <strong>lluvia fuerte</strong> para el día de la sesión{detail}.', fr: '🌧 De <strong>fortes pluies sont prévues</strong> le jour du shooting{detail}.' },
+  ' ({pct}% chance of rain)': { de: ' ({pct} % Regenwahrscheinlichkeit)', es: ' ({pct} % de probabilidad de lluvia)', fr: ' ({pct} % de risque de pluie)' },
+  'Want to move it? {link} — moving is free if you both agree, and the other person is asked right away.': { de: 'Lieber verschieben? {link} — Verschieben ist kostenlos, wenn ihr beide zustimmt, und die andere Person wird sofort gefragt.', es: '¿Quieres moverla? {link}: cambiarla es gratis si estáis de acuerdo, y se le pregunta a la otra persona enseguida.', fr: 'Tu veux le déplacer ? {link} — c\'est gratuit si vous êtes d\'accord tous les deux, et l\'autre personne est prévenue tout de suite.' },
+  '📅 Propose a new date': { de: '📅 Neuen Termin vorschlagen', es: '📅 Proponer otra fecha', fr: '📅 Proposer une nouvelle date' },
+  'Your shoot is tomorrow — heavy rain forecast: {pkg}': { de: 'Dein Shooting ist morgen — starker Regen vorhergesagt: {pkg}', es: 'Tu sesión es mañana, con lluvia fuerte prevista: {pkg}', fr: 'Ton shooting est demain — fortes pluies prévues : {pkg}' },
+  'Shoot tomorrow — heavy rain forecast: {pkg}': { de: 'Shooting morgen — starker Regen vorhergesagt: {pkg}', es: 'Sesión mañana, con lluvia fuerte prevista: {pkg}', fr: 'Shooting demain — fortes pluies prévues : {pkg}' },
+  'heavy rain forecast; to move it, tap the link': { de: 'starker Regen vorhergesagt; zum Verschieben auf den Link tippen', es: 'se prevé lluvia fuerte; para cambiarla, toca el enlace', fr: 'fortes pluies prévues ; pour le déplacer, touche le lien' },
+  '⚡ {name} has a last-minute deal: −{pct}% on {date}': { de: '⚡ {name} hat ein Last-Minute-Angebot: −{pct} % am {date}', es: '⚡ {name} tiene una oferta de última hora: −{pct} % el {date}', fr: '⚡ {name} a une offre de dernière minute : −{pct} % le {date}' },
+  '🔔 {name} has a free day again': { de: '🔔 {name} hat wieder einen freien Tag', es: '🔔 {name} vuelve a tener un día libre', fr: '🔔 {name} a de nouveau un jour libre' },
+  'You asked us to tell you when {name} has something for you. They just lowered their price by {pct}% for {date}.': { de: 'Du wolltest Bescheid bekommen, wenn {name} etwas für dich hat. Gerade wurde der Preis für {date} um {pct} % gesenkt.', es: 'Nos pediste que te avisáramos cuando {name} tuviera algo para ti. Acaba de bajar su precio un {pct} % para el {date}.', fr: 'Tu nous as demandé de te prévenir quand {name} aurait quelque chose pour toi. Le prix vient de baisser de {pct} % pour le {date}.' },
+  'You asked us to tell you when {name} has a free day. {n} days just opened up — the first is {date}.': { de: 'Du wolltest Bescheid bekommen, wenn {name} einen freien Tag hat. Gerade sind {n} Tage frei geworden — der erste ist {date}.', es: 'Nos pediste que te avisáramos cuando {name} tuviera un día libre. Acaban de quedar libres {n} días; el primero es el {date}.', fr: 'Tu nous as demandé de te prévenir quand {name} aurait un jour libre. {n} jours viennent de se libérer — le premier est le {date}.' },
+  'You asked us to tell you when {name} has a free day. {date} just opened up.': { de: 'Du wolltest Bescheid bekommen, wenn {name} einen freien Tag hat. {date} ist gerade frei geworden.', es: 'Nos pediste que te avisáramos cuando {name} tuviera un día libre. Acaba de quedar libre el {date}.', fr: 'Tu nous as demandé de te prévenir quand {name} aurait un jour libre. Le {date} vient de se libérer.' },
+  '{link} — free days go quickly, and the payment is protected as always.': { de: '{link} — freie Tage sind schnell weg, und die Zahlung ist wie immer geschützt.', es: '{link}: los días libres vuelan, y el pago está protegido como siempre.', fr: '{link} — les jours libres partent vite, et le paiement est protégé comme toujours.' },
+  'Book {name}': { de: '{name} buchen', es: 'Reservar con {name}', fr: 'Réserver {name}' },
+  'This was a one-time alert. Watch again any time from {link}.': { de: 'Das war eine einmalige Benachrichtigung. Du kannst jederzeit wieder über {link} folgen.', es: 'Era un aviso único. Puedes volver a activarlo cuando quieras desde {link}.', fr: 'C\'était une alerte unique. Tu peux la réactiver à tout moment depuis {link}.' },
+  '{name}’s profile': { de: 'dem Profil von {name}', es: 'el perfil de {name}', fr: 'le profil de {name}' },
+  'CapturaGo: {name} has a last-minute deal, −{pct}% on {date}. Book: {link}': { de: 'CapturaGo: {name} hat ein Last-Minute-Angebot, −{pct} % am {date}. Buchen: {link}', es: 'CapturaGo: {name} tiene una oferta de última hora, −{pct} % el {date}. Reserva: {link}', fr: 'CapturaGo : {name} a une offre de dernière minute, −{pct} % le {date}. Réserver : {link}' },
+  'CapturaGo: {name} has a free day again ({date}). Book: {link}': { de: 'CapturaGo: {name} hat wieder einen freien Tag ({date}). Buchen: {link}', es: 'CapturaGo: {name} vuelve a tener un día libre ({date}). Reserva: {link}', fr: 'CapturaGo : {name} a de nouveau un jour libre ({date}). Réserver : {link}' },
+  '🎲 It\'s a “Surprise me” gift: they can let us pick a last-minute deal for them on {link}.': { de: '🎲 Es ist ein „Überrasch mich“-Gutschein: Sie können uns auf {link} ein Last-Minute-Angebot für sich aussuchen lassen.', es: '🎲 Es un regalo «Sorpréndeme»: puede dejar que elijamos una oferta de última hora en {link}.', fr: '🎲 C\'est un cadeau « Surprends-moi » : la personne peut nous laisser choisir une offre de dernière minute sur {link}.' },
+  'the deals page': { de: 'der Angebotsseite', es: 'la página de ofertas', fr: 'la page des offres' },
+  '🎲 <strong>Feeling spontaneous?</strong> This is a “Surprise me” gift: {link}, press “Surprise me” and we pick a last-minute shoot for you — often at a lower price.': { de: '🎲 <strong>Lust auf Spontanes?</strong> Das ist ein „Überrasch mich“-Gutschein: {link}, tippe auf „Überrasch mich“, und wir suchen ein Last-Minute-Shooting für dich aus — oft günstiger.', es: '🎲 <strong>¿Te apetece algo espontáneo?</strong> Es un regalo «Sorpréndeme»: {link}, pulsa «Sorpréndeme» y elegimos una sesión de última hora para ti, a menudo más barata.', fr: '🎲 <strong>Envie de spontanéité ?</strong> C\'est un cadeau « Surprends-moi » : {link}, appuie sur « Surprends-moi » et on choisit un shooting de dernière minute pour toi — souvent moins cher.' },
+  'open the last-minute deals': { de: 'öffne die Last-Minute-Angebote', es: 'abre las ofertas de última hora', fr: 'ouvre les offres de dernière minute' },
+  'It also works for last-minute deals: {link}.': { de: 'Er gilt auch für Last-Minute-Angebote: {link}.', es: 'También sirve para ofertas de última hora: {link}.', fr: 'Elle fonctionne aussi pour les offres de dernière minute : {link}.' },
+  'see who has a lower price tomorrow': { de: 'sieh nach, wer morgen günstiger ist', es: 'mira quién tiene un precio más bajo mañana', fr: 'vois qui est moins cher demain' },
 };
 
 // ── CapturaGo server helpers (inlined into every function by build.py) ──
@@ -500,6 +526,39 @@ async function sendText(ctx, deps, to, channel, body, wa, lang) {
     console.error('[text]', e);
     return false;
   }
+}
+
+/* ── Weather-aware reminders: heavy rain on a shoot day (Open-Meteo, free, no key) ──
+   Heavy = a heavy-rain / violent-shower / thunderstorm forecast, or lots of rain that is very likely.
+   Light drizzle or a "40 % chance" is not heavy — many shoots go ahead in that. */
+const HEAVY_RAIN_CODES = [65, 67, 82, 95, 96, 99];   // heavy rain, heavy freezing rain, violent showers, thunderstorms
+function isHeavyRain(code, pct, mm) {
+  const c = Number(code), p = Number(pct), m = Number(mm);
+  if (HEAVY_RAIN_CODES.includes(c)) return true;
+  if ((c === 63 || c === 81) && Number.isFinite(p) && p >= 70) return true;   // moderate rain / showers, very likely
+  return Number.isFinite(m) && m >= 10 && Number.isFinite(p) && p >= 60;      // 10 mm+ of rain, likely
+}
+/** { heavy, pct, mm } for a place and day (0–15 days ahead), or null when unknown. Cached per run; never throws. */
+async function rainForecast(ctx, deps, coords, isoDate) {
+  const lat = Number(coords && coords.lat), lon = Number(coords && coords.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate || ''))) return null;
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)},${isoDate}`;
+  if (!ctx._wx) ctx._wx = new Map();
+  if (ctx._wx.has(key)) return ctx._wx.get(key);
+  let out = null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&daily=weather_code,precipitation_probability_max,precipitation_sum&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
+    const r = await Promise.race([deps.fetch(url), new Promise((_, no) => setTimeout(() => no(new Error('weather timeout')), 6000))]);
+    if (r && r.ok) {
+      const d = ((await r.json()) || {}).daily || {};
+      const code = Number(d.weather_code && d.weather_code[0]);
+      const pct = Number(d.precipitation_probability_max && d.precipitation_probability_max[0]);
+      const mm = Number(d.precipitation_sum && d.precipitation_sum[0]);
+      if (Number.isFinite(code)) out = { heavy: isHeavyRain(code, pct, mm), pct: Number.isFinite(pct) ? Math.round(pct) : null, mm: Number.isFinite(mm) ? Math.round(mm) : null };
+    }
+  } catch (e) { console.error('[weather]', e && e.message ? e.message : e); }
+  ctx._wx.set(key, out);
+  return out;
 }
 
 function escHtml(s) {
@@ -1133,13 +1192,16 @@ async function handleEvent(ctx, deps, event) {
         await sendEmail(ctx, deps, g.buyer_email, L(l, 'Your CapturaGo gift card ({amount})', { amount: euro(g.amount_cents) }),
           `<p>${L(l, 'Hi,')}</p><p>${g.recipient_name ? L(l, 'Thank you! Here is your gift card for {amount} for {name}:', { amount, name: `<strong>${escHtml(g.recipient_name)}</strong>` }) : L(l, 'Thank you! Here is your gift card for {amount}:', { amount })}</p>${card}`
           + `<p>${L(l, 'It can be used for any shoot on CapturaGo until {date} — enter the code when booking. {link}.', { date: escHtml(until), link: `<a href="${ctx.siteUrl}/gift.html?g=${g.id}">${L(l, 'Download a printable card')}</a>` })}</p>`
+          + (g.surprise ? `<p>${L(l, '🎲 It\'s a “Surprise me” gift: they can let us pick a last-minute deal for them on {link}.', { link: `<a href="${ctx.siteUrl}/gift.html#deals">${L(l, 'the deals page')}</a>` })}</p>` : '')
           + (g.recipient_email ? `<p>${L(l, 'We\'ve also emailed it to {email}.', { email: escHtml(g.recipient_email) })}</p>` : ''));
       }
       if (g.recipient_email) {
         const sent = await sendEmail(ctx, deps, g.recipient_email, L(l, '🎁 You\'ve got a CapturaGo gift card'),
           hiP(l, g.recipient_name ? escHtml(g.recipient_name) : '').replace(L(l, 'Hi there,'), L(l, 'Hi,')) + `<p>${L(l, 'Someone gave you a photo shoot! Here is your CapturaGo gift card for {amount}:', { amount })}</p>${card}`
           + (g.message ? `<p style="font-style:italic">“${escHtml(g.message)}”</p>` : '')
-          + `<p>${L(l, 'Find a photographer, videographer or local guide wherever you travel on {site} and enter the code when you book. Valid until {date}.', { site: `<a href="${ctx.siteUrl}/">CapturaGo</a>`, date: escHtml(until) })}</p>`);
+          + `<p>${L(l, 'Find a photographer, videographer or local guide wherever you travel on {site} and enter the code when you book. Valid until {date}.', { site: `<a href="${ctx.siteUrl}/">CapturaGo</a>`, date: escHtml(until) })}</p>`
+          + (g.surprise ? `<p>${L(l, '🎲 <strong>Feeling spontaneous?</strong> This is a “Surprise me” gift: {link}, press “Surprise me” and we pick a last-minute shoot for you — often at a lower price.', { link: `<a href="${ctx.siteUrl}/gift.html#deals">${L(l, 'open the last-minute deals')}</a>` })}</p>` : '')
+          + `<p>${L(l, 'It also works for last-minute deals: {link}.', { link: `<a href="${ctx.siteUrl}/gift.html#deals">${L(l, 'see who has a lower price tomorrow')}</a>` })}</p>`);
         if (sent) await ctx.db(`gift_cards?id=eq.${g.id}`, { method: 'PATCH', body: { recipient_emailed_at: nowIso }, prefer: 'return=minimal' });
       }
       return;

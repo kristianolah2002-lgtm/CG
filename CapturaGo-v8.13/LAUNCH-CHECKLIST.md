@@ -1,5 +1,14 @@
 # CapturaGo — Launch checklist
 
+> **v8.14:** **gift cards on last-minute deals** (`/gift.html#deals`: find deals, see what your card covers, 🎲
+> **Surprise me** picks one; buyers can make it a "Surprise me" gift); **weather-aware reminders** (heavy rain on the
+> shoot day → the reminder email and text offer "📅 Propose a new date" in one tap); **fast responders ranked higher**
+> (+ "💬 Replies within an hour" on cards; AI match prefers them when equal); **clients' favourite shots** on every
+> profile (the first photo of each review); **🔔 Notify me** on fully booked creators (one email — or a text — when a
+> day opens up or a deal appears; listed in Dashboard → Overview). Group bookings already exist (split the cost, v8.12).
+> Run `database.sql`, re-deploy `scheduled-jobs`, `create-gift`, `stripe-webhook`, `ai-match`:
+> SETUP-PAYMENTS-AND-AI.md **Part 20**. No new secrets. Terms (6b ranking, 6e moving, 6f gift cards, 6n, review
+> photos) and Privacy Policy (creator alerts, Open-Meteo from our server, Twilio) updated.
 > **v8.13:** language button at the top of every page (🌐 EN ▾); the creator dashboard, the app's creator screens
 > and **all emails** in German/Spanish/French (the language is saved on the account); **last-minute deals** (−10–50%
 > on a free day tomorrow or the day after, applied by the server, one email to travellers in that city); **text

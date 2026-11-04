@@ -26,6 +26,9 @@
 // 16. Calendar sync: busy days read from creators' own calendars (every 3 hours)
 // 18. Invite rewards: both creators emailed about their free 7-day boost (the database gives it)
 // 17. Shoot requests: new request → matching creators emailed once; new offers → one email to the traveller; past requests closed
+// 19. Last-minute deals → one email to travellers in that city   20. Text reminders on the shoot day (SMS / WhatsApp)
+//  4. + 20. (v8.14) Heavy rain forecast for the shoot day → the reminder email and text suggest moving it (one tap)
+// 21. (v8.14) "Notify me" on a fully booked creator → one email (and a text, if asked) when a day opens up or a deal appears
 const BATCH = 50;
 const HOUR = 3600000;
 
@@ -41,7 +44,7 @@ async function runJobs(ctx, deps) {
   const now = ctx.nowMs();
   const nowIso = new Date(now).toISOString();
   const summary = { expired: 0, nudged: 0, auto_refunded: 0, released: 0, reminders: 0, late_notices: 0, message_emails: 0, photo_reminders: 0, photos_deleted: 0, city_alerts: 0,
-    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, errors: 0 };
+    reply_stats: 0, reply_nudges: 0, review_requests: 0, anniversaries: 0, photos_due: 0, photos_late: 0, trip_alerts: 0, split_expired: 0, split_refunds: 0, request_alerts: 0, offer_alerts: 0, invite_rewards: 0, calendars_synced: 0, deal_emails: 0, texts: 0, rain_warnings: 0, watch_alerts: 0, errors: 0 };
   const errors = [];
   const fail = (what, id, e) => { summary.errors++; errors.push(`${what} ${id}: ${e && e.message ? e.message : e}`); console.error('[jobs]', what, id, e); };
   const mark = (b, key) => ctx.db(`bookings?id=eq.${b.id}`, { method: 'PATCH', body: { notices: { ...(b.notices || {}), [key]: nowIso } }, prefer: 'return=minimal' });
@@ -60,6 +63,17 @@ async function runJobs(ctx, deps) {
     await sendEmail(ctx, deps, c.email, subject, `${hiP(c.lang, escHtml(c.name))}<p>${html}</p>${dash(c.lang)}`);
   }
   const LOCALE = { en: 'en-GB', de: 'de-DE', es: 'es-ES', fr: 'fr-FR' };
+  // Weather-aware reminders: heavy rain on the shoot day → offer to move it (free when both agree; max 3 moves)
+  const moveLink = (b) => `${ctx.siteUrl}/dashboard.html?move=${b.id}#bookings`;
+  const canMove = (b) => b.booking_type !== 'delivery' && ['paid', 'confirmed'].includes(b.status) && !b.proposed_date && (Number(b.reschedules) || 0) < 3;
+  const shootCoords = (b) => (b.shoot_city ? b.shoot_coords : (b.photographers && b.photographers.coords)) || null;   // a trip: the trip city
+  async function heavyRainFor(b) {
+    if (!canMove(b)) return null;
+    const w = await rainForecast(ctx, deps, shootCoords(b), b.shoot_date);
+    return w && w.heavy ? w : null;
+  }
+  const rainHtml = (w, b, l) => `<p style="background:#EEF3F8;border-radius:12px;padding:12px 14px">${L(l, '🌧 <strong>Heavy rain is forecast</strong> for the shoot day{detail}.', { detail: w.pct !== null ? L(l, ' ({pct}% chance of rain)', { pct: w.pct }) : '' })} `
+    + `${L(l, 'Want to move it? {link} — moving is free if you both agree, and the other person is asked right away.', { link: `<a href="${moveLink(b)}"><strong>${L(l, '📅 Propose a new date')}</strong></a>` })}</p>`;
 
   const [run] = await ctx.db('job_runs', { method: 'POST', body: { started_at: nowIso } });
 
@@ -148,15 +162,19 @@ async function runJobs(ctx, deps) {
 
   // 4. reminders for tomorrow
   const tomorrow = ctx.isoInDays(1);
-  const due = await ctx.db(`bookings?status=eq.confirmed&shoot_date=eq.${tomorrow}&select=*&limit=${BATCH}`);
+  let due;
+  try { due = await ctx.db(`bookings?status=eq.confirmed&shoot_date=eq.${tomorrow}&select=*,photographers(coords)&limit=${BATCH}`); }
+  catch { due = await ctx.db(`bookings?status=eq.confirmed&shoot_date=eq.${tomorrow}&select=*&limit=${BATCH}`); }
   for (const b of due || []) {
     if (b.notices && b.notices.reminder) continue;
     try {
+      const rain = b.booking_type === 'delivery' ? null : await heavyRainFor(b);
+      if (rain) summary.rain_warnings++;
       if (b.booking_type === 'delivery') {
         await mailCreator(b, (l) => [L(l, 'Due tomorrow: {pkg}', { pkg: b.package_name }), L(l, 'Delivery for {pkg} is due tomorrow ({date}). Deliver the files from your dashboard.', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })]);
       } else {
-        await mailClient(b, (l) => [L(l, 'Your shoot is tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Just a reminder — your shoot {pkg} is tomorrow ({date}).', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })}</p>${planHtml(b, false, l) || `<p>${L(l, 'Your creator hasn\'t shared a meeting point yet — message them on CapturaGo.')}`}<p>${L(l, 'Enjoy it!')}`]);
-        await mailCreator(b, (l) => [L(l, 'Shoot tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Reminder: you\'re shooting {pkg} with {name} tomorrow ({date}).', { pkg: pkgOf(b), name: escHtml(b.client_name), date: escHtml(b.shoot_date) })}</p>${planHtml(b, true, l) || `<p>${L(l, 'Tip: share a meeting point and time from your bookings so the traveller knows where to go.')}`}<p>`]);
+        await mailClient(b, (l) => [rain ? L(l, 'Your shoot is tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Your shoot is tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Just a reminder — your shoot {pkg} is tomorrow ({date}).', { pkg: pkgOf(b), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${planHtml(b, false, l) || `<p>${L(l, 'Your creator hasn\'t shared a meeting point yet — message them on CapturaGo.')}`}<p>${L(l, 'Enjoy it!')}`]);
+        await mailCreator(b, (l) => [rain ? L(l, 'Shoot tomorrow — heavy rain forecast: {pkg}', { pkg: b.package_name }) : L(l, 'Shoot tomorrow: {pkg}', { pkg: b.package_name }), `${L(l, 'Reminder: you\'re shooting {pkg} with {name} tomorrow ({date}).', { pkg: pkgOf(b), name: escHtml(b.client_name), date: escHtml(b.shoot_date) })}</p>${rain ? rainHtml(rain, b, l) : ''}${planHtml(b, true, l) || `<p>${L(l, 'Tip: share a meeting point and time from your bookings so the traveller knows where to go.')}`}<p>`]);
       }
       await mark(b, 'reminder');
       summary.reminders++;
@@ -502,7 +520,7 @@ async function runJobs(ctx, deps) {
   //     Local time is estimated from the place's longitude (no time zone is stored).
   if (textsConfigured(ctx)) {
     try {
-      const rows = await ctx.db(`bookings?status=eq.confirmed&booking_type=eq.session&shoot_date=gte.${ctx.isoInDays(-1)}&shoot_date=lte.${ctx.isoInDays(2)}&notices->>text_reminder=is.null&select=id,client_user_id,creator_user_id,client_name,package_name,shoot_date,time_slot,meeting_point,meeting_time,shoot_coords,surprise,notices,photographers(name,coords)&order=shoot_date.asc&limit=300`);
+      const rows = await ctx.db(`bookings?status=eq.confirmed&booking_type=eq.session&shoot_date=gte.${ctx.isoInDays(-1)}&shoot_date=lte.${ctx.isoInDays(2)}&notices->>text_reminder=is.null&select=id,status,booking_type,client_user_id,creator_user_id,client_name,package_name,shoot_date,time_slot,meeting_point,meeting_time,shoot_city,shoot_coords,surprise,notices,proposed_date,reschedules,photographers(name,coords)&order=shoot_date.asc&limit=300`);
       for (const b of rows || []) {
         try {
           const ph = b.photographers || {};
@@ -519,6 +537,7 @@ async function runJobs(ctx, deps) {
           if (!claimed || !claimed.length) continue;
           const ids = [b.client_user_id, b.creator_user_id].filter((x) => UUID_RE.test(String(x || '')));
           if (!ids.length) continue;
+          const rain = await heavyRainFor(b);   // heavy rain → the text offers to move it (one tap)
           const phones = await ctx.db(`phone_numbers?user_id=in.(${ids.join(',')})&verified_at=not.is.null&reminders=is.true&select=user_id,phone,channel`);
           for (const pn of phones || []) {
             if (!(await ctx.db('rpc/claim_text', { method: 'POST', body: { p_user: pn.user_id } }))) continue;   // max 4 a day
@@ -528,20 +547,67 @@ async function runJobs(ctx, deps) {
             const time = MEETING_TIME_RE.test(String(b.meeting_time || '')) ? L(l, 'at {time}', { time: b.meeting_time }) : (b.time_slot ? `(${L(l, slotLabel(b.time_slot))})` : '');
             const other = String(forCreator ? (b.client_name || '') : (ph.name || '')).split(' ')[0];
             const place = b.meeting_point ? String(b.meeting_point).slice(0, 120) : L(l, 'not shared yet — message each other in CapturaGo');
-            const link = `${ctx.siteUrl}/dashboard.html#bookings`;
-            const what = !forCreator && b.surprise
+            const link = rain ? moveLink(b) : `${ctx.siteUrl}/dashboard.html#bookings`;
+            const what0 = !forCreator && b.surprise
               ? L(l, 'your plans {when} {time}', { when, time }).replace(/\s+/g, ' ').trim()
               : L(l, 'your shoot with {name} {when} {time}', { name: other, when, time }).replace(/\s+/g, ' ').trim();
+            // Heavy rain: said in the same message (also fits the approved WhatsApp template: {{1}} and the link in {{3}})
+            const what = rain ? `${what0} — ${L(l, 'heavy rain forecast; to move it, tap the link')}` : what0;
             const text = !forCreator && b.surprise
               ? L(l, 'CapturaGo reminder: {what}. Details: {link}', { what, link })
               : L(l, 'CapturaGo reminder: {what}. Meeting point: {place}. Details: {link}', { what, place, link });
             const ok = await sendText(ctx, deps, pn.phone, pn.channel, text, { 1: what, 2: !forCreator && b.surprise ? '—' : place, 3: link }, l);
             if (ok) summary.texts++;
           }
+          if (rain) summary.rain_warnings++;
         } catch (e) { fail('text', b.id, e); }
       }
     } catch (e) { if (!/phone_numbers|text_reminder/.test(String(e && e.message))) fail('texts', '-', e); }
   }
+
+  // 21. "Notify me" on a fully booked creator: a day opened up, or a last-minute deal appeared → one email
+  //     (+ one text if the traveller asked for it and confirmed their number), then the watch is done.
+  try {
+    const due21 = await ctx.db('rpc/due_creator_watches', { method: 'POST', body: { p_limit: 100 } });
+    const niceDay = (iso, l) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(LOCALE[l] || 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    for (const w of due21 || []) {
+      try {
+        const u = await authUser(ctx, deps, w.user_id);
+        const email = u && u.email;
+        const l = await mailLang(ctx, w.user_id, email);
+        const name = String(w.photographer_name || '');
+        const first = name.split(' ')[0] || L(l, 'Your creator');
+        const profile = w.photographer_handle ? `${ctx.siteUrl}/c/${encodeURIComponent(w.photographer_handle)}` : `${ctx.siteUrl}/?creator=${encodeURIComponent(w.photographer_id)}`;
+        const book = `${ctx.siteUrl}/?creator=${encodeURIComponent(w.photographer_id)}&day=${encodeURIComponent(w.day)}`;
+        const when = niceDay(w.day, l);
+        const deal = w.reason === 'deal';
+        let sent = false;
+        if (email) {
+          const subject = deal ? L(l, '⚡ {name} has a last-minute deal: −{pct}% on {date}', { name: first, pct: w.pct, date: when })
+            : L(l, '🔔 {name} has a free day again', { name: first });
+          const body = deal
+            ? L(l, 'You asked us to tell you when {name} has something for you. They just lowered their price by {pct}% for {date}.', { name: `<strong>${escHtml(name)}</strong>`, pct: w.pct, date: `<strong>${escHtml(when)}</strong>` })
+            : (Number(w.free_count) > 1
+              ? L(l, 'You asked us to tell you when {name} has a free day. {n} days just opened up — the first is {date}.', { name: `<strong>${escHtml(name)}</strong>`, n: Number(w.free_count), date: `<strong>${escHtml(when)}</strong>` })
+              : L(l, 'You asked us to tell you when {name} has a free day. {date} just opened up.', { name: `<strong>${escHtml(name)}</strong>`, date: `<strong>${escHtml(when)}</strong>` }));
+          sent = await sendEmail(ctx, deps, email, subject,
+            `<p>${L(l, 'Hi,')}</p><p>${body}</p><p>${L(l, '{link} — free days go quickly, and the payment is protected as always.', { link: `<a href="${book}"><strong>${L(l, 'Book {name}', { name: escHtml(first) })}</strong></a>` })}</p>`
+            + `<p style="color:#7D6A53;font-size:13px">${L(l, 'This was a one-time alert. Watch again any time from {link}.', { link: `<a href="${profile}">${L(l, '{name}’s profile', { name: escHtml(first) })}</a>` })}</p>`);
+        }
+        if (w.by_text && textsConfigured(ctx)) {
+          const [pn] = await ctx.db(`phone_numbers?user_id=eq.${w.user_id}&verified_at=not.is.null&select=phone,channel`);
+          if (pn && (await ctx.db('rpc/claim_text', { method: 'POST', body: { p_user: w.user_id } }))) {
+            const text = deal ? L(l, 'CapturaGo: {name} has a last-minute deal, −{pct}% on {date}. Book: {link}', { name: first, pct: w.pct, date: when, link: book })
+              : L(l, 'CapturaGo: {name} has a free day again ({date}). Book: {link}', { name: first, date: when, link: book });
+            if (await sendText(ctx, deps, pn.phone, 'sms', text, null, l)) sent = true;   // an alert, not a reminder: always SMS
+          }
+        }
+        if (!sent && email) continue;   // email failed → try again next hour
+        await ctx.db(`creator_watches?id=eq.${w.watch_id}&notified_at=is.null`, { method: 'PATCH', body: { notified_at: nowIso, notified_reason: deal ? 'deal' : 'free' }, prefer: 'return=minimal' });
+        summary.watch_alerts++;
+      } catch (e) { fail('watch', w.watch_id, e); }
+    }
+  } catch (e) { if (!/due_creator_watches|creator_watches/.test(String(e && e.message))) fail('watches', '-', e); }
 
   // 6. + 10. housekeeping
   await ctx.db(`ai_requests?created_at=lt.${encodeURIComponent(new Date(now - HOUR).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
@@ -551,6 +617,7 @@ async function runJobs(ctx, deps) {
   await ctx.db(`last_minute_deals?day=lt.${ctx.isoInDays(-14)}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`deal_emails?sent_on=lt.${ctx.isoInDays(-7)}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`phone_code_log?created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
+  await ctx.db(`creator_watches?or=(until_day.lt.${ctx.isoInDays(-7)},notified_at.lt.${encodeURIComponent(new Date(now - 60 * 86400000).toISOString())})`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});
   await ctx.db(`phone_numbers?verified_at=is.null&created_at=lt.${encodeURIComponent(new Date(now - 2 * 86400000).toISOString())}`, { method: 'DELETE', prefer: 'return=minimal' }).catch(() => {});   // never confirmed
 
   if (run && run.id) {

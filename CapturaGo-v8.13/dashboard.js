@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshUnread();
     refreshBookingBadge();
     startInbox();
-    loadAlerts();
+    loadAlerts(); loadWatches();
     loadEmailPrefs(); loadGiftCards(); loadPhone();
     handleReturnParams();
   }
@@ -519,6 +519,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { error: e } = await CG.alerts.remove(btn.dataset.id);
       if (e) { btn.disabled = false; showToast('Could not remove it.', 'error'); return; }
       loadAlerts();
+    }));
+  }
+
+  /* ── "Creators you're waiting for" (notify me when a fully booked creator has a free day or a deal) ── */
+  async function loadWatches() {
+    const card = $('watchesCard');
+    if (!card) return;
+    const { data } = await CG.watches.mine();
+    if (!data || !data.length) { card.hidden = true; return; }
+    card.hidden = false;
+    $('watchesList').innerHTML = data.map(w => `
+      <li><span><a href="${w.handle ? `/c/${esc(encodeURIComponent(w.handle))}` : `/?creator=${esc(w.photographer_id)}`}" translate="no">${esc(w.name)}</a>${w.city ? ` · ${esc(String(w.city).split(',')[0])}` : ''}${w.by_text ? ' · 📱' : ''}</span>
+        ${w.notified_at ? `<span class="muted small">${w.notified_reason === 'deal' ? '✓ We told you about a deal' : '✓ We told you about a free day'}</span>` : '<span class="muted small">Waiting</span>'}
+        <button type="button" class="link-btn danger-link wt-del" data-id="${esc(w.photographer_id)}">Remove</button></li>`).join('');
+    $('watchesList').querySelectorAll('.wt-del').forEach(btn => btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error: e } = await CG.watches.remove(btn.dataset.id);
+      if (e) { btn.disabled = false; showToast('Could not remove it.', 'error'); return; }
+      loadWatches();
     }));
   }
 
@@ -1349,6 +1368,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let photoCounts = {};
   let pendingBooking = null;   // ?b=<id> from an email → open that booking's photos
   let pendingReview = null;    // ?review=<id> from the review reminder email → open the review form
+  let pendingMove = null;      // ?move=<id> from a heavy-rain email or text → "Propose a new date" (bad weather)
   // The client sees the gallery once the creator sends it (session) or delivers (remote order)
   const clientSeesPhotos = (b) => isRemote(b)
     ? (b.status === 'delivered' || b.status === 'completed' || (b.revisions_used || 0) > 0)
@@ -1535,6 +1555,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (reviewedSet.has(b.id)) showToast("You've already reviewed this booking — thank you!", 'info');
         else openReview(b);
       }
+    }
+    if (pendingMove) {
+      const b = bookingMap.get(pendingMove);
+      pendingMove = null;
+      if (b) {
+        const card = box.querySelector(`[data-bk="${CSS.escape(b.id)}"]`);
+        if (card) { card.classList.add('bk-flash'); card.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+        if (!canPlan(b) || daysUntil(b.shoot_date) < 0) showToast('This shoot can no longer be moved.', 'info', 6000);
+        else if (b.proposed_date && b.proposed_by && b.proposed_by !== user.id) showToast('A new date was already proposed to you — accept or keep the original date below.', 'info', 7000);
+        else if ((b.reschedules || 0) >= 3) showToast('This booking was already moved 3 times. Please message each other.', 'info', 7000);
+        else openReschedule(b, true);
+      } else showToast('Booking not found — are you signed in with the right account?', 'error', 6000);
     }
     if (pendingBooking) {
       const b = bookingMap.get(pendingBooking);
@@ -2591,7 +2623,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="char-counter"><span id="rvCount">0</span>/1000</div>
         <div class="rv-photos" id="rvPhotos" hidden>
           <strong class="small">Add up to 3 of your photos <span class="muted">(optional)</span></strong>
-          <p class="muted small" style="margin:2px 0 8px">They're shown publicly with your review. Your favourites come first.</p>
+          <p class="muted small" style="margin:2px 0 8px">They're shown publicly with your review. The first one you pick is your favourite — it's also shown on the creator's profile.</p>
           <div class="rv-photo-grid" id="rvPhotoGrid"></div>
         </div>
         <button type="submit" class="primary-btn" id="rvSend">Publish review</button>
@@ -2610,7 +2642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const paintPick = () => {
           $('rvPhotoGrid').innerHTML = pick.photos.map((p) => {
             const n = pick.chosen.indexOf(p.id);
-            return `<button type="button" class="rv-pick${n >= 0 ? ' on' : ''}" data-id="${esc(p.id)}" aria-pressed="${n >= 0}" aria-label="${n >= 0 ? 'Remove photo from review' : 'Add photo to review'}">${pick.thumbs[p.path] ? `<img src="${esc(pick.thumbs[p.path])}" alt="" loading="lazy" />` : ''}${n >= 0 ? `<span>${n + 1}</span>` : ''}${p.favorite ? '<i>♥</i>' : ''}</button>`;
+            return `<button type="button" class="rv-pick${n >= 0 ? ' on' : ''}${n === 0 ? ' fav' : ''}" data-id="${esc(p.id)}" aria-pressed="${n >= 0}" aria-label="${n >= 0 ? 'Remove photo from review' : 'Add photo to review'}">${pick.thumbs[p.path] ? `<img src="${esc(pick.thumbs[p.path])}" alt="" loading="lazy" />` : ''}${n === 0 ? '<span title="Your favourite — shown on the profile">★</span>' : n > 0 ? `<span>${n + 1}</span>` : ''}${p.favorite ? '<i>♥</i>' : ''}</button>`;
           }).join('');
         };
         $('rvPhotoGrid').addEventListener('click', (e) => {
@@ -2818,6 +2850,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (q.get('c')) { showPanel('messages'); openConversation(q.get('c')); }
     else if (q.get('b') && /^[0-9a-f-]{36}$/i.test(q.get('b'))) { pendingBooking = q.get('b').toLowerCase(); showPanel('bookings'); }
     else if (q.get('review') && /^[0-9a-f-]{36}$/i.test(q.get('review'))) { pendingReview = q.get('review').toLowerCase(); showPanel('bookings'); }
+    else if (q.get('move') && /^[0-9a-f-]{36}$/i.test(q.get('move'))) { pendingMove = q.get('move').toLowerCase(); showPanel('bookings'); }
     else if (q.get('stripe')) { showPanel('payments'); if (q.get('stripe') === 'return') showToast('Welcome back — checking your payout status…', 'info'); }
     else if (q.get('boost') === 'ok') {
       showPanel('boost');

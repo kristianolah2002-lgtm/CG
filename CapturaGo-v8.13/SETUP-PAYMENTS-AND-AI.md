@@ -434,6 +434,51 @@ message to yourself from a second account → the email arrives in German. As a 
 booking window and Stripe show the lower price. Add your own phone number in Overview → you get the code by SMS →
 confirm → book a shoot for tomorrow with a meeting time before 9:00 → the reminder arrives the evening before.
 
+## Part 20 — Deals for gift cards, rain-aware reminders, fast responders, clients' shots, "Notify me" (5 min) — v8.14
+What's new:
+- **Gift cards on last-minute deals.** `capturago.com/gift.html#deals` lists today's deals (tomorrow / the day after),
+  optionally for one city. With a gift card code (signed in) each deal shows "🎁 Fully covered by your card" or what is
+  left to pay; **Book this deal** opens the creator on that day and fills in the code. **🎲 Surprise me** picks a deal at
+  random (one the card fully covers, if there is one). Buyers can tick **"Make it a Surprise me gift"** — the emails and
+  the printable card then invite the recipient to press Surprise me. (Paying with a gift card on a deal already worked;
+  the server applies the deal price first, then the card.)
+- **Weather-aware reminders.** The hourly job checks Open-Meteo (free, no key) before the "your shoot is tomorrow" emails
+  and the shoot-day text. If **heavy rain** is forecast (heavy rain / violent showers / thunderstorm, or 10 mm+ that is
+  likely), both people get "🌧 Heavy rain is forecast — 📅 Propose a new date", one tap to `dashboard.html?move=…`, which
+  opens "Propose a new date" with *bad weather* already chosen. Nothing changes until the other person accepts (as before).
+  No offer when the booking can't be moved any more (3 moves, or a new date already proposed). If Open-Meteo is down, the
+  normal reminders go out.
+- **Fast responders ranked higher.** After boosted listings, creators who usually reply within an hour come first, then
+  within a few hours, then within a day (same measurement as the badge: 3+ answered travellers). Homepage, city pages,
+  trip planner; AI match prefers them between equal fits. Cards show "💬 Replies within an hour".
+- **Clients' favourite shots.** Profiles show a row with the first photo of each review (the traveller's favourite —
+  the review form now says so). No new data: these photos were already public with the reviews.
+- **🔔 Notify me on fully booked creators.** When a creator has no free day in the next 2 weeks (or isn't taking
+  bookings), the profile offers **Notify me** (+ "Also send me a text message" for people with a confirmed number). The
+  hourly job sends one email (and one SMS if asked) when a day that was taken opens up within 60 days, or when the
+  creator posts a last-minute deal. Travellers see and remove them in Dashboard → Overview → *Creators you're waiting for*.
+
+1. **Database:** run the whole `database.sql` again (safe to re-run). It adds the `creator_watches` table and its
+   functions, and a `surprise` column on gift cards.
+2. **Re-deploy 4 functions** (keep their Verify JWT settings): `scheduled-jobs`, `create-gift`, `stripe-webhook`,
+   `ai-match`. (All the other `index.ts` files were rebuilt too because they share the same helper code, but they work
+   exactly as before — re-deploying them is optional.)
+3. **Website:** deploy the whole folder (changed: `gift.html`, `gift.js`, `script.js`, `dashboard.*`, `city.js`,
+   `site.js`, `supabase.js`, `style.css`, `i18n/`, `terms.html`, `privacy.html`).
+4. No new secrets. "Notify me" texts use the Twilio setup from Part 19 (SMS only); without Twilio they're email only.
+5. **App:** the mobile app (separate project) doesn't have these screens yet — it keeps working as before.
+
+**Test (test mode, two accounts):**
+- Creator A: Availability → ⚡ a −20% deal for tomorrow. Traveller B (signed in): `gift.html#deals` → type A's city →
+  **Show deals** → A's deal appears; enter a test gift card code → "covered" / "to pay" → **Book this deal** → the
+  booking window opens on tomorrow with the code applied. Try **🎲 Surprise me**.
+- Buy a gift card with **Make it a "Surprise me" gift** → the recipient email mentions Surprise me and links to the deals.
+- Creator A: mark the next 14 days as days off → Traveller B opens A's profile → **🔔 Notify me** → Dashboard shows
+  *Creators you're waiting for*. Creator A frees one day → admin panel → **Run jobs now** → B gets "has a free day again".
+- Book a shoot for tomorrow in a city where rain is forecast (or check the job summary: `rain_warnings`) → the reminder
+  email has "Propose a new date"; the link opens that window with *bad weather* chosen.
+- Leave a review with 2 photos → the first one appears under "Clients' favourite shots" on the profile.
+
 ## Going live (only when the site is ready AND these are done)
 1. **Register your business** (živnosť or s.r.o.). Stripe needs real business details to pay you.
 2. Stripe → switch Test mode OFF → **Activate account** → enter business and bank details.

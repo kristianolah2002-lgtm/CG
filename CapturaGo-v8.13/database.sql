@@ -2384,6 +2384,8 @@ CREATE TABLE IF NOT EXISTS gift_cards (
   CONSTRAINT gift_balance_range CHECK (balance_cents BETWEEN 0 AND amount_cents)
 );
 CREATE INDEX IF NOT EXISTS idx_gift_cards_buyer ON gift_cards (buyer_user_id, created_at DESC);
+-- v8.14: a "Surprise me" gift — made for last-minute deals (the recipient lets CapturaGo pick a deal for them)
+ALTER TABLE gift_cards ADD COLUMN IF NOT EXISTS surprise BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE gift_cards ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON gift_cards FROM anon, authenticated;          -- codes are money: only the server and the buyer's own RPC see them
 
@@ -2479,13 +2481,20 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION release_gift(UUID) FROM PUBLIC, anon, authenticated;
 
--- The gift cards I bought (with their codes — I may pass them on)
+-- The gift cards I bought (with their codes — I may pass them on). v8.14 added "surprise", so the old
+-- version (different columns) is dropped first; the grant below is given again.
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'my_gift_cards' AND pronamespace = 'public'::regnamespace
+             AND NOT ('surprise' = ANY(coalesce(proargnames, '{}')))) THEN
+    DROP FUNCTION my_gift_cards();
+  END IF;
+END $$;
 CREATE OR REPLACE FUNCTION my_gift_cards()
 RETURNS TABLE (id UUID, code TEXT, amount_cents INTEGER, balance_cents INTEGER, status TEXT, recipient_name TEXT, recipient_email TEXT,
-               created_at TIMESTAMPTZ, paid_at TIMESTAMPTZ, expires_at TIMESTAMPTZ)
+               created_at TIMESTAMPTZ, paid_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, surprise BOOLEAN)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT g.id, CASE WHEN g.status = 'active' THEN g.code END, g.amount_cents, g.balance_cents, g.status, g.recipient_name, g.recipient_email,
-         g.created_at, g.paid_at, g.expires_at
+         g.created_at, g.paid_at, g.expires_at, g.surprise
   FROM gift_cards g
   WHERE g.buyer_user_id = auth.uid() AND auth.uid() IS NOT NULL AND g.status IN ('active', 'refunded', 'pending_payment')
     AND (g.status <> 'pending_payment' OR g.created_at > NOW() - INTERVAL '1 day')
@@ -3332,6 +3341,136 @@ BEGIN
   RETURN FOUND;
 END $$;
 REVOKE ALL ON FUNCTION claim_text(UUID) FROM PUBLIC, anon, authenticated;
+
+-- ================================================================
+-- PART 20 — v8.14: "Notify me" on fully booked creators (email, or a text
+-- if asked): one alert when a day opens up or a last-minute deal appears.
+-- (Also v8.14, no table needed: gift cards for last-minute deals with
+-- "Surprise me" — column in PART 13; weather-aware reminders and the
+-- fast-responder ranking — server and website.) Safe to run more than once.
+-- ================================================================
+CREATE TABLE IF NOT EXISTS creator_watches (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  photographer_id  UUID        NOT NULL REFERENCES photographers(id) ON DELETE CASCADE,
+  by_text          BOOLEAN     NOT NULL DEFAULT FALSE,           -- also a text (the traveller asked; needs a confirmed number)
+  seen_free        DATE[]      NOT NULL DEFAULT '{}',            -- days already free when the watch started: only days that open up later count
+  until_day        DATE        NOT NULL,                         -- days watched: from tomorrow up to 60 days after the watch started
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  checked_at       TIMESTAMPTZ,
+  notified_at      TIMESTAMPTZ,                                  -- one alert, then the watch is done (the traveller can watch again)
+  notified_reason  TEXT        CHECK (notified_reason IS NULL OR notified_reason IN ('free', 'deal')),
+  CONSTRAINT creator_watches_one UNIQUE (user_id, photographer_id),
+  CONSTRAINT creator_watches_seen CHECK (cardinality(seen_free) <= 70)
+);
+CREATE INDEX IF NOT EXISTS idx_creator_watches_due ON creator_watches (checked_at NULLS FIRST) WHERE notified_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_creator_watches_creator ON creator_watches (photographer_id);
+ALTER TABLE creator_watches ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON creator_watches FROM anon, authenticated;
+GRANT SELECT (id, photographer_id, by_text, until_day, created_at, notified_at, notified_reason), DELETE ON creator_watches TO authenticated;
+DROP POLICY IF EXISTS "own_watches_read" ON creator_watches;
+CREATE POLICY "own_watches_read" ON creator_watches FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "own_watches_delete" ON creator_watches;
+CREATE POLICY "own_watches_delete" ON creator_watches FOR DELETE USING (user_id = auth.uid());
+
+-- Days a creator can be booked online between two dates (visible, available, payouts set up, day free)
+CREATE OR REPLACE FUNCTION creator_free_days(p_photographer UUID, p_from DATE, p_to DATE)
+RETURNS DATE[] LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT coalesce(array_agg(d ORDER BY d), '{}'::DATE[])
+  FROM photographers p,
+       generate_series(greatest(p_from, CURRENT_DATE + 1), least(p_to, CURRENT_DATE + 400), INTERVAL '1 day') g(dd),
+       LATERAL (SELECT g.dd::DATE AS d) x
+  WHERE p.id = p_photographer AND p.hidden IS NOT TRUE AND p.available IS NOT FALSE AND p.payouts_enabled IS TRUE
+    AND creator_day_free(p.id, x.d);
+$$;
+REVOKE ALL ON FUNCTION creator_free_days(UUID, DATE, DATE) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION watch_creator(p_photographer UUID, p_text BOOLEAN DEFAULT FALSE)
+RETURNS JSONB LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE me UUID := auth.uid(); p photographers; seen DATE[]; texts BOOLEAN := coalesce(p_text, FALSE);
+BEGIN
+  IF me IS NULL THEN RAISE EXCEPTION 'Please sign in to get notified.' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO p FROM photographers WHERE id = p_photographer;
+  IF p.id IS NULL OR p.hidden IS TRUE THEN RAISE EXCEPTION 'Creator not found.' USING ERRCODE = 'P0001'; END IF;
+  IF p.user_id = me THEN RAISE EXCEPTION 'That''s your own listing.' USING ERRCODE = 'P0001'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('watch:' || me::text));
+  IF (SELECT count(*) FROM creator_watches WHERE user_id = me AND notified_at IS NULL AND photographer_id <> p.id) >= 30 THEN
+    RAISE EXCEPTION 'You''re already waiting for 30 creators. Remove one in your dashboard first.' USING ERRCODE = 'P0001';
+  END IF;
+  IF texts AND NOT EXISTS (SELECT 1 FROM phone_numbers WHERE user_id = me AND verified_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Add and confirm your mobile number first (Dashboard → Overview → Text reminders).' USING ERRCODE = 'P0001';
+  END IF;
+  seen := creator_free_days(p.id, CURRENT_DATE + 1, CURRENT_DATE + 60);
+  INSERT INTO creator_watches (user_id, photographer_id, by_text, seen_free, until_day)
+  VALUES (me, p.id, texts, seen, CURRENT_DATE + 60)
+  ON CONFLICT (user_id, photographer_id) DO UPDATE SET by_text = EXCLUDED.by_text, seen_free = EXCLUDED.seen_free, until_day = EXCLUDED.until_day,
+    created_at = NOW(), checked_at = NULL, notified_at = NULL, notified_reason = NULL;
+  RETURN jsonb_build_object('watching', true, 'by_text', texts, 'free_days', cardinality(seen));
+END $$;
+REVOKE ALL ON FUNCTION watch_creator(UUID, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION watch_creator(UUID, BOOLEAN) TO authenticated;
+
+CREATE OR REPLACE FUNCTION unwatch_creator(p_photographer UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Please sign in.' USING ERRCODE = '42501'; END IF;
+  DELETE FROM creator_watches WHERE user_id = auth.uid() AND photographer_id = p_photographer;
+  RETURN FOUND;
+END $$;
+REVOKE ALL ON FUNCTION unwatch_creator(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION unwatch_creator(UUID) TO authenticated;
+
+-- The creators I'm waiting for (with their public name, so the dashboard can list them)
+CREATE OR REPLACE FUNCTION my_creator_watches()
+RETURNS TABLE (id UUID, photographer_id UUID, name TEXT, handle TEXT, city TEXT, by_text BOOLEAN, until_day DATE,
+               created_at TIMESTAMPTZ, notified_at TIMESTAMPTZ, notified_reason TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT w.id, w.photographer_id, p.name, p.handle, p.city, w.by_text, w.until_day, w.created_at, w.notified_at, w.notified_reason
+  FROM creator_watches w JOIN photographers p ON p.id = w.photographer_id
+  WHERE w.user_id = auth.uid() AND auth.uid() IS NOT NULL AND p.hidden IS NOT TRUE
+    AND (w.notified_at IS NULL OR w.notified_at > NOW() - INTERVAL '30 days')
+  ORDER BY w.notified_at IS NULL DESC, w.created_at DESC
+  LIMIT 50;
+$$;
+REVOKE ALL ON FUNCTION my_creator_watches() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION my_creator_watches() TO authenticated;
+
+-- For the server (hourly job): watches with news — a new last-minute deal since the watch started, or a day
+-- that was taken then and is free now. Checks the oldest-checked watches first, a batch at a time.
+-- The job marks a watch as notified after the alert was sent (so a failed email is tried again next hour).
+CREATE OR REPLACE FUNCTION due_creator_watches(p_limit INTEGER DEFAULT 100)
+RETURNS TABLE (watch_id UUID, user_id UUID, photographer_id UUID, photographer_name TEXT, photographer_handle TEXT,
+               reason TEXT, day DATE, pct INTEGER, free_count INTEGER, by_text BOOLEAN)
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE w creator_watches; p photographers; dd RECORD; fresh DATE[];
+BEGIN
+  FOR w IN SELECT * FROM creator_watches c
+            WHERE c.notified_at IS NULL AND c.until_day >= CURRENT_DATE + 1
+            ORDER BY c.checked_at NULLS FIRST, c.created_at
+            LIMIT greatest(1, least(coalesce(p_limit, 100), 500))
+            FOR UPDATE SKIP LOCKED LOOP
+    UPDATE creator_watches SET checked_at = NOW() WHERE id = w.id;
+    SELECT * INTO p FROM photographers WHERE id = w.photographer_id;
+    CONTINUE WHEN p.id IS NULL OR p.hidden IS TRUE OR p.available IS FALSE OR p.payouts_enabled IS NOT TRUE OR p.user_id = w.user_id;
+    SELECT d.day, d.pct INTO dd FROM last_minute_deals d
+     WHERE d.photographer_id = p.id AND d.removed_at IS NULL AND d.day BETWEEN CURRENT_DATE + 1 AND CURRENT_DATE + 2
+       AND greatest(d.created_at, d.updated_at) > w.created_at AND creator_day_free(p.id, d.day)
+     ORDER BY d.day LIMIT 1;
+    IF FOUND THEN
+      watch_id := w.id; user_id := w.user_id; photographer_id := p.id; photographer_name := p.name; photographer_handle := p.handle;
+      reason := 'deal'; day := dd.day; pct := dd.pct; free_count := NULL; by_text := w.by_text;
+      RETURN NEXT; CONTINUE;
+    END IF;
+    SELECT coalesce(array_agg(x ORDER BY x), '{}'::DATE[]) INTO fresh
+      FROM unnest(creator_free_days(p.id, CURRENT_DATE + 1, w.until_day)) x WHERE NOT (x = ANY(w.seen_free));
+    IF cardinality(fresh) > 0 THEN
+      watch_id := w.id; user_id := w.user_id; photographer_id := p.id; photographer_name := p.name; photographer_handle := p.handle;
+      reason := 'free'; day := fresh[1]; pct := NULL; free_count := cardinality(fresh); by_text := w.by_text;
+      RETURN NEXT;
+    END IF;
+  END LOOP;
+END $$;
+REVOKE ALL ON FUNCTION due_creator_watches(INTEGER) FROM PUBLIC, anon, authenticated;
 
 -- ================================================================
 -- Done. You should see "Success. No rows returned."

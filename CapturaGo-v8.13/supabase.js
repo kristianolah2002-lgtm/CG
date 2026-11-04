@@ -363,6 +363,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       mine: () => run(d => d.rpc('my_gift_cards'))
     },
 
+    /* 🔔 "Notify me" on a fully booked creator: one email (or text) when a day opens up or a deal appears */
+    watches: {
+      add: (pid, byText) => run(d => d.rpc('watch_creator', { p_photographer: pid, p_text: !!byText })),
+      remove: (pid) => run(d => d.rpc('unwatch_creator', { p_photographer: pid })),
+      mine: async () => {
+        const res = await run(d => d.rpc('my_creator_watches'));
+        return res.error ? { data: [], error: null } : res;   // database update not run yet → nothing to show
+      }
+    },
+
     /* Last-minute deals: the live ones (public), and mine — a lower price tomorrow or the day after */
     deals: {
       active: () => run(d => d.rpc('active_deals')),

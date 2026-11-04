@@ -42,7 +42,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (real) { const h1 = $('cityTitle'); if (h1) h1.textContent = `Photographers & creators in ${real}`; name = real; }
   }
   const isBoosted = (p) => !!(p.boosted_until && Date.parse(p.boosted_until) > Date.now());
-  here.sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)) || Number(isFounding(b)) - Number(isFounding(a)) || (Number(b.rating) || 0) - (Number(a.rating) || 0));
+  // Boosted, then founding creators, then fast responders (usually reply within an hour / a few hours / a day), then rating
+  here.sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)) || Number(isFounding(b)) - Number(isFounding(a)) || replyRank(b) - replyRank(a) || (Number(b.rating) || 0) - (Number(a.rating) || 0));
   visiting.sort((a, b) => (a._trip.from < b._trip.from ? -1 : 1));
   here.push(...visiting);
   const fromPrice = (p) => {
