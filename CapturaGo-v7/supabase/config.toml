@@ -1,7 +1,0 @@
-# Only used if you deploy with the Supabase CLI.
-# Public functions (no sign-in required):
-[functions.ai-match]
-verify_jwt = false
-
-[functions.stripe-webhook]
-verify_jwt = false
